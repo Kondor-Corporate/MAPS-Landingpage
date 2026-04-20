@@ -161,14 +161,15 @@ maps-asesores/
 │       ├── services/        ← lógica de negocio (usa Prisma)
 │       ├── middlewares/     ← authenticate, authorize (RBAC), validate (Zod)
 │       ├── validations/     ← Zod schemas por recurso
+│       ├── types/           ← roles, augmentación Express
 │       └── config/          ← env.ts (validación de variables al startup)
-│
-├── prisma/
-│   ├── schema.prisma
-│   └── migrations/
+│   └── prisma/
+│       ├── schema.prisma
+│       └── migrations/
 │
 ├── docker-compose.yml
-├── .env.example
+├── backend/.env.example
+├── frontend/.env.example
 ├── .gitignore
 └── README.md
 ```

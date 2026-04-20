@@ -1,0 +1,132 @@
+// MAPS Asesores — dominio acordado (Usuario, Productor, Noticia, Biblioteca, Ramo, Recurso, RedSocial)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  SUPERADMIN
+  ADMIN
+  PRODUCER
+}
+
+enum Visibilidad {
+  INTERNA
+  PUBLICA
+}
+
+model Usuario {
+  id           Int      @id @default(autoincrement())
+  activo       Boolean  @default(true)
+  usuario      String   @unique
+  passwordHash String   @map("password_hash")
+  rol          Rol      @default(PRODUCER)
+  creadoPorId  Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  creadoPor Usuario?  @relation("CreadoPor", fields: [creadoPorId], references: [id])
+  creadados Usuario[] @relation("CreadoPor")
+
+  productor Productor?
+  noticias  Noticia[]
+  recursos  Recurso[]
+}
+
+model Productor {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int      @unique
+  slug      String   @unique
+  nombre    String
+  apellido  String
+  bio       String?
+  ciudad    String?
+  dni       String?  @unique
+  foto      String?
+  latitud   Float?
+  longitud  Float?
+  telefono  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuario       Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  redesSociales RedSocial[]
+}
+
+model RedSocial {
+  id          Int      @id @default(autoincrement())
+  productorId Int
+  plataforma  String
+  url         String
+  orden       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  productor Productor @relation(fields: [productorId], references: [id], onDelete: Cascade)
+
+  @@index([productorId])
+}
+
+model Noticia {
+  id          Int         @id @default(autoincrement())
+  titulo      String
+  slug        String      @unique
+  descripcion String?
+  contenido   String
+  imagenUrl   String?     @map("imagen_url")
+  publicada   Boolean     @default(false)
+  publicadaEn DateTime?   @map("publicada_en")
+  visibilidad Visibilidad @default(PUBLICA)
+  autorId     Int
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  autor Usuario @relation(fields: [autorId], references: [id])
+
+  @@index([autorId])
+  @@index([publicada, visibilidad])
+}
+
+model Biblioteca {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ramos Ramo[]
+}
+
+model Ramo {
+  id           Int      @id @default(autoincrement())
+  bibliotecaId Int
+  nombre       String
+  descripcion  String?
+  orden        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  biblioteca Biblioteca @relation(fields: [bibliotecaId], references: [id], onDelete: Cascade)
+  recursos   Recurso[]
+
+  @@index([bibliotecaId])
+}
+
+model Recurso {
+  id          Int      @id @default(autoincrement())
+  ramoId      Int
+  url         String
+  subidoPorId Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ramo      Ramo    @relation(fields: [ramoId], references: [id], onDelete: Cascade)
+  subidoPor Usuario @relation(fields: [subidoPorId], references: [id])
+
+  @@index([ramoId])
+  @@index([subidoPorId])
+}
