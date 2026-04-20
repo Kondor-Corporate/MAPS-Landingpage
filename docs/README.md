@@ -80,7 +80,6 @@ Definidas en [`backend/src/api/v1/routes/auth.routes.ts`](../backend/src/api/v1/
 | Punto de entrada | [`frontend/src/main.tsx`](../frontend/src/main.tsx) | Monta actualmente **`<LoginPage />`**. |
 | Estilos / tokens | [`frontend/tailwind.config.ts`](../frontend/tailwind.config.ts), [`frontend/index.html`](../frontend/index.html) | Paleta `maps.*`, fuente **Manrope** vía Google Fonts. |
 
-La etiqueta del formulario sigue el copy de Figma («Correo electrónico»); el backend espera el campo **`usuario`**, por lo que el valor enviado puede ser nombre de usuario (p. ej. seed `admin`) o un identificador con formato correo si el negocio lo define así.
 
 ---
 
@@ -89,7 +88,7 @@ La etiqueta del formulario sigue el copy de Figma («Correo electrónico»); el 
 ### 1. Prerrequisitos
 
 - Node.js LTS (≥ 20 recomendado).
-- PostgreSQL accesible (local o Docker según [`docker-compose.yml`](../docker-compose.yml) del repo).
+- PostgreSQL accesible
 - Archivos **`.env`** en backend y frontend (copiar desde `.env.example`).
 
 **Backend** — variables relevantes validadas en [`loadEnv()`](../backend/src/config/env.ts):
@@ -228,12 +227,65 @@ MAPS-Landingpage/
 
 ---
 
-## Colaboración y siguientes pasos sugeridos
+## Próxima etapa: qué debería hacerse a continuación
 
-- Enlazar **«Solicitar Acceso»** y **«Contactar soporte»** a rutas o URLs reales cuando existan.
-- Sustituir assets remotos de Figma por archivos estáticos en `frontend/public` para entornos productivos.
-- Integrar **React Router** y pantallas post-login cuando la siguiente etapa lo defina, reutilizando `maps_access_token` y la cookie `maps_refresh` para **`POST /api/v1/auth/refresh`**.
+Con el **login funcional** (API + pantalla), el siguiente trabajo prioriza **cerrar el flujo de sesión en el cliente** y **dar destino al usuario según su rol**. La lista está ordenada por dependencias: conviene avanzar de arriba hacia abajo salvo que el producto defina otro foco (p. ej. solo landing pública).
+
+### 1. Enrutamiento en el frontend (bloqueante para el resto)
+
+| Acción | Detalle |
+|--------|---------|
+| Añadir **React Router** | Instalar `react-router-dom` y definir rutas públicas vs. protegidas. |
+| Cambiar el punto de entrada | Sustituir el montaje directo de `<LoginPage />` en [`frontend/src/main.tsx`](../frontend/src/main.tsx) por un árbol con **`<BrowserRouter>`** y el router principal. |
+| Activar los stubs existentes | Implementar [`frontend/src/router/AppRouter`](../frontend/src/router/index.tsx), [`PublicRoutes.tsx`](../frontend/src/router/PublicRoutes.tsx), [`ProtectedRoutes.tsx`](../frontend/src/router/ProtectedRoutes.tsx) y [`RoleGuard.tsx`](../frontend/src/router/RoleGuard.tsx) para redirigir según autenticación y `user.rol` (`PRODUCER`, `ADMIN`, `SUPERADMIN`). |
+
+**Rutas mínimas sugeridas:** `/login` (o `/`), `/intranet/...`, `/admin/...`, y en su momento `/` o `/inicio` para la web pública.
+
+### 2. Capa de autenticación en el cliente
+
+| Acción | Detalle |
+|--------|---------|
+| **Contexto o hook** (`useAuth`) | Estado: usuario actual, token de acceso, `login`, `logout`, `refresh`. Leer `maps_access_token` de `sessionStorage` / `localStorage` al iniciar la app. |
+| **Refresh automático** | Ante `401` en peticiones autenticadas, llamar **`POST /api/v1/auth/refresh`** con **`credentials: 'include'`** (cookie `maps_refresh`), guardar el nuevo `accessToken` y reintentar la petición una vez. |
+| **Logout** | Llamar **`POST /api/v1/auth/logout`** con `Authorization: Bearer` y limpiar almacenamiento local + redirigir a `/login`. |
+
+Referencia de API: [`backend/src/api/v1/routes/auth.routes.ts`](../backend/src/api/v1/routes/auth.routes.ts).
+
+### 3. Experiencia post-login
+
+| Acción | Detalle |
+|--------|---------|
+| **Redirección por rol** | Tras login exitoso en [`LoginPage.tsx`](../frontend/src/modules/auth/pages/LoginPage.tsx), navegar al dashboard que corresponda (productor vs. admin) en lugar de solo mostrar un mensaje de éxito. |
+| **Layouts reales** | Completar [`AppLayout.tsx`](../frontend/src/shared/layouts/AppLayout.tsx) (intranet/admin) con cabecera o sidebar placeholder para validar navegación. |
+| **Páginas stub** | Sustituir `return null` en [`DashboardPage`](../frontend/src/modules/intranet/pages/DashboardPage.tsx), [`admin/DashboardPage`](../frontend/src/modules/admin/pages/DashboardPage.tsx), etc., por pantallas mínimas (“en construcción”) para probar el circuito completo. |
+
+### 4. Ajustes puntuales del login y assets
+
+| Acción | Detalle |
+|--------|---------|
+| Enlaces del formulario | Definir destino real para **«Solicitar Acceso»**, **«¿Olvidaste tu contraseña?»** y **«Contactar soporte»** (rutas internas o URLs externas). |
+| Logo e imágenes | Copiar assets de Figma a `frontend/public` y referenciarlos por ruta local (evita URLs temporales del MCP de Figma en producción). |
+
+### 5. Web pública e intranet (prioridad según negocio)
+
+| Ámbito | Ubicación en código | Notas |
+|--------|---------------------|--------|
+| Landing / mapa / noticias | [`frontend/src/modules/public-web/`](../frontend/src/modules/public-web/) | Componentes y páginas hoy en stub; alineados al diseño **Maps-Pagina-Web** (Figma). |
+| Productor | [`frontend/src/modules/intranet/`](../frontend/src/modules/intranet/) | Conectar con endpoints ya definidos en el backend (`/producers`, `/library`, `/news`, etc.) según el README raíz. |
+| Administración | [`frontend/src/modules/admin/`](../frontend/src/modules/admin/) | Misma idea: UI sobre rutas existentes con `authenticate` + `authorize`. |
+
+### 6. Calidad y entornos
+
+| Acción | Detalle |
+|--------|---------|
+| **Pruebas E2E** | Valorar **Playwright** (o similar): flujo login → pantalla protegida → logout. |
+| **CORS y cookies** | Confirmar que `FRONTEND_ORIGIN` en backend coincide con la URL real del frontend en cada entorno; en producción, revisar `secure` en cookies y HTTPS. |
+| **Documentación** | Actualizar el [README raíz](../README.md) cuando React Router y el cliente HTTP estén efectivamente en `package.json`, para que el stack documentado coincida con el código. |
+
+### Resumen en una frase
+
+**Implementar router + guards + refresh en cliente + redirección por rol y una pantalla mínima por zona** desbloquea al equipo para trabajar en paralelo en landing pública, intranet y admin sin rehacer el login.
 
 ---
 
-*Documento generado para alinear al equipo en la etapa Auth — Backend y UI responsive. Para dudas de arquitectura global, consultar el README en la raíz del repositorio.*
+*Documento para alinear al equipo en la etapa Auth — Backend y UI responsive. Para arquitectura global y convenciones, ver el README en la raíz del repositorio.*
