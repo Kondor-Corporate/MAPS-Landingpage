@@ -1,9 +1,4 @@
-import type { Role } from './roles.js';
-
-export type JWTPayload = {
-  sub: string;
-  role: Role;
-};
+import type { JWTPayload } from './jwt.js';
 
 declare global {
   namespace Express {
