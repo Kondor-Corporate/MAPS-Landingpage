@@ -139,6 +139,34 @@ curl http://localhost:3000/api/v1/health
 # Respuesta esperada: { "status": "ok", "timestamp": "..." }
 ```
 
+### 8. Tests de integración del backend (auth)
+
+Requisitos: PostgreSQL levantado, migraciones aplicadas y seed ejecutado (`cd backend && npm run db:seed`). El archivo `backend/.env` debe incluir `DATABASE_URL`, `JWT_SECRET`, `REFRESH_SECRET` y el resto de variables validadas en `src/config/env.ts`.
+
+```bash
+cd backend
+npm test              # una pasada
+npm run test:watch    # modo observación
+```
+
+Los tests viven en `backend/tests/` y usan **Vitest** + **Supertest** contra la app en memoria (`createApp()`), sin levantar un servidor real.
+
+#### Qué hace cada test (`tests/auth.integration.test.ts`)
+
+| Test | Qué comprueba |
+|------|----------------|
+| **POST /login — credenciales válidas** | Respuesta `200` con `accessToken` y `refreshToken` en formato JWT, usuario `admin` con rol `ADMIN`, y que la respuesta **no** expone `passwordHash`. |
+| **POST /login — contraseña incorrecta** | `401` con mensaje genérico `Credenciales inválidas` (no filtra si el usuario existe). |
+| **POST /login — usuario inexistente** | Mismo `401` y mismo mensaje que con contraseña mala (anti-enumeración de usuarios). |
+| **POST /login — body inválido** | `400` cuando faltan campos requeridos (validación Zod). |
+| **POST /refresh — token válido** | Tras un login correcto, el refresh devuelve `200` y un **nuevo** `accessToken`; no devuelve otro refresh en el payload. |
+| **POST /refresh — token inválido** | `401` si el string no es un JWT válido firmado como refresh. |
+| **POST /refresh — access como refresh** | `401` si se envía el **access token** en el cuerpo donde debe ir el refresh (secret y tipo distintos). |
+| **POST /logout — revoca sesión** | Con `Authorization: Bearer` + `refreshToken` en el body, `200`; un segundo `POST /refresh` con el mismo refresh devuelve `401` (sesión revocada en base de datos). |
+| **POST /logout — sin Authorization** | `401` si falta el header `Bearer` (middleware `authenticate`). |
+
+En entorno de test (`NODE_ENV=test`) el rate limit del login está relajado para no interferir con la suite.
+
 ---
 
 ## Estructura de carpetas
@@ -155,6 +183,7 @@ maps-asesores/
 │       └── router/          ← React Router + guards de rol
 │
 ├── backend/
+│   ├── tests/               ← Vitest + Supertest (p. ej. auth.integration.test.ts)
 │   └── src/
 │       ├── api/v1/routes/   ← definición de endpoints
 │       ├── controllers/     ← capa HTTP (req → service → res)

@@ -1,5 +1,6 @@
+/** Alineado con el enum Prisma `Rol` (PRODUCTOR, no PRODUCER). */
 export const Role = {
-  PRODUCER: 'PRODUCER',
+  PRODUCTOR: 'PRODUCTOR',
   ADMIN: 'ADMIN',
   SUPERADMIN: 'SUPERADMIN',
 } as const;

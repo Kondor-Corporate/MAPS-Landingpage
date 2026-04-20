@@ -11,7 +11,7 @@ datasource db {
 enum Rol {
   SUPERADMIN
   ADMIN
-  PRODUCER
+  PRODUCTOR
 }
 
 enum Visibilidad {
@@ -24,7 +24,7 @@ model Usuario {
   activo       Boolean  @default(true)
   usuario      String   @unique
   passwordHash String   @map("password_hash")
-  rol          Rol      @default(PRODUCER)
+  rol          Rol      @default(PRODUCTOR)
   creadoPorId  Int?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -35,6 +35,20 @@ model Usuario {
   productor Productor?
   noticias  Noticia[]
   recursos  Recurso[]
+  sesiones SesionToken[]
+}
+
+model SesionToken {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int      @map("usuario_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("sesion_token")
 }
 
 model Productor {
