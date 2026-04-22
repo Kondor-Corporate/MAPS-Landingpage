@@ -1,8 +1,10 @@
+import { isAxiosError } from 'axios';
 import { useId, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '@/lib/axios';
 import { AuthLayout } from '@/shared/layouts/AuthLayout';
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
+import type { Rol } from '@/store/authStore';
+import { useAuthStore } from '@/store/authStore';
 
 type FieldErrors = {
   usuario?: string;
@@ -34,23 +36,21 @@ type LoginResponse = {
 
 export function LoginPage() {
   const formId = useId();
+  const navigate = useNavigate();
+  const login = useAuthStore((s) => s.login);
   const usuarioId = `${formId}-usuario`;
   const passwordId = `${formId}-password`;
-  const rememberId = `${formId}-remember`;
 
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [apiError, setApiError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setApiError(null);
-    setSuccessMessage(null);
 
     const next: FieldErrors = {};
     const uErr = validateUsuario(usuario);
@@ -62,31 +62,36 @@ export function LoginPage() {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          usuario: usuario.trim(),
-          password,
-        }),
+      const { data: body } = await api.post<LoginResponse>('/auth/login', {
+        usuario: usuario.trim(),
+        password,
       });
 
-      const json = (await res.json()) as LoginResponse;
-
-      if (!res.ok) {
-        setApiError(json.message || 'No se pudo iniciar sesión.');
+      if (!body.data) {
+        setApiError('Respuesta inesperada del servidor.');
         return;
       }
 
-      if (json.data?.accessToken) {
-        const storage = rememberMe ? localStorage : sessionStorage;
-        storage.setItem('maps_access_token', json.data.accessToken);
-        if (!rememberMe) localStorage.removeItem('maps_access_token');
-        else sessionStorage.removeItem('maps_access_token');
-        setSuccessMessage(`Sesión iniciada como ${json.data.user.usuario}.`);
+      const { accessToken, user: u } = body.data;
+      const user = {
+        id: u.id,
+        usuario: u.usuario,
+        rol: u.rol as Rol,
+      };
+      login(user, accessToken);
+      if (user.rol === 'PRODUCTOR') {
+        void navigate('/intranet/dashboard', { replace: true });
+      } else {
+        void navigate('/admin/dashboard', { replace: true });
       }
-    } catch {
+    } catch (err) {
+      if (isAxiosError(err) && err.response) {
+        const data = err.response.data as { message?: string } | undefined;
+        setApiError(
+          data?.message ?? 'No se pudo iniciar sesión.',
+        );
+        return;
+      }
       setApiError('Error de red. Comprueba tu conexión y la URL del API.');
     } finally {
       setIsLoading(false);
@@ -115,14 +120,6 @@ export function LoginPage() {
               className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
             >
               {apiError}
-            </div>
-          ) : null}
-          {successMessage ? (
-            <div
-              role="status"
-              className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-            >
-              {successMessage}
             </div>
           ) : null}
 
@@ -196,18 +193,7 @@ export function LoginPage() {
             ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-            <label className="flex cursor-pointer items-center gap-2 text-maps-body">
-              <input
-                id={rememberId}
-                name="remember"
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 rounded border-maps-border text-maps-brand focus:ring-maps-brand"
-              />
-              Recordarme
-            </label>
+          <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
             <a
               href="#"
               className="font-medium text-maps-brand transition hover:text-maps-brand-hover hover:underline focus:outline-none focus:ring-2 focus:ring-maps-brand/40 rounded"
