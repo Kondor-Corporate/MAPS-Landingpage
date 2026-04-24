@@ -33,7 +33,7 @@ const intranetRolePath = {
   children: [
     {
       element: (
-        <RoleGuard allowedRoles={['PRODUCTOR', 'ADMIN', 'SUPERADMIN']} />
+        <RoleGuard allowedRoles={['PRODUCTOR']} />
       ),
       children: [
         {

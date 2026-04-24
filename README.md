@@ -35,7 +35,9 @@ Incluye tres zonas diferenciadas:
 | ORM | Prisma |
 | Base de datos | PostgreSQL |
 | Validación | Zod (por endpoint) |
-| Auth | JWT + RBAC (PRODUCER / ADMIN / SUPERADMIN) |
+| Auth | JWT + RBAC (roles: `PRODUCTOR` / `ADMIN` / `SUPERADMIN`) |
+
+> **Reglas de acceso por zona:** `PRODUCTOR` → `/intranet/*` (solo su propio perfil). `ADMIN` y `SUPERADMIN` → `/admin/*`. Un admin no accede a `/intranet` salvo que tenga también cuenta de productor separada. La web pública (`/`, `/productor/:slug`) es accesible sin autenticación.
 
 ### Infraestructura local
 
