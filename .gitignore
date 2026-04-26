@@ -73,3 +73,11 @@ docker-compose.override.yml
 *.local
 .cache/
 tmp/
+
+# ── Artefactos de modelado (Enterprise Architect, etc.) ──────
+# Los archivos .EAP y .bmp del modelo de dominio son binarios
+# pesados sin valor de diff en git. Mantener en repo de docs
+# externo o usar Git LFS si se requiere historial.
+*.EAP
+*.ldb
+Arquitectura/**/*.bmp
