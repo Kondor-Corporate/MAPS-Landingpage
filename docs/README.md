@@ -93,7 +93,7 @@ Definidas en [`backend/src/api/v1/routes/auth.routes.ts`](../backend/src/api/v1/
 ### 1. Prerrequisitos
 
 - Node.js LTS (≥ 20 recomendado).
-- PostgreSQL accesible
+- PostgreSQL accesible. Para desarrollo local, usar Docker Compose desde la raíz del repo.
 - Archivos **`.env`** en backend y frontend (copiar desde `.env.example`).
 
 **Backend** — variables relevantes validadas en [`loadEnv()`](../backend/src/config/env.ts):
@@ -103,13 +103,25 @@ Definidas en [`backend/src/api/v1/routes/auth.routes.ts`](../backend/src/api/v1/
 - `JWT_EXPIRES_IN`, `REFRESH_EXPIRES_IN`
 - `FRONTEND_ORIGIN` (debe coincidir con el origen del Vite dev server, p. ej. `http://localhost:5173`)
 
+En esta etapa Docker se usa solo para PostgreSQL. Backend y frontend corren localmente con `npm run dev`. La base oficial de desarrollo es `maps_asesores_dev`, expuesta en `localhost:5432` por `docker-compose.yml`.
+
 **Frontend** — [`frontend/.env.example`](../frontend/.env.example):
 
 ```env
 VITE_API_BASE_URL=http://localhost:3000/api/v1
 ```
 
-### 2. Migraciones y seed
+### 2. Base de datos, migraciones y seed
+
+Desde la raíz del repo:
+
+```bash
+docker compose up -d
+docker compose ps
+docker compose logs db
+```
+
+pgAdmin es opcional: conectarlo a host `localhost`, puerto `5432`, usuario `postgres`, password `postgres`, base `maps_asesores_dev`.
 
 Desde la carpeta **`backend/`**:
 
@@ -118,6 +130,8 @@ npm install
 npx prisma migrate dev
 npm run db:seed
 ```
+
+Para resetear completamente la base local de Docker, usar `docker compose down -v` desde la raíz. Esto borra el volumen `pgdata` y elimina los datos persistidos.
 
 El seed ([`backend/prisma/seed.ts`](../backend/prisma/seed.ts)) crea usuarios de prueba, entre otros:
 

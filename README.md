@@ -43,8 +43,10 @@ Incluye tres zonas diferenciadas:
 
 | Herramienta | Uso |
 |---|---|
-| Docker + Docker Compose | PostgreSQL local |
+| Docker + Docker Compose | PostgreSQL local solamente |
 | `.env` | Variables de entorno (ver `.env.example`) |
+
+> En desarrollo, Docker se usa solo para la base de datos. Backend y frontend corren localmente con `npm run dev`.
 
 ---
 
@@ -92,11 +94,12 @@ Editá los archivos `.env` con los valores correspondientes.
 docker compose up -d
 ```
 
-Esto levanta un contenedor PostgreSQL en `localhost:5432`.  
-Podés verificar que esté corriendo con:
+Esto levanta un contenedor PostgreSQL en `localhost:5432` con la base oficial de desarrollo `maps_asesores_dev`.
+Podés verificar estado y logs con:
 
 ```bash
 docker compose ps
+docker compose logs db
 ```
 
 ### 4. Instalar dependencias
@@ -116,6 +119,7 @@ npm install
 ```bash
 cd backend
 npx prisma migrate dev
+npm run db:seed
 ```
 
 ### 6. Correr el proyecto
@@ -168,6 +172,59 @@ Los tests viven en `backend/tests/` y usan **Vitest** + **Supertest** contra la 
 | **POST /logout — sin Authorization** | `401` si falta el header `Bearer` (middleware `authenticate`). |
 
 En entorno de test (`NODE_ENV=test`) el rate limit del login está relajado para no interferir con la suite.
+
+---
+
+## Base de datos local con Docker
+
+El archivo [`docker-compose.yml`](./docker-compose.yml) define solo PostgreSQL para desarrollo:
+
+- Servicio: `db`
+- Imagen: `postgres:16-alpine`
+- Host/puerto desde el equipo: `localhost:5432`
+- Base oficial de desarrollo: `maps_asesores_dev`
+- Usuario: `postgres`
+- Password: `postgres`
+- Volumen persistente: `pgdata`
+
+El backend local usa `localhost` en `DATABASE_URL` porque corre fuera de Docker:
+
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maps_asesores_dev"
+```
+
+Si en el futuro el backend corre dentro de Docker, el host de la URL debería ser el nombre del servicio (`db`) en lugar de `localhost`.
+
+Comandos útiles:
+
+```bash
+docker compose up -d        # levanta PostgreSQL
+docker compose ps           # muestra estado del servicio
+docker compose logs db      # muestra logs de PostgreSQL
+docker compose down         # detiene y elimina el contenedor, conserva el volumen
+docker compose down -v      # detiene y elimina también los datos del volumen
+
+cd backend
+npx prisma migrate dev      # aplica migraciones en desarrollo
+npm run db:migrate          # alias del comando anterior
+npm run db:seed             # carga datos iniciales
+npm run prisma:studio       # abre Prisma Studio
+```
+
+pgAdmin es opcional y funciona solo como cliente visual. Para conectarlo:
+
+- Host: `localhost`
+- Port: `5432`
+- User: `postgres`
+- Password: `postgres`
+- Database: `maps_asesores_dev`
+
+Troubleshooting:
+
+- Si `5432` está ocupado, probablemente hay otro PostgreSQL local corriendo. Detenelo o cambiá el puerto host del compose y actualizá `DATABASE_URL`.
+- `docker compose down -v` borra los datos persistidos en `pgdata`; usalo solo cuando quieras resetear la DB.
+- Si existe una DB antigua con datos usando rol `PRODUCER`, revisar la migración hacia `PRODUCTOR` antes de migrar sobre datos reales.
+- pgAdmin no es necesario para que el backend funcione; Prisma usa directamente `DATABASE_URL`.
 
 ---
 
@@ -252,16 +309,19 @@ fix/*         ← correcciones puntuales
 ### `backend/.env.example`
 
 ```env
-# Base de datos
+# Runtime
+NODE_ENV=development
+PORT=3000
+FRONTEND_ORIGIN=http://localhost:5173
+
+# Base de datos local via Docker Compose
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maps_asesores_dev"
 
-# JWT
-JWT_SECRET=change_me_in_production
-JWT_EXPIRES_IN=7d
-
-# Servidor
-PORT=3000
-NODE_ENV=development
+# Auth / JWT
+JWT_SECRET=dev_access_secret_change_me_32_chars_minimum
+JWT_EXPIRES_IN=15m
+REFRESH_SECRET=dev_refresh_secret_change_me_32_chars_minimum
+REFRESH_EXPIRES_IN=30d
 ```
 
 ### `frontend/.env.example`
