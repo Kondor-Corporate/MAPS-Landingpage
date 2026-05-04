@@ -65,6 +65,13 @@ desktop.ini
 *.sln
 *.sw?
 
+# ── Claude Code / agentes ────────────────────────────────────
+# Metadatos locales del CLI de Claude Code y skills/agents.
+# No representan codigo de la app y varian entre maquinas.
+.claude/
+.agents/
+skills-lock.json
+
 # ── Docker ───────────────────────────────────────────────────
 # docker-compose.yml SÍ se versiona; ignorar overrides locales
 docker-compose.override.yml
