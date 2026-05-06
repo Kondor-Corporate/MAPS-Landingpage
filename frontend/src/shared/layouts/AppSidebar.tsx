@@ -1,0 +1,144 @@
+import { NavLink } from 'react-router-dom';
+import { useLogout } from '@/modules/auth/hooks/useLogout';
+import { getSidebarItems, type SidebarItem } from '@/shared/constants/sidebarItems';
+import { useAuthStore, type Rol } from '@/store/authStore';
+
+const ROLE_LABEL: Record<Rol, string> = {
+  PRODUCTOR: 'Productor',
+  ADMIN: 'Admin',
+  SUPERADMIN: 'SuperAdmin',
+};
+
+const LogoutIcon = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 20 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+  >
+    <path
+      d="M8.75 16.25H4.75A1.75 1.75 0 0 1 3 14.5v-9A1.75 1.75 0 0 1 4.75 3.75h4"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="m13.25 13.25 3.5-3.25-3.5-3.25"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M16.5 10H8"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function SidebarLink({ item }: { item: SidebarItem }) {
+  const Icon = item.icon;
+
+  if (item.external) {
+    return (
+      <a
+        href={item.to}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-maps-body transition-colors hover:bg-maps-surface hover:text-maps-heading"
+      >
+        <Icon className="shrink-0" />
+        <span>{item.label}</span>
+      </a>
+    );
+  }
+
+  return (
+    <NavLink
+      to={item.to}
+      end
+      className={({ isActive }) =>
+        [
+          'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+          isActive
+            ? 'bg-maps-brand-soft text-maps-brand'
+            : 'text-maps-body hover:bg-maps-surface hover:text-maps-heading',
+        ].join(' ')
+      }
+    >
+      <Icon className="shrink-0" />
+      <span>{item.label}</span>
+    </NavLink>
+  );
+}
+
+export function AppSidebar() {
+  const user = useAuthStore((s) => s.user);
+  const logout = useLogout();
+
+  if (!user) return null;
+
+  const items = getSidebarItems(user.rol);
+  const roleLabel = ROLE_LABEL[user.rol];
+
+  return (
+    <aside className="hidden w-64 shrink-0 flex-col border-r border-maps-border bg-white lg:flex">
+      <div className="flex items-center gap-3 border-b border-maps-border px-5 py-5">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-maps-brand text-base font-bold text-white">
+          M
+        </div>
+        <div className="flex flex-col">
+          <span className="text-sm font-bold leading-tight text-maps-heading">
+            MAPS Asesores
+          </span>
+          <span className="text-xs leading-tight text-maps-muted">
+            Portal de Productores
+          </span>
+        </div>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+        {items.map((item) => (
+          <SidebarLink key={`${item.label}-${item.to}`} item={item} />
+        ))}
+      </nav>
+
+      <div className="border-t border-maps-border px-4 py-4">
+        <div className="flex items-center gap-3 pb-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-maps-brand-soft text-sm font-bold text-maps-brand">
+            {getInitials(user.usuario)}
+          </div>
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-semibold text-maps-heading">
+              {user.usuario}
+            </span>
+            <span className="truncate text-xs text-maps-muted">
+              {roleLabel}
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => void logout()}
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-maps-body transition-colors hover:bg-red-50 hover:text-red-700"
+        >
+          <LogoutIcon />
+          <span>Cerrar Sesión</span>
+        </button>
+      </div>
+    </aside>
+  );
+}
