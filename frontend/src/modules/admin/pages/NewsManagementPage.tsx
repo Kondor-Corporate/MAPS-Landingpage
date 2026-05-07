@@ -1,3 +1,5 @@
+import { NewsManagementDashboard } from '@/modules/admin/components/NewsManagementDashboard';
+
 export function NewsManagementPage() {
-  return null;
+  return <NewsManagementDashboard />;
 }

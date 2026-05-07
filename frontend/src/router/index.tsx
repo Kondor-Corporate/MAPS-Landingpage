@@ -86,6 +86,8 @@ const adminBranch = {
             { path: 'productores', element: <ProducersPage /> },
             { path: 'inactivos', element: <InactiveProducersPage /> },
             { path: 'noticias', element: <NewsManagementPage /> },
+            { path: 'biblioteca', element: <DigitalLibraryPage /> },
+            { path: 'mi-perfil', element: <MyProfilePage /> },
             { index: true, element: <Navigate to="dashboard" replace /> },
           ],
         },
