@@ -1,8 +1,5 @@
+import { ProducersDashboard } from '@/modules/admin/components/ProducersDashboard';
+
 export function ProducersPage() {
-  return (
-    <div className="flex flex-col gap-2 px-8 py-6">
-      <h1 className="text-3xl font-bold text-maps-heading">Productores</h1>
-      <p className="text-maps-body">Sección en construcción.</p>
-    </div>
-  );
+  return <ProducersDashboard scope="all" />;
 }
