@@ -24,7 +24,7 @@ function pageList(current: number, total: number): (number | 'ellipsis')[] {
   return pages;
 }
 
-export function ProducersPagination({
+export function TablePagination({
   page,
   totalPages,
   pageSize,

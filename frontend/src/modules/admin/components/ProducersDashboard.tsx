@@ -5,7 +5,7 @@ import { useProducerFilters } from '@/modules/admin/hooks/useProducerFilters';
 import { ProducersGreeting } from '@/modules/admin/components/ProducersGreeting';
 import { ProducersToolbar } from '@/modules/admin/components/ProducersToolbar';
 import { ProducerTable } from '@/modules/admin/components/ProducerTable';
-import { ProducersPagination } from '@/modules/admin/components/ProducersPagination';
+import { TablePagination } from '@/shared/components/TablePagination';
 import { ProducerFilterModal } from '@/modules/admin/components/ProducerFilterModal';
 import { ProducerFormModal } from '@/modules/admin/components/ProducerFormModal';
 import { ProducerViewModal } from '@/modules/admin/components/ProducerViewModal';
@@ -110,7 +110,7 @@ export function ProducersDashboard({ scope }: Props) {
       />
 
       {filtered.length > 0 ? (
-        <ProducersPagination
+        <TablePagination
           page={safePage}
           totalPages={totalPages}
           pageSize={pageSize}
