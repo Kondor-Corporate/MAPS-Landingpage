@@ -47,6 +47,19 @@ const LogoutIcon = () => (
 export function SidebarLink({ item }: { item: SidebarItem }) {
   const Icon = item.icon;
 
+  if (item.disabled) {
+    return (
+      <span
+        className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-maps-muted"
+        aria-disabled="true"
+        title="Próximamente"
+      >
+        <Icon className="shrink-0 opacity-70" />
+        <span>{item.label}</span>
+      </span>
+    );
+  }
+
   if (item.external) {
     return (
       <a

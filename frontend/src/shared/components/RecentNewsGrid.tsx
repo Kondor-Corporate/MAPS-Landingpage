@@ -1,4 +1,4 @@
-import { RecentNewsCard } from '@/modules/intranet/components/RecentNewsCard';
+import { RecentNewsCard } from '@/shared/components/RecentNewsCard';
 import { mockNews } from '@/shared/constants/mockNews';
 import { useNewsModalStore } from '@/shared/store/newsModalStore';
 
