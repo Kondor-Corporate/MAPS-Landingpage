@@ -2,11 +2,13 @@
 
 Documento de diseño técnico para estabilizar la UI y alinear la documentación del proyecto MAPS Asesores **después del merge grande de MAPS-007**, antes de avanzar con integraciones reales (API, persistencia).
 
-**Estado:** En revisión
+**Estado:** Implementado (bloques de código de estabilización UI + cierre documental)
 **Autor:** Nicolas Perez
 **Revisores:** @pendiente
 **Creado:** 2026-05-07
-**Última actualización:** 2026-05-07
+**Última actualización:** 2026-05-08
+
+**Worklog:** [MAPS-008-ui-stabilization.md](../worklog/MAPS-008-ui-stabilization.md)
 
 ---
 
@@ -30,16 +32,20 @@ Criterios de éxito orientativos: checklist de rutas y vistas sin regresiones; 0
 
 ## Contexto
 
-### Situación actual
+### Contexto previo (baseline antes de MAPS-008)
 
-- La ruta **`/productor/:slug`** está cableada en [`frontend/src/router/index.tsx`](../../frontend/src/router/index.tsx) con [`ProducerProfilePage`](../../frontend/src/modules/public-web/pages/ProducerProfilePage.tsx); la página hoy es un stub que **retorna `null`** → pantalla en blanco para visitantes.
-- **Anclas:** en [`CtaSection.tsx`](../../frontend/src/modules/public-web/components/CtaSection.tsx) el `<section>` tiene `id="contacto"` pero el CTA usa `href="#contactanos"` (id inexistente). En [`PublicLayout.tsx`](../../frontend/src/shared/layouts/PublicLayout.tsx) hay enlaces a `#contactanos`. Hay que unificar ids y `href`.
-- **Intranet/admin:** [`AppSidebar`](../../frontend/src/shared/layouts/AppSidebar.tsx) usa `hidden … lg:flex` → por debajo de `lg` el sidebar **no se muestra** y no existe menú móvil alternativo en [`AppLayout`](../../frontend/src/shared/layouts/AppLayout.tsx) (`AppSidebar` + `main` solamente) → riesgo de navegación incompleta en viewport chico.
-- **Capa shared:** [`RecentNewsGrid.tsx`](../../frontend/src/shared/components/RecentNewsGrid.tsx) importa `RecentNewsCard` desde [`@/modules/intranet/components/RecentNewsCard`](../../frontend/src/modules/intranet/components/RecentNewsCard.tsx) mientras el grid lo consumen dashboards de **intranet y admin** — violación de dependencia `shared` → módulo de aplicación.
-- **Placeholders:** [`dashboardLinks.ts`](../../frontend/src/shared/constants/dashboardLinks.ts) define `SELF_PORTAL_URL` y `BIBLIOTECA_DRIVE_URL` como `'https://#'` (usado desde dashboards y sidebar vía [`sidebarItems.tsx`](../../frontend/src/shared/constants/sidebarItems.tsx)).
-- **README:** puede leerse como que admin/productores/noticias ya están **integrados** cuando operan con **mocks** (stores Zustand / datos locales como documenta MAPS-007).
-- **MapLibre:** [`HomePage.tsx`](../../frontend/src/modules/public-web/pages/HomePage.tsx) importa estáticamente [`FindAdvisorMap`](../../frontend/src/modules/public-web/components/FindAdvisorMap.tsx) (`react-map-gl/maplibre`); los estilos globales están en [`frontend/src/index.css`](../../frontend/src/index.css). El bundle inicial puede beneficiarse de **code-splitting** / lazy-load.
-- **Iconos:** [`frontend/package.json`](../../frontend/package.json) incluye **`lucide-react`** y **`react-icons`** — conviene inventario y regla (un primario + migración gradual).
+Incluye los problemas que motivaron el TDD: pantalla en blanco en `/productor/:slug`, anclas inconsistentes (`#contacto` vs `#contactanos`), sidebar oculto en móvil sin alternativa, `shared` importando `RecentNewsCard` desde intranet, links `https://#`, y README poco explícito sobre mocks.
+
+### Estado tras los bloques implementados
+
+- **`/productor/:slug`:** [`ProducerProfilePage`](../../frontend/src/modules/public-web/pages/ProducerProfilePage.tsx) con **UI mínima** y datos desde **mock local** (`producerProfilesMock` / tipos en `public-web`) — sin fetch a backend aún.
+- **Anclas contacto:** id canónico **`contacto`**; enlaces públicos alineados (p. ej. `/#contacto`) en CTAs y layout.
+- **Navegación móvil autenticada:** [`AppLayout`](../../frontend/src/shared/layouts/AppLayout.tsx) con **drawer + overlay** bajo `lg`; [`AppSidebar`](../../frontend/src/shared/layouts/AppSidebar.tsx) expone **`AppSidebarPanel`** reutilizado en desktop y drawer; misma fuente de ítems que `getSidebarItems`.
+- **Capa `shared`:** [`RecentNewsCard`](../../frontend/src/shared/components/RecentNewsCard.tsx) vive en **`shared`**; [`RecentNewsGrid`](../../frontend/src/shared/components/RecentNewsGrid.tsx) **no** importa desde `modules/intranet` ni `modules/admin`.
+- **Enlaces externos pendientes:** [`dashboardLinks.ts`](../../frontend/src/shared/constants/dashboardLinks.ts) usa **`null`** para SELF / Biblioteca Drive donde no hay URL real; **AccessCard** y sidebar (**Acceso SELF**) muestran estado **deshabilitado / «Próximamente»** en lugar de `https://#`.
+- **README / docs:** sección explícita **«Estado real del sistema»** en el [README raíz](../../README.md) distingue integrado vs UI+mock vs pendiente.
+- **MapLibre:** sigue pendiente **lazy-load** o documento de performance con métrica (no cerrado en MAPS-008 salvo nota en worklog).
+- **Iconos:** inventario `lucide-react` vs `react-icons` **pendiente** (Fase 5 opcional del plan).
 
 ### Por qué ahora
 
@@ -89,7 +95,7 @@ Sin esta pasada, el siguiente trabajo de **integración real** mezcla bugs de sh
 | Layout público | [`frontend/src/shared/layouts/PublicLayout.tsx`](../../frontend/src/shared/layouts/PublicLayout.tsx) | Enlaces `#` al id canónico |
 | Home + mapa | [`frontend/src/modules/public-web/pages/HomePage.tsx`](../../frontend/src/modules/public-web/pages/HomePage.tsx), [`FindAdvisorMap.tsx`](../../frontend/src/modules/public-web/components/FindAdvisorMap.tsx) | Lazy-load o nota de performance |
 | Layout app | [`frontend/src/shared/layouts/AppLayout.tsx`](../../frontend/src/shared/layouts/AppLayout.tsx), [`AppSidebar.tsx`](../../frontend/src/shared/layouts/AppSidebar.tsx) | Navegación móvil |
-| Grid noticias | [`frontend/src/shared/components/RecentNewsGrid.tsx`](../../frontend/src/shared/components/RecentNewsGrid.tsx), [`RecentNewsCard.tsx`](../../frontend/src/modules/intranet/components/RecentNewsCard.tsx) | Corregir dirección de dependencias |
+| Grid noticias | [`frontend/src/shared/components/RecentNewsGrid.tsx`](../../frontend/src/shared/components/RecentNewsGrid.tsx), [`RecentNewsCard.tsx`](../../frontend/src/shared/components/RecentNewsCard.tsx) | Card en `shared`; grid sin dependencia a intranet/admin |
 | Links externos | [`frontend/src/shared/constants/dashboardLinks.ts`](../../frontend/src/shared/constants/dashboardLinks.ts) | Quitar `https://#` |
 | Estilos map | [`frontend/src/index.css`](../../frontend/src/index.css) | Evaluar impacto si el chunk de MapLibre se mueve |
 | Dependencias | [`frontend/package.json`](../../frontend/package.json) | Decisión iconos (opcional) |
@@ -117,10 +123,15 @@ N/A. Si el perfil público anticipa un fetch, documentar el contrato **futuro** 
 
 ## Decisiones tomadas
 
-- **Documentación explícita:** el README debe indicar que admin productores/noticias son **UI + mocks** hasta el ticket de integración con API.
-- **Ancla canónica:** un solo id para la sección de contacto en público (equipo alinea nombre: p. ej. `contacto` **o** `contactanos`, no ambos en distintos nodos/enlaces).
-- **Capas:** `frontend/src/shared` no importa desde `modules/intranet` ni `modules/admin` (excepciones requieren nota en este TDD y en worklog).
-- **MapLibre:** preferir **lazy-load** si el análisis de bundle lo justifica; si excede la ventana, **Implementación diferida** con umbral medible acordado en review.
+- **Documentación explícita:** el README indica qué está **integrado con backend** frente a **UI con mocks** (productores/noticias admin, noticias en landing/dashboard, mapa, SELF/Drive).
+- **Ancla canónica de contacto:** **`contacto`** (atributo `id` del bloque y rutas tipo `/#contacto` en layout/CTAs). No se mantiene `contactanos` como id divergente.
+- **Perfil público `/productor/:slug`:** por ahora se resuelve con **mock local mínimo** (lista de perfiles + lookup por `slug`); **sin** API de productor público hasta ticket de integración.
+- **Navegación móvil (intranet/admin):** **drawer + overlay** bajo breakpoint `lg`, reutilizando `AppSidebarPanel` y `getSidebarItems` (roles sin cambios de modelo).
+- **Capas:** `frontend/src/shared` **no** importa desde `modules/intranet` ni `modules/admin` (p. ej. `RecentNewsCard` en `shared`); excepciones futuras requieren nota en TDD + worklog.
+- **Links falsos:** no se usan `https://#`; **`dashboardLinks`** exporta `null` donde no hay URL; **AccessCard** y **sidebar** (SELF) muestran **«Próximamente»** / fila deshabilitada.
+- **Enlaces externos reales (SELF / Google Drive):** **fuera de alcance** de MAPS-008 hasta definición de URLs — permanecen como pendiente explícito.
+- **MapLibre:** la preferencia por **lazy-load** sigue vigente; **no** se tomó como cierre obligatorio en los bloques ya mergeados — queda pendiente o con issue/métrica.
+- **Integración API** productores/noticias**, mapa desde backend, tests E2E:** **fuera de alcance** de MAPS-008 (mantener visibles en worklog y README).
 
 ---
 
@@ -146,28 +157,28 @@ N/A. Si el perfil público anticipa un fetch, documentar el contrato **futuro** 
 
 ### Fase 1 — Inventario y criterios
 
-- [ ] Listado de anclas, imports capa `shared`, links rotos, entrypoints MapLibre, usos `react-icons` vs `lucide-react` (p. ej. `npm run build` + analyzer si se acuerda).
-- [ ] 1–2 párrafos de estado inicial para el worklog de cierre.
+- [x] Listado de anclas, imports capa `shared`, links rotos, entrypoints MapLibre (inventario cubierto en implementación + worklog).
+- [x] Estado consignado en [MAPS-008 worklog](../worklog/MAPS-008-ui-stabilization.md).
 
 ### Fase 2 — Perfil público y anclas
 
-- [ ] `/productor/:slug` con UI mínima viable + datos mock coherentes.
-- [ ] Unificar ids y enlaces `#...` en público.
+- [x] `/productor/:slug` con UI mínima viable + datos mock coherentes.
+- [x] Unificar ids y enlaces hacia **`#contacto`** / **`/#contacto`** en público.
 
 ### Fase 3 — Shell autenticado y dependencias
 
-- [ ] Navegación móvil para items de intranet/admin.
-- [ ] Eliminar `shared` → `intranet`/`admin`; verificar `npm run build` y rutas clave.
+- [x] Navegación móvil (drawer/overlay) para items de intranet/admin.
+- [x] Eliminar `shared` → `intranet`/`admin` en `RecentNewsGrid` / `RecentNewsCard`; verificar `npm run build`.
 
 ### Fase 4 — Pulido producto y docs
 
-- [ ] Corregir `dashboardLinks` y consumidores.
-- [ ] README (y docs si aplica) con tabla mocks vs integrado.
-- [ ] MapLibre: lazy-load **o** sección «Performance» con siguiente paso enlazado.
+- [x] Corregir `dashboardLinks` y consumidores (null + UI «Próximamente»).
+- [x] README (y [docs/README.md](../README.md)) con sección **Estado real del sistema**.
+- [ ] MapLibre: lazy-load **o** sección/issue «Performance» con siguiente paso enlazado — **pendiente**.
 
 ### Fase 5 — Iconos (opcional)
 
-- [ ] Decisión y, si aplica, migración incremental o regla documentada.
+- [ ] Decisión y, si aplica, migración incremental o regla documentada — **pendiente**.
 
 ---
 
@@ -203,7 +214,7 @@ N/A. Si el perfil público anticipa un fetch, documentar el contrato **futuro** 
 ## Preguntas abiertas
 
 - [ ] Contenido mínimo obligatorio del perfil productor antes de existir API — _diseño/producto_
-- [ ] Id canónico del bloque contacto: `contacto` o `contactanos` — _equipo_
+- [x] Id canónico del bloque contacto: **`contacto`** (decidido e implementado en MAPS-008).
 - [ ] ¿Migración de `react-icons` en esta ventana o diferida (p. ej. MAPS-009+)? — _tech lead_
 
 ---
@@ -212,15 +223,14 @@ N/A. Si el perfil público anticipa un fetch, documentar el contrato **futuro** 
 
 - **Tickets:** MAPS-008
 - **TDD relacionado:** [MAPS-007-tdd-vista-gestion-noticias.md](./MAPS-007-tdd-vista-gestion-noticias.md)
-- **Work-log (tras implementación):** `docs/worklog/MAPS-008-ui-stabilization.md` (crear al **cierre del PR** según [CONVENTIONS.md](../CONVENTIONS.md); no usar stub vacío).
-- **PRs relacionados:** (completar al implementar)
+- **Work-log:** [MAPS-008-ui-stabilization.md](../worklog/MAPS-008-ui-stabilization.md)
+- **PRs relacionados:** (completar si se consolida en uno o varios PRs)
 
 ---
 
 ## Cierre de feature (checklist post-merge)
 
-Cuando la implementación esté en `main`:
-
-1. Redactar [docs/worklog/MAPS-008-ui-stabilization.md](../worklog/MAPS-008-ui-stabilization.md) con la plantilla `_TEMPLATE-worklog.md`.
-2. Actualizar este TDD: **Estado:** Implementado; enlazar PR(s) y el worklog.
-3. Si hubo varios PRs, valorar **un worklog por PR** según criterio de [CONVENTIONS.md](../CONVENTIONS.md).
+1. [x] [docs/worklog/MAPS-008-ui-stabilization.md](../worklog/MAPS-008-ui-stabilization.md) redactado (plantilla `_TEMPLATE-worklog.md`).
+2. [x] Este TDD actualizado: estado, decisiones y fases; enlace al worklog.
+3. [ ] Completar **PRs relacionados** arriba cuando se cierre la ventana de merge.
+4. [ ] Lazy-load **MapLibre** o issue de performance (criterio del plan Fase 4).
