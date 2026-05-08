@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useLogout } from '@/modules/auth/hooks/useLogout';
 import { getSidebarItems, type SidebarItem } from '@/shared/constants/sidebarItems';
 import { getInitials } from '@/shared/utils/initials';
-import { useAuthStore, type Rol } from '@/store/authStore';
+import { useAuthStore, type AuthUser, type Rol } from '@/store/authStore';
 
 const ROLE_LABEL: Record<Rol, string> = {
   PRODUCTOR: 'Productor',
@@ -43,7 +44,7 @@ const LogoutIcon = () => (
   </svg>
 );
 
-function SidebarLink({ item }: { item: SidebarItem }) {
+export function SidebarLink({ item }: { item: SidebarItem }) {
   const Icon = item.icon;
 
   if (item.external) {
@@ -79,22 +80,27 @@ function SidebarLink({ item }: { item: SidebarItem }) {
   );
 }
 
-export function AppSidebar() {
-  const user = useAuthStore((s) => s.user);
+type AppSidebarPanelProps = {
+  user: AuthUser;
+  /** Accesorio al final de la fila del encabezado (p. ej. botón cerrar en drawer móvil). */
+  headerTrailing?: ReactNode;
+};
+
+/**
+ * Contenido interior del sidebar (misma fuente de items que desktop vía `getSidebarItems`).
+ */
+export function AppSidebarPanel({ user, headerTrailing }: AppSidebarPanelProps) {
   const logout = useLogout();
-
-  if (!user) return null;
-
   const items = getSidebarItems(user.rol);
   const roleLabel = ROLE_LABEL[user.rol];
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-maps-border bg-white lg:flex">
+    <>
       <div className="flex items-center gap-3 border-b border-maps-border px-5 py-5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-maps-brand text-base font-bold text-white">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-maps-brand text-base font-bold text-white">
           M
         </div>
-        <div className="flex flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <span className="text-sm font-bold leading-tight text-maps-heading">
             MAPS Asesores
           </span>
@@ -102,6 +108,9 @@ export function AppSidebar() {
             Portal de Productores
           </span>
         </div>
+        {headerTrailing ? (
+          <div className="flex shrink-0 items-center justify-end">{headerTrailing}</div>
+        ) : null}
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
@@ -119,9 +128,7 @@ export function AppSidebar() {
             <span className="truncate text-sm font-semibold text-maps-heading">
               {user.usuario}
             </span>
-            <span className="truncate text-xs text-maps-muted">
-              {roleLabel}
-            </span>
+            <span className="truncate text-xs text-maps-muted">{roleLabel}</span>
           </div>
         </div>
         <button
@@ -133,6 +140,18 @@ export function AppSidebar() {
           <span>Cerrar Sesión</span>
         </button>
       </div>
+    </>
+  );
+}
+
+export function AppSidebar() {
+  const user = useAuthStore((s) => s.user);
+
+  if (!user) return null;
+
+  return (
+    <aside className="hidden w-64 shrink-0 flex-col border-r border-maps-border bg-white lg:flex">
+      <AppSidebarPanel user={user} />
     </aside>
   );
 }
