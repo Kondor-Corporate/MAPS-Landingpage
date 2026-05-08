@@ -131,7 +131,7 @@ N/A. Si el perfil público anticipa un fetch, documentar el contrato **futuro** 
 - **Links falsos:** no se usan `https://#`; **`dashboardLinks`** exporta `null` donde no hay URL; **AccessCard** y **sidebar** (SELF) muestran **«Próximamente»** / fila deshabilitada.
 - **Enlaces externos reales (SELF / Google Drive):** **fuera de alcance** de MAPS-008 hasta definición de URLs — permanecen como pendiente explícito.
 - **MapLibre:** la preferencia por **lazy-load** sigue vigente; **no** se tomó como cierre obligatorio en los bloques ya mergeados — queda pendiente o con issue/métrica.
-- **Integración API** productores/noticias**, mapa desde backend, tests E2E:** **fuera de alcance** de MAPS-008 (mantener visibles en worklog y README).
+- **API de productores/noticias**, **mapa desde backend** y **tests E2E:** **fuera de alcance** de MAPS-008 (mantener visibles en worklog y README).
 
 ---
 
@@ -223,7 +223,7 @@ N/A. Si el perfil público anticipa un fetch, documentar el contrato **futuro** 
 
 - **Tickets:** MAPS-008
 - **TDD relacionado:** [MAPS-007-tdd-vista-gestion-noticias.md](./MAPS-007-tdd-vista-gestion-noticias.md)
-- **Work-log:** [MAPS-008-ui-stabilization.md](../worklog/MAPS-008-ui-stabilization.md)
+- **Work-log:** [MAPS-008-ui-stabilization.md](../worklog/MAPS-008-ui-stabilization.md) (véase convenciones en [CONVENTIONS.md](../CONVENTIONS.md); un worklog por PR cuando aplique).
 - **PRs relacionados:** (completar si se consolida en uno o varios PRs)
 
 ---
@@ -234,3 +234,4 @@ N/A. Si el perfil público anticipa un fetch, documentar el contrato **futuro** 
 2. [x] Este TDD actualizado: estado, decisiones y fases; enlace al worklog.
 3. [ ] Completar **PRs relacionados** arriba cuando se cierre la ventana de merge.
 4. [ ] Lazy-load **MapLibre** o issue de performance (criterio del plan Fase 4).
+5. Si hubo varios PRs, puede aplicarse **un worklog por PR** según [CONVENTIONS.md](../CONVENTIONS.md).
