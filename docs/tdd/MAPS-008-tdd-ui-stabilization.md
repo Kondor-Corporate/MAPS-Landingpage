@@ -3,7 +3,7 @@
 Documento de diseño técnico para estabilizar la UI y alinear la documentación del proyecto MAPS Asesores **después del merge grande de MAPS-007**, antes de avanzar con integraciones reales (API, persistencia).
 
 **Estado:** En revisión
-**Autor:** @pendiente
+**Autor:** Nicolas Perez
 **Revisores:** @pendiente
 **Creado:** 2026-05-07
 **Última actualización:** 2026-05-07

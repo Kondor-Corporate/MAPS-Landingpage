@@ -116,7 +116,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                   </a>
                 </li>
                 <li>
-                  <a href="#contactanos" className="hover:text-white">
+                  <a href="/#contacto" className="hover:text-white">
                     Contacto
                   </a>
                 </li>
