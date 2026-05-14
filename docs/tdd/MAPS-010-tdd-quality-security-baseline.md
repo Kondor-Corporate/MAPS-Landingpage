@@ -2,7 +2,8 @@
 
 Documento de diseño técnico para establecer baseline de **calidad de código**, **seguridad en Express**, **tests ampliados** y **CI mínimo** tras MAPS-009, sin introducir nuevas features funcionales en dominio negocio.
 
-**Estado:** **MAPS-010A**, **010B** y **010C** implementadas (2026-05-14).  
+**Estado:** **Implementado** (2026-05-14).  
+**Worklog:** [`docs/worklog/MAPS-010-quality-security-baseline.md`](../worklog/MAPS-010-quality-security-baseline.md)  
 **Autor:** (equipo)  
 **Revisores:** —  
 **Creado:** 2026-05-14  
@@ -237,8 +238,8 @@ Secuencia local/CI: `npm ci` → migraciones + seed donde aplique → `npm run t
 - [ ] Validación Zod unificada a **422** (o documento de excepción firmado en §12). *(Parcial: middleware `validate` usa 422; `errorHandler` global Zod→422; auth sigue respondiendo 400 en `safeParse` manual — 010C / PR dedicado.)*
 - [x] Tests: productores + `authorize` + `validate` en verde (con DB y seed).
 - [x] GitHub Actions ejecuta pipeline mínimo sin deploy; badge opcional.
-- [ ] No se añade Husky, TanStack Query, ni `npm audit fix --force` en el alcance de MAPS-010.
-- [ ] **Work-log** `docs/worklog/MAPS-010-*.md` creado **al cerrar** la última fase (no forma parte de este borrador).
+- [x] No se añade Husky, TanStack Query, ni `npm audit fix --force` en el alcance de MAPS-010.
+- [x] **Work-log** [`docs/worklog/MAPS-010-quality-security-baseline.md`](../worklog/MAPS-010-quality-security-baseline.md) creado al cierre.
 
 ---
 
@@ -254,21 +255,19 @@ Secuencia local/CI: `npm ci` → migraciones + seed donde aplique → `npm run t
 
 ---
 
-## 13. Worklog futuro
+## 13. Worklog de cierre
 
-Al completar la implementación (una o varias PRs), crear **`docs/worklog/MAPS-010-quality-security-baseline.md`** (slug final acordado) con:
+Implementación cerrada con bitácora retrospectiva:
 
-- Enlaces a PRs y commits destacados.
-- Lista de archivos de config añadidos (ESLint, Prettier, CI).
-- Captura o nota de pipeline verde.
-- Desviaciones respecto a este TDD (con justificación).
+- **[`docs/worklog/MAPS-010-quality-security-baseline.md`](../worklog/MAPS-010-quality-security-baseline.md)** — objetivo, contexto inicial, 010A/B/C, herramientas y dependencias, scripts, tests, CI, verificación, decisiones, riesgos, pendientes y desviaciones frente a este TDD.
 
-**No** crear work-log hasta el cierre de la feature técnica.
+*(Enlaces a PRs/commits específicos: añadir cuando se consoliden en el remoto.)*
 
 ---
 
 ## Referencias
 
+- Worklog (cierre): [`docs/worklog/MAPS-010-quality-security-baseline.md`](../worklog/MAPS-010-quality-security-baseline.md)
 - Plantilla: [`docs/tdd/_TEMPLATE-tdd.md`](_TEMPLATE-tdd.md)
 - Convenciones docs: [`docs/CONVENTIONS.md`](../CONVENTIONS.md)
 - Auditoría previa (contexto): hallazgos MAPS-010 Quality & Security Audit (chat interno / notas de equipo)
