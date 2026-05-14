@@ -18,11 +18,12 @@ jobs:
           POSTGRES_DB: maps_ci
         ports:
           - 5432:5432
+        # Importante: el comando de health debe ir entre comillas; si no, `-U` se parsea como flag de `docker create` (exit 125).
         options: >-
-          --health-cmd pg_isready -U postgres
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd="pg_isready -U postgres -d maps_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     env:
       NODE_ENV: test
