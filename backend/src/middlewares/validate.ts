@@ -1,4 +1,4 @@
-import type { RequestHandler } from 'express';
+import type { Request, RequestHandler } from 'express';
 import type { ZodError, ZodTypeAny } from 'zod';
 
 export type ValidateSchemas = {
@@ -43,7 +43,7 @@ export function validate(schemas: ValidateSchemas): RequestHandler {
         sendValidationError(res, parsed.error);
         return;
       }
-      Object.assign(req.query as Record<string, unknown>, parsed.data as object);
+      req.query = parsed.data as Request['query'];
     }
 
     if (schemas.body) {

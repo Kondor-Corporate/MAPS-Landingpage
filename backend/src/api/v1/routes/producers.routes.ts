@@ -6,6 +6,7 @@ import { authorize } from '../../../middlewares/authorize.js';
 import { validate } from '../../../middlewares/validate.js';
 import {
   createProducerSchema,
+  listProducersQuerySchema,
   producerIdParamSchema,
   updateProducerSchema,
   updateProducerStatusSchema,
@@ -15,7 +16,12 @@ export const producersRouter = Router();
 
 const adminOnly = [authenticate, authorize(Rol.ADMIN, Rol.SUPERADMIN)] as const;
 
-producersRouter.get('/', ...adminOnly, producersController.list);
+producersRouter.get(
+  '/',
+  ...adminOnly,
+  validate({ query: listProducersQuerySchema }),
+  producersController.list,
+);
 
 producersRouter.get(
   '/:id',
