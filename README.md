@@ -11,6 +11,48 @@ Incluye tres zonas diferenciadas:
 
 > **Fuera de alcance en esta etapa:** Ecommerce y Cotizador (proyectos separados; la arquitectura contempla su integración futura sin rehacer el core).
 
+> **Nota (MAPS-008):** La tabla resume zonas y propósito del producto; el **grado real de integración con API** por módulo está detallado en [Estado real del sistema](#estado-real-del-sistema). No asumir que las pantallas admin de productores o noticias persisten en servidor hasta que exista el ticket de integración correspondiente.
+
+---
+
+## Estado real del sistema
+
+Última revisión documental: **MAPS-008** (2026-05). Esta sección complementa la tabla de zonas arriba: distingue lo **integrado o alineado con backend/infra**, lo que es **UI con mocks o datos locales**, y lo **pendiente**, para evitar interpretar demos como producción integrada.
+
+### Integrado o alineado con backend e infraestructura
+
+| Pieza | Notas |
+|-------|--------|
+| **Autenticación** | Login, refresh, logout, JWT y roles contra la API (`/api/v1/auth`). Detalle en [`docs/README.md`](docs/README.md). |
+| **Routing y guards** | Rutas públicas, intranet (`PRODUCTOR`) y admin (`ADMIN` / `SUPERADMIN`) con guards de rol. |
+| **Base de datos local** | Docker Compose (PostgreSQL), migraciones Prisma, seed (p. ej. usuarios admin/superadmin). |
+| **Layouts base** | `PublicLayout`, `AuthLayout`, `AppLayout` (shell autenticado). |
+| **Navegación móvil (intranet/admin)** | Menú tipo drawer bajo el breakpoint `lg` en `AppLayout`; mismos ítems de sidebar por rol. |
+
+### UI implementada con mocks o datos locales (no implica API de negocio lista)
+
+| Pieza | Notas |
+|-------|--------|
+| **Perfil público `/productor/:slug`** | Vista mínima operativa con **datos mock en cliente**; **sin** API pública de productor aún. |
+| **Admin — productores** | Listado, filtros, CRUD en **Zustand / memoria** (ver worklog MAPS-007). |
+| **Admin — noticias** | Gestión con **mocks** en cliente. |
+| **Noticias en landing y dashboards** | Grillas y modales con **contenido mock** (p. ej. `mockNews`). |
+| **Mapa en landing (`FindAdvisorMap`)** | MapLibre con **marcadores/datos locales**; **no** depende del backend MAPS para el mapa; **lazy-load del chunk** pendiente como mejora de performance. |
+| **Biblioteca digital (contenido)** | Rutas de app existen; contenido **no** sustentado en API de biblioteca aún. |
+| **SELF y enlaces externos tipo Drive** | Hasta tener URLs reales, `dashboardLinks` puede usar **`null`** y la UI muestra **«Próximamente»** en CTAs/sidebar donde aplique. |
+
+### Pendiente explícito
+
+- Integración **API** para **productores** (persistencia y contratos REST).
+- Integración **API** para **noticias**.
+- **Perfil público** desde backend (sustituir mock por fetch real).
+- **Mapa** alimentado desde backend o fuentes acordadas.
+- **URLs reales** portal SELF y biblioteca (Drive u otra).
+- **Lazy-load** de MapLibre (o issue con métrica objetivo).
+- **Tests E2E** (p. ej. Playwright).
+
+Documentación relacionada: [TDD MAPS-008](docs/tdd/MAPS-008-tdd-ui-stabilization.md), [worklog MAPS-008](docs/worklog/MAPS-008-ui-stabilization.md).
+
 ---
 
 ## Stack Tecnológico
@@ -35,14 +77,18 @@ Incluye tres zonas diferenciadas:
 | ORM | Prisma |
 | Base de datos | PostgreSQL |
 | Validación | Zod (por endpoint) |
-| Auth | JWT + RBAC (PRODUCER / ADMIN / SUPERADMIN) |
+| Auth | JWT + RBAC (roles: `PRODUCTOR` / `ADMIN` / `SUPERADMIN`) |
+
+> **Reglas de acceso por zona:** `PRODUCTOR` → `/intranet/*` (solo su propio perfil). `ADMIN` y `SUPERADMIN` → `/admin/*`. Un admin no accede a `/intranet` salvo que tenga también cuenta de productor separada. La web pública (`/`, `/productor/:slug`) es accesible sin autenticación.
 
 ### Infraestructura local
 
 | Herramienta | Uso |
 |---|---|
-| Docker + Docker Compose | PostgreSQL local |
+| Docker + Docker Compose | PostgreSQL local solamente |
 | `.env` | Variables de entorno (ver `.env.example`) |
+
+> En desarrollo, Docker se usa solo para la base de datos. Backend y frontend corren localmente con `npm run dev`.
 
 ---
 
@@ -90,11 +136,12 @@ Editá los archivos `.env` con los valores correspondientes.
 docker compose up -d
 ```
 
-Esto levanta un contenedor PostgreSQL en `localhost:5432`.  
-Podés verificar que esté corriendo con:
+Esto levanta un contenedor PostgreSQL en `localhost:5432` con la base oficial de desarrollo `maps_asesores_dev`.
+Podés verificar estado y logs con:
 
 ```bash
 docker compose ps
+docker compose logs db
 ```
 
 ### 4. Instalar dependencias
@@ -114,6 +161,7 @@ npm install
 ```bash
 cd backend
 npx prisma migrate dev
+npm run db:seed
 ```
 
 ### 6. Correr el proyecto
@@ -166,6 +214,59 @@ Los tests viven en `backend/tests/` y usan **Vitest** + **Supertest** contra la 
 | **POST /logout — sin Authorization** | `401` si falta el header `Bearer` (middleware `authenticate`). |
 
 En entorno de test (`NODE_ENV=test`) el rate limit del login está relajado para no interferir con la suite.
+
+---
+
+## Base de datos local con Docker
+
+El archivo [`docker-compose.yml`](./docker-compose.yml) define solo PostgreSQL para desarrollo:
+
+- Servicio: `db`
+- Imagen: `postgres:16-alpine`
+- Host/puerto desde el equipo: `localhost:5432`
+- Base oficial de desarrollo: `maps_asesores_dev`
+- Usuario: `postgres`
+- Password: `postgres`
+- Volumen persistente: `pgdata`
+
+El backend local usa `localhost` en `DATABASE_URL` porque corre fuera de Docker:
+
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maps_asesores_dev"
+```
+
+Si en el futuro el backend corre dentro de Docker, el host de la URL debería ser el nombre del servicio (`db`) en lugar de `localhost`.
+
+Comandos útiles:
+
+```bash
+docker compose up -d        # levanta PostgreSQL
+docker compose ps           # muestra estado del servicio
+docker compose logs db      # muestra logs de PostgreSQL
+docker compose down         # detiene y elimina el contenedor, conserva el volumen
+docker compose down -v      # detiene y elimina también los datos del volumen
+
+cd backend
+npx prisma migrate dev      # aplica migraciones en desarrollo
+npm run db:migrate          # alias del comando anterior
+npm run db:seed             # carga datos iniciales
+npm run prisma:studio       # abre Prisma Studio
+```
+
+pgAdmin es opcional y funciona solo como cliente visual. Para conectarlo:
+
+- Host: `localhost`
+- Port: `5432`
+- User: `postgres`
+- Password: `postgres`
+- Database: `maps_asesores_dev`
+
+Troubleshooting:
+
+- Si `5432` está ocupado, probablemente hay otro PostgreSQL local corriendo. Detenelo o cambiá el puerto host del compose y actualizá `DATABASE_URL`.
+- `docker compose down -v` borra los datos persistidos en `pgdata`; usalo solo cuando quieras resetear la DB.
+- Si existe una DB antigua con datos usando rol `PRODUCER`, revisar la migración hacia `PRODUCTOR` antes de migrar sobre datos reales.
+- pgAdmin no es necesario para que el backend funcione; Prisma usa directamente `DATABASE_URL`.
 
 ---
 
@@ -250,16 +351,19 @@ fix/*         ← correcciones puntuales
 ### `backend/.env.example`
 
 ```env
-# Base de datos
+# Runtime
+NODE_ENV=development
+PORT=3000
+FRONTEND_ORIGIN=http://localhost:5173
+
+# Base de datos local via Docker Compose
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maps_asesores_dev"
 
-# JWT
-JWT_SECRET=change_me_in_production
-JWT_EXPIRES_IN=7d
-
-# Servidor
-PORT=3000
-NODE_ENV=development
+# Auth / JWT
+JWT_SECRET=dev_access_secret_change_me_32_chars_minimum
+JWT_EXPIRES_IN=15m
+REFRESH_SECRET=dev_refresh_secret_change_me_32_chars_minimum
+REFRESH_EXPIRES_IN=30d
 ```
 
 ### `frontend/.env.example`

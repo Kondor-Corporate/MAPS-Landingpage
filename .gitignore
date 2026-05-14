@@ -65,6 +65,13 @@ desktop.ini
 *.sln
 *.sw?
 
+# ── Claude Code / agentes ────────────────────────────────────
+# Metadatos locales del CLI de Claude Code y skills/agents.
+# No representan codigo de la app y varian entre maquinas.
+.claude/
+.agents/
+skills-lock.json
+
 # ── Docker ───────────────────────────────────────────────────
 # docker-compose.yml SÍ se versiona; ignorar overrides locales
 docker-compose.override.yml
@@ -73,3 +80,11 @@ docker-compose.override.yml
 *.local
 .cache/
 tmp/
+
+# ── Artefactos de modelado (Enterprise Architect, etc.) ──────
+# Los archivos .EAP y .bmp del modelo de dominio son binarios
+# pesados sin valor de diff en git. Mantener en repo de docs
+# externo o usar Git LFS si se requiere historial.
+*.EAP
+*.ldb
+Arquitectura/**/*.bmp

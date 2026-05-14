@@ -1,3 +1,5 @@
+import { ProducersDashboard } from '@/modules/admin/components/ProducersDashboard';
+
 export function ProducersPage() {
-  return null;
+  return <ProducersDashboard scope="all" />;
 }
