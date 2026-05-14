@@ -2,17 +2,20 @@
 
 Documento de diseño técnico para conectar el módulo administrativo de productores con la API y la base de datos real dentro del proyecto MAPS Asesores, reemplazando progresivamente el comportamiento mock (Zustand + datos en memoria) introducido en MAPS-007.
 
-**Estado:** Borrador  
+**Estado:** Implementado  
 **Autor:** (equipo)  
 **Revisores:** —  
 **Creado:** 2026-05-14  
 **Última actualización:** 2026-05-14  
 
+> **Bitácora de cierre:** [`docs/worklog/MAPS-009-admin-api-productores.md`](../worklog/MAPS-009-admin-api-productores.md).  
+> Las secciones **2–18** conservan el relato de **diseño y contexto histórico** (estado previo a la codificación); el **resultado efectivo**, decisiones finales de producto/backend/frontend y verificación están centralizadas en la **§ 19**.
+
 ---
 
 ## 1. Resumen
 
-Hoy el listado y la CRUD de productores en `/admin/productores` y `/admin/inactivos` operan 100% en cliente: store Zustand (`useProducers`), tipos y mocks en `frontend/src/modules/admin/`, sin persistencia. En backend, `GET /api/v1/producers` está montado pero el router está vacío y el controlador responde `501 Not implemented`; el servicio y validaciones son placeholders. El modelo Prisma ya define `Usuario`, `Productor` (1:1) y `Rol`, pero no refleja varios campos que la UI usa hoy (sucursal, estado explícito en productor, última actividad semántica). Esta feature propone cerrar el contrato API admin, implementar persistencia y alinear el dominio UI↔BD con decisiones explícitas sobre estado activo/inactivo, creación de credenciales y evolución del front (servicios, hooks, estados de carga y error) sin abrir aún perfil público, mapa ni intranet productor.
+El panel admin de productores (`/admin/productores`, `/admin/inactivos`) quedó integrado con la API REST bajo `/api/v1/producers`, persistencia Prisma y auth JWT para roles **ADMIN** y **SUPERADMIN**. El mock Zustand (`useProducers`) y `producersMock.ts` fueron retirados del flujo principal. Perfil público, mapa, intranet productor y noticias siguieron fuera de alcance — ver § 19 y el work-log.
 
 ---
 
@@ -26,6 +29,8 @@ Hoy el listado y la CRUD de productores en `/admin/productores` y `/admin/inacti
 ---
 
 ## 3. Contexto actual
+
+> **Histórico (redacción del TDD):** las tablas 3.1 y 3.2 describen lo relevado antes de implementar código. Para el **después de MAPS-009** ver [**§19**](#19-cierre-maps-009--decisiones-y-alcance-efectivo) y [`docs/worklog/MAPS-009-admin-api-productores.md`](../worklog/MAPS-009-admin-api-productores.md).
 
 ### 3.1 Backend
 
@@ -331,25 +336,25 @@ ALTER TABLE "Productor" ADD COLUMN IF NOT EXISTS sucursal TEXT;
 
 ### Fase 0 — Cimientos seguridad y datos
 
-- [ ] Implementar `authorize` y `validate` reales (o limitar a router producers si se acuerda incremental).  
-- [ ] Extender seed opcional con productores + usuarios PRODUCTOR.  
-- [ ] Acordar política password alta productor + unicidades.
+- [x] Implementar `authorize` y `validate` reales.  
+- [ ] Extender seed opcional con productores + usuarios PRODUCTOR (opcional QA; fuera del cierre documental).  
+- [x] Política de password en alta documentada (`DEFAULT_PRODUCER_PASSWORD` en env).
 
 ### Fase 1 — API lectura
 
-- [ ] `GET /producers` + `GET /producers/:id` con Prisma y DTO admin.  
-- [ ] Frontend: servicio + hook; `ProducersDashboard` en solo lectura verificada contra mock parity.
+- [x] `GET /producers` + `GET /producers/:id` con Prisma y DTO admin.  
+- [x] Frontend: servicio + hook (`useAdminProducers`); lista activos/inactivos filtrada por query `activo`.
 
-### Fase 2 — API escritura
+### Fase 2 — API escritura + integración UI
 
-- [ ] `POST /producers`, `PATCH /producers/:id`, `PATCH` activo.  
-- [ ] Frontend: formularios y confirmaciones cableados; refetch tras éxito.
+- [x] `POST /producers`, `PATCH /producers/:id`, `PATCH /producers/:id/activo`.  
+- [x] Frontend: formularios y confirmaciones cableados; refetch tras éxito.
 
-### Fase 3 — Pulido
+### Fase 3 — Pulido y documentación
 
-- [ ] Paginación server-side si aplica.  
-- [ ] Remover Zustand `useProducers` y mocks del flujo principal.  
-- [ ] Ajustar documentación README si hay env vars nuevas.
+- [ ] Paginación server-side (pendiente futuro cuando crezca el volumen).  
+- [x] Remover Zustand `useProducers` y mocks del flujo principal.  
+- [x] Documentación README / work-log / este TDD.
 
 ---
 
@@ -364,24 +369,46 @@ ALTER TABLE "Productor" ADD COLUMN IF NOT EXISTS sucursal TEXT;
 
 ---
 
-## 17. Preguntas abiertas
+## 17. Preguntas abiertas (evolución)
 
-- [ ] ¿`Usuario.usuario` para productores debe ser **email** siempre o username distinto? — _negocio / producto_  
-- [ ] ¿Política de **password** en alta (temporal, generada, envío por correo, obligatoriedad de cambio)? — _negocio / seguridad_  
-- [ ] ¿**Sucursal** es concepto de dominio oficial? Si sí, ¿tabla catálogo, texto libre en `Productor`, o se elimina del admin hasta definir? — _negocio_  
-- [ ] ¿**Última actividad** debe reflejar último login, última edición de perfil, u otra métrica? — _producto_  
-- [ ] ¿Se permite editar **slug** desde admin o solo generación automática irrepetible? — _SEO / producto_  
-- [ ] ¿Los **redes sociales** entran en MAPS-009 o se dejan para ticket dedicado? — _producto_  
-- [ ] ¿Al desactivar, se **revocan** todas las sesiones refresh del usuario? — _seguridad_  
-- [ ] ¿Introducimos **TanStack Query** como dependencia o mantenemos hooks ligeros sin librería? — _equipo frontend_
+### Resueltas en la implementación MAPS-009
+
+| Tema | Decisión |
+|------|----------|
+| `Usuario.usuario` en alta productor | Se usa como **login** del productor (convención email en operación típica). |
+| Password en alta | Hash de **`DEFAULT_PRODUCER_PASSWORD`** (variable de entorno backend). |
+| Estado activo/inactivo UI | **`Usuario.activo`** ↔ ACTIVO/INACTIVO; sin flag duplicado en `Productor`. |
+| Desactivar + sesiones | Al desactivar se eliminan registros **`SesionToken`** de ese usuario. |
+| WhatsApp | **Fuera del contrato** admin (schema y comentarios en backend). |
+| Sucursal / última actividad / redes en admin persistidas | **Fuera de alcance** en contrato guardado; la UI marca placeholders o proxies (p. ej. timestamp de cuenta) donde correspondía. |
+| TanStack Query | **No** incorporado en Fase 2; hook con estado local + `refetch`. |
+| IDs admin | **`productor.id` entero** en API; UI usa string derivado para compatibilidad de filas donde conviene. |
+
+### Pendientes de negocio / producto (fuera MAPS-009)
+
+- ¿**Slug** editable desde admin o solo generación server-side irrepetible?  
+- ¿**Sucursal** como entidad oficial (columna/catálogo) o abandono definitivo del concepto en admin?  
+- ¿**Última actividad** semántica (último login intranet vs otra métrica) cuando exista tracking?  
+- ¿**WhatsApp / redes** en PATCH admin y modelo Prisma?  
+- ¿Flujo **“debe cambiar contraseña en primer login”** o envío por email?  
+- ¿**TanStack Query** u otra capa de caché al escalar llamadas?
 
 ---
 
-## 18. Relación con worklog futuro
+## 18. Relación con el work-log
 
-- Al **cerrar la feature** (última PR mergeada), crear `docs/worklog/MAPS-009-<slug-corto>.md` siguiendo `_TEMPLATE-worklog.md` y `docs/CONVENTIONS.md`: cambios por archivo, pendientes, verificación manual.  
-- Actualizar **este TDD**: `Estado: Implementado`, `Última actualización`, enlaces a PRs y al work-log.  
-- Si el alcance se fracciona en varios PRs, un work-log **por PR** o uno consolidado según convención del equipo (CONVENTIONS sugiere uno por PR para tareas no triviales).
+- Work-log consolidado de cierre: [`docs/worklog/MAPS-009-admin-api-productores.md`](../worklog/MAPS-009-admin-api-productores.md).  
+- El TDD puede permanecer como referencia de alternativas y contexto histórico; la **§ 19** resume el resultado.
+
+---
+
+## 19. Cierre MAPS-009 — decisiones y alcance efectivo
+
+- **Seguridad (Fase 0):** `authenticate` + `authorize(ADMIN|SUPERADMIN)` + validación Zod en rutas de productores (y middlewares disponibles para el resto del API según adopción).  
+- **Backend (Fase 1–2):** CRUD contractual en `/api/v1/producers`; listado con `?activo=true|false`; `PATCH …/activo` con `{ activo }`; alta con password desde **`DEFAULT_PRODUCER_PASSWORD`**.  
+- **Frontend (Fase 2):** `frontend/src/modules/admin/services/producers.service.ts`, `useAdminProducers.ts`, componentes admin actualizados; sin TanStack Query.  
+- **Limpieza:** eliminados `useProducers` y `producersMock.ts`.  
+- **No incluido:** noticias, mapa, perfil público, intranet productor; paginación server-side opcional más adelante.
 
 ---
 
@@ -392,4 +419,4 @@ ALTER TABLE "Productor" ADD COLUMN IF NOT EXISTS sucursal TEXT;
 - Work-log UI productores (mock): `docs/worklog/MAPS-007-seccion-productores-admin.md`  
 - Auth / routing: `docs/worklog/MAPS-004-auth-routing-polish.md`  
 - **Tickets:** MAPS-009  
-- **Work-log de implementación:** _pendiente — crear al cierre de la feature_
+- **Work-log de implementación:** [`docs/worklog/MAPS-009-admin-api-productores.md`](../worklog/MAPS-009-admin-api-productores.md)
