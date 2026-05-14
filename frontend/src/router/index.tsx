@@ -32,9 +32,7 @@ const intranetRolePath = {
   element: <ProtectedRoutes />,
   children: [
     {
-      element: (
-        <RoleGuard allowedRoles={['PRODUCTOR']} />
-      ),
+      element: <RoleGuard allowedRoles={['PRODUCTOR']} />,
       children: [
         {
           element: (

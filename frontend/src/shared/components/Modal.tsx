@@ -30,7 +30,9 @@ export function Modal({ isOpen, onClose, children, maxWidth = 'max-w-5xl' }: Mod
         onClick={onClose}
         role="presentation"
       />
-      <div className={`relative flex flex-col max-h-[90vh] w-full ${maxWidth} overflow-hidden rounded-2xl bg-white shadow-2xl`}>
+      <div
+        className={`relative flex flex-col max-h-[90vh] w-full ${maxWidth} overflow-hidden rounded-2xl bg-white shadow-2xl`}
+      >
         <button
           onClick={onClose}
           className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-600 transition-colors hover:bg-gray-100"

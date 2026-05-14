@@ -52,11 +52,21 @@ export function PublicLayout({ children }: PublicLayoutProps) {
           >
             {isMenuOpen ? (
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path
+                  d="M15 5L5 15M5 5L15 15"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
               </svg>
             ) : (
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-                <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path
+                  d="M3 6h14M3 10h14M3 14h14"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
               </svg>
             )}
           </button>
@@ -97,13 +107,10 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-maps-brand text-lg font-extrabold">
                   M
                 </div>
-                <span className="text-2xl font-bold tracking-[-0.3px]">
-                  MAPS Asesores
-                </span>
+                <span className="text-2xl font-bold tracking-[-0.3px]">MAPS Asesores</span>
               </div>
               <p className="max-w-[300px] text-sm leading-[22px] text-white/70">
-                Modernización, gestión operativa y cobertura nacional al
-                alcance de un clic.
+                Modernización, gestión operativa y cobertura nacional al alcance de un clic.
               </p>
             </div>
 

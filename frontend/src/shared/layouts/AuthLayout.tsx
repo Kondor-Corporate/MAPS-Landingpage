@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 
-const LOGO_SRC =
-  'https://www.figma.com/api/mcp/asset/dd0ee30a-680d-4dcf-a03d-1db8c84e6ccf';
+const LOGO_SRC = 'https://www.figma.com/api/mcp/asset/dd0ee30a-680d-4dcf-a03d-1db8c84e6ccf';
 
 type AuthLayoutProps = {
   children: ReactNode;

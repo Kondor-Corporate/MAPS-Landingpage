@@ -29,8 +29,7 @@ export default {
       backgroundImage: {
         'hero-gradient':
           'linear-gradient(90deg, rgba(22,17,33,0.92) 0%, rgba(22,17,33,0.7) 50%, rgba(22,17,33,0.2) 100%)',
-        'map-gradient':
-          'linear-gradient(135deg, #cfe5ec 0%, #b6d6e2 45%, #00a4c0 100%)',
+        'map-gradient': 'linear-gradient(135deg, #cfe5ec 0%, #b6d6e2 45%, #00a4c0 100%)',
       },
     },
   },

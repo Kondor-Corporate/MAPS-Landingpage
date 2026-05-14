@@ -108,15 +108,7 @@ export function ProducerViewModal({ isOpen, onClose, producer, onEdit }: Props) 
   );
 }
 
-function InfoRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
+function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-start gap-3 rounded-xl border border-maps-border bg-white p-3">
       <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-maps-brand-soft text-maps-brand">

@@ -87,9 +87,7 @@ export function LoginPage() {
     } catch (err) {
       if (isAxiosError(err) && err.response) {
         const data = err.response.data as { message?: string } | undefined;
-        setApiError(
-          data?.message ?? 'No se pudo iniciar sesión.',
-        );
+        setApiError(data?.message ?? 'No se pudo iniciar sesión.');
         return;
       }
       setApiError('Error de red. Comprueba tu conexión y la URL del API.');
@@ -124,10 +122,7 @@ export function LoginPage() {
           ) : null}
 
           <div className="flex flex-col gap-2">
-            <label
-              htmlFor={usuarioId}
-              className="text-sm font-medium text-maps-body"
-            >
+            <label htmlFor={usuarioId} className="text-sm font-medium text-maps-body">
               Usuario
             </label>
             <input
@@ -153,10 +148,7 @@ export function LoginPage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label
-              htmlFor={passwordId}
-              className="text-sm font-medium text-maps-body"
-            >
+            <label htmlFor={passwordId} className="text-sm font-medium text-maps-body">
               Contraseña
             </label>
             <div className="relative">
@@ -172,9 +164,7 @@ export function LoginPage() {
                   if (errors.password) setErrors((s) => ({ ...s, password: undefined }));
                 }}
                 aria-invalid={Boolean(errors.password)}
-                aria-describedby={
-                  errors.password ? `${passwordId}-err` : undefined
-                }
+                aria-describedby={errors.password ? `${passwordId}-err` : undefined}
                 className="h-14 w-full rounded-lg border border-maps-border bg-white py-3 pl-4 pr-12 text-sm text-maps-heading outline-none ring-maps-brand transition placeholder:text-maps-muted focus:border-maps-brand focus:ring-2 focus:ring-maps-brand/25"
               />
               <button

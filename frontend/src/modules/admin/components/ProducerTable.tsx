@@ -60,40 +60,38 @@ export function ProducerTable({
             {producers.map((p, idx) => {
               const name = producerNombreCompleto(p);
               return (
-              <tr
-                key={p.id}
-                className={[
-                  'transition hover:bg-maps-surface/60',
-                  idx > 0 ? 'border-t border-maps-border' : '',
-                ].join(' ')}
-              >
-                <td className="whitespace-nowrap px-6 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={name} src={p.avatarUrl} size="md" />
-                    <span className="text-sm font-semibold text-maps-heading">
-                      {name}
-                    </span>
-                  </div>
-                </td>
-                <td className="whitespace-nowrap px-6 py-3.5">
-                  <ProducerStatusBadge estado={p.estado} />
-                </td>
-                <td className="whitespace-nowrap px-6 py-3.5 text-sm font-semibold text-maps-heading">
-                  {p.dni}
-                </td>
-                <td className="whitespace-nowrap px-6 py-3.5 text-sm text-maps-muted">
-                  {relativeTimeFromNow(p.ultimaActividad)}
-                </td>
-                <td className="whitespace-nowrap px-6 py-3.5">
-                  <ProducerActionsMenu
-                    producer={p}
-                    onView={onView}
-                    onEdit={onEdit}
-                    onToggleEstado={onToggleEstado}
-                  />
-                </td>
-              </tr>
-            );
+                <tr
+                  key={p.id}
+                  className={[
+                    'transition hover:bg-maps-surface/60',
+                    idx > 0 ? 'border-t border-maps-border' : '',
+                  ].join(' ')}
+                >
+                  <td className="whitespace-nowrap px-6 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={name} src={p.avatarUrl} size="md" />
+                      <span className="text-sm font-semibold text-maps-heading">{name}</span>
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-3.5">
+                    <ProducerStatusBadge estado={p.estado} />
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-3.5 text-sm font-semibold text-maps-heading">
+                    {p.dni}
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-3.5 text-sm text-maps-muted">
+                    {relativeTimeFromNow(p.ultimaActividad)}
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-3.5">
+                    <ProducerActionsMenu
+                      producer={p}
+                      onView={onView}
+                      onEdit={onEdit}
+                      onToggleEstado={onToggleEstado}
+                    />
+                  </td>
+                </tr>
+              );
             })}
           </tbody>
         </table>
@@ -104,26 +102,26 @@ export function ProducerTable({
         {producers.map((p) => {
           const name = producerNombreCompleto(p);
           return (
-          <li key={p.id} className="flex flex-col gap-3 p-4">
-            <div className="flex items-center gap-3">
-              <Avatar name={name} src={p.avatarUrl} size="md" />
-              <div className="flex flex-1 flex-col">
-                <span className="text-sm font-semibold text-maps-heading">{name}</span>
-                <span className="text-xs text-maps-muted">DNI {p.dni}</span>
+            <li key={p.id} className="flex flex-col gap-3 p-4">
+              <div className="flex items-center gap-3">
+                <Avatar name={name} src={p.avatarUrl} size="md" />
+                <div className="flex flex-1 flex-col">
+                  <span className="text-sm font-semibold text-maps-heading">{name}</span>
+                  <span className="text-xs text-maps-muted">DNI {p.dni}</span>
+                </div>
+                <ProducerStatusBadge estado={p.estado} />
               </div>
-              <ProducerStatusBadge estado={p.estado} />
-            </div>
-            <div className="flex items-center justify-between text-xs text-maps-muted">
-              <span>Cuenta: {relativeTimeFromNow(p.ultimaActividad)}</span>
-              <ProducerActionsMenu
-                producer={p}
-                onView={onView}
-                onEdit={onEdit}
-                onToggleEstado={onToggleEstado}
-              />
-            </div>
-          </li>
-        );
+              <div className="flex items-center justify-between text-xs text-maps-muted">
+                <span>Cuenta: {relativeTimeFromNow(p.ultimaActividad)}</span>
+                <ProducerActionsMenu
+                  producer={p}
+                  onView={onView}
+                  onEdit={onEdit}
+                  onToggleEstado={onToggleEstado}
+                />
+              </div>
+            </li>
+          );
         })}
       </ul>
     </div>

@@ -115,12 +115,7 @@ export function RecentNewsTable({
                   <NewsStatusBadge estado={n.estado} />
                 </td>
                 <td className="whitespace-nowrap px-6 py-3.5 text-right">
-                  <NewsTableActions
-                    news={n}
-                    onView={onView}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                  />
+                  <NewsTableActions news={n} onView={onView} onEdit={onEdit} onDelete={onDelete} />
                 </td>
               </tr>
             ))}
@@ -146,12 +141,7 @@ export function RecentNewsTable({
                 <NewsAudienceBadge audiencia={n.audiencia} />
                 <NewsStatusBadge estado={n.estado} />
               </div>
-              <NewsTableActions
-                news={n}
-                onView={onView}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
+              <NewsTableActions news={n} onView={onView} onEdit={onEdit} onDelete={onDelete} />
             </div>
           </li>
         ))}

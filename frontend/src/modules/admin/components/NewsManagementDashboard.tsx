@@ -5,11 +5,7 @@ import { useNews } from '@/modules/admin/hooks/useNews';
 import { useNewsFilters } from '@/modules/admin/hooks/useNewsFilters';
 import { NewsHeader } from '@/modules/admin/components/NewsHeader';
 import { NewsTabs, type NewsTab } from '@/modules/admin/components/NewsTabs';
-import {
-  EMPTY_FORM,
-  NewsForm,
-  type NewsFormState,
-} from '@/modules/admin/components/NewsForm';
+import { EMPTY_FORM, NewsForm, type NewsFormState } from '@/modules/admin/components/NewsForm';
 import { RecentNewsTable } from '@/modules/admin/components/RecentNewsTable';
 import { NewsFilterModal } from '@/modules/admin/components/NewsFilterModal';
 import { NewsViewModal } from '@/modules/admin/components/NewsViewModal';

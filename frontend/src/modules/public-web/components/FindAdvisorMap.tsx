@@ -2,12 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 
 const PinIcon = ({ className = '' }: { className?: string }) => (
-  <svg
-    viewBox="0 0 20 20"
-    fill="currentColor"
-    aria-hidden
-    className={className}
-  >
+  <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className={className}>
     <path
       fillRule="evenodd"
       clipRule="evenodd"
@@ -87,10 +82,7 @@ export function FindAdvisorMap() {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<GeocodeStatus>('idle');
 
-  const activeAdvisor = useMemo(
-    () => ADVISORS.find((a) => a.id === activeId) ?? null,
-    [activeId]
-  );
+  const activeAdvisor = useMemo(() => ADVISORS.find((a) => a.id === activeId) ?? null, [activeId]);
 
   const handleZoom = (delta: number) => {
     const map = mapRef.current;
@@ -136,8 +128,8 @@ export function FindAdvisorMap() {
           </h2>
 
           <p className="text-lg leading-[29px] text-maps-muted">
-            Utiliza nuestro mapa interactivo para encontrar el asesor más
-            cercano a tu ubicación y recibir atención personalizada.
+            Utiliza nuestro mapa interactivo para encontrar el asesor más cercano a tu ubicación y
+            recibir atención personalizada.
           </p>
 
           <form
@@ -204,9 +196,7 @@ export function FindAdvisorMap() {
                 type="button"
                 aria-label={advisor.name}
                 className={`flex h-9 w-9 -translate-y-1 cursor-pointer items-center justify-center rounded-full border-2 border-white text-white shadow-floating transition-transform hover:scale-110 ${
-                  advisor.highlighted
-                    ? 'bg-maps-brand'
-                    : 'bg-maps-dark'
+                  advisor.highlighted ? 'bg-maps-brand' : 'bg-maps-dark'
                 }`}
               >
                 <PinIcon className="h-5 w-5" />
@@ -225,9 +215,7 @@ export function FindAdvisorMap() {
               onClose={() => setActiveId(null)}
               className="maps-popup"
             >
-              <p className="text-sm font-bold text-maps-heading">
-                {activeAdvisor.name}
-              </p>
+              <p className="text-sm font-bold text-maps-heading">{activeAdvisor.name}</p>
               <p className="text-xs text-maps-muted">{activeAdvisor.role}</p>
             </Popup>
           )}
@@ -256,12 +244,7 @@ export function FindAdvisorMap() {
             className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-maps-heading shadow-floating hover:bg-maps-surface"
           >
             <svg width="14" height="2" viewBox="0 0 14 2" fill="none">
-              <path
-                d="M1 1h12"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
+              <path d="M1 1h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
         </div>

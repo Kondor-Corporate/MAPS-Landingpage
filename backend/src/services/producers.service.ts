@@ -12,7 +12,10 @@ const usuarioListSelect = {
   rol: true,
   createdAt: true,
   updatedAt: true,
-} satisfies Record<keyof Pick<Usuario, 'id' | 'usuario' | 'activo' | 'rol' | 'createdAt' | 'updatedAt'>, true>;
+} satisfies Record<
+  keyof Pick<Usuario, 'id' | 'usuario' | 'activo' | 'rol' | 'createdAt' | 'updatedAt'>,
+  true
+>;
 
 export type AdminProducerRow = Productor & {
   usuario: Pick<Usuario, keyof typeof usuarioListSelect>;
@@ -34,8 +37,7 @@ function slugifyBase(nombre: string, apellido: string): string {
 
 async function ensureUniqueSlug(base: string): Promise<string> {
   for (let n = 0; n < 200; n += 1) {
-    const candidate =
-      n === 0 ? base : `${base}-${randomBytes(2).toString('hex')}`;
+    const candidate = n === 0 ? base : `${base}-${randomBytes(2).toString('hex')}`;
     const exists = await prisma.productor.findUnique({
       where: { slug: candidate },
       select: { id: true },
@@ -71,9 +73,7 @@ export type ListProducersQuery = {
 export const producersService = {
   async list(query: ListProducersQuery): Promise<AdminProducerRow[]> {
     const where: Prisma.ProductorWhereInput =
-      query.activo === undefined
-        ? {}
-        : { usuario: { activo: query.activo } };
+      query.activo === undefined ? {} : { usuario: { activo: query.activo } };
 
     const rows = await prisma.productor.findMany({
       where,
@@ -123,9 +123,7 @@ export const producersService = {
             passwordHash,
             rol: 'PRODUCTOR',
             activo,
-            ...(options?.creadoPorId !== undefined
-              ? { creadoPorId: options.creadoPorId }
-              : {}),
+            ...(options?.creadoPorId !== undefined ? { creadoPorId: options.creadoPorId } : {}),
           },
         });
 
@@ -147,9 +145,7 @@ export const producersService = {
         const target = (err.meta?.target as string[] | undefined)?.join(', ');
         throw new AppError(
           409,
-          target
-            ? `Conflicto de unicidad (${target})`
-            : 'Conflicto de unicidad',
+          target ? `Conflicto de unicidad (${target})` : 'Conflicto de unicidad',
         );
       }
       throw err;
@@ -180,8 +176,7 @@ export const producersService = {
       dataProductor.telefono = input.telefono.trim() === '' ? null : input.telefono.trim();
     }
 
-    const emailNorm =
-      input.email !== undefined ? input.email.trim().toLowerCase() : undefined;
+    const emailNorm = input.email !== undefined ? input.email.trim().toLowerCase() : undefined;
 
     try {
       const updated = await prisma.$transaction(async (tx) => {

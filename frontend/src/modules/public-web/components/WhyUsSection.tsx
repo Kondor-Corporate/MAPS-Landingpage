@@ -1,7 +1,17 @@
 import type { ReactNode } from 'react';
 
 const MonitorIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+  <svg
+    width="28"
+    height="28"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
     <rect x="2" y="3" width="20" height="13" rx="2" />
     <path d="M8 21h8M12 16v5" />
     <path d="M7 9h2M11 9h6M7 12h4" />
@@ -9,14 +19,34 @@ const MonitorIcon = () => (
 );
 
 const MapPinIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+  <svg
+    width="28"
+    height="28"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
     <path d="M12 2C8.686 2 6 4.686 6 8c0 4.5 6 12 6 12s6-7.5 6-12c0-3.314-2.686-6-6-6z" />
     <circle cx="12" cy="8" r="2" />
   </svg>
 );
 
 const HeadsetIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+  <svg
+    width="28"
+    height="28"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
     <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
     <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
     <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
@@ -59,8 +89,8 @@ export function WhyUsSection() {
             ¿Por qué elegir MAPS Asesores?
           </h2>
           <p className="max-w-[640px] text-lg leading-[29px] text-maps-muted">
-            Ofrecemos herramientas digitales de vanguardia y una red de
-            profesionales capacitados para brindarte la mejor atención.
+            Ofrecemos herramientas digitales de vanguardia y una red de profesionales capacitados
+            para brindarte la mejor atención.
           </p>
         </div>
 
@@ -77,9 +107,7 @@ export function WhyUsSection() {
                 <h3 className="text-xl font-bold leading-[25px] text-maps-heading">
                   {feature.title}
                 </h3>
-                <p className="text-base leading-[26px] text-maps-muted">
-                  {feature.description}
-                </p>
+                <p className="text-base leading-[26px] text-maps-muted">{feature.description}</p>
               </div>
             </article>
           ))}

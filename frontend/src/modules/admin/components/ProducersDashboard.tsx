@@ -158,11 +158,7 @@ export function ProducersDashboard({ scope }: Props) {
       {error ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">
           <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => void refetch()}
-            className="font-semibold underline"
-          >
+          <button type="button" onClick={() => void refetch()} className="font-semibold underline">
             Reintentar
           </button>
         </div>
@@ -178,11 +174,7 @@ export function ProducersDashboard({ scope }: Props) {
         onFilterClick={() => setFilterOpen(true)}
         onNewClick={handleNew}
         filterBadge={activeCount}
-        newButtonHint={
-          scope === 'inactive'
-            ? 'Crear nuevo productor (quedará Activo)'
-            : undefined
-        }
+        newButtonHint={scope === 'inactive' ? 'Crear nuevo productor (quedará Activo)' : undefined}
       />
 
       {loading ? (

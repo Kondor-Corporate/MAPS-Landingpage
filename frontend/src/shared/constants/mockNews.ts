@@ -6,8 +6,7 @@ export const mockNews: NewsItem[] = [
     date: 'Hace 2 días',
     title: 'El impacto de la IA en la gestión de siniestros modernos',
     href: '#',
-    imageGradient:
-      'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #00a4c0 100%)',
+    imageGradient: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #00a4c0 100%)',
   },
   {
     category: 'Empresa',
@@ -21,7 +20,6 @@ export const mockNews: NewsItem[] = [
     date: 'Hace 1 semana',
     title: 'Nuevas funcionalidades en nuestra plataforma para productores',
     href: '#',
-    imageGradient:
-      'linear-gradient(135deg, #0089a3 0%, #00a4c0 50%, #67e8f9 100%)',
+    imageGradient: 'linear-gradient(135deg, #0089a3 0%, #00a4c0 50%, #67e8f9 100%)',
   },
 ];

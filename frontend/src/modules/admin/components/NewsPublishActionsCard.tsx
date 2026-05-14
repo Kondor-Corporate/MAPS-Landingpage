@@ -63,7 +63,8 @@ export function NewsPublishActionsCard({
       ) : null}
 
       <div className="border-t border-maps-border pt-3 text-xs text-maps-muted">
-        Estado: <span className={`font-semibold ${ESTADO_COLOR[estado]}`}>{ESTADO_LABEL[estado]}</span>
+        Estado:{' '}
+        <span className={`font-semibold ${ESTADO_COLOR[estado]}`}>{ESTADO_LABEL[estado]}</span>
         <span className="mx-1.5">·</span>
         Último cambio: {relativeTimeFromNow(ultimaModificacion)}
       </div>

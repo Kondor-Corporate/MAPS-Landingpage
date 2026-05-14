@@ -43,8 +43,7 @@ export function AccessCard({
       <article
         className="relative flex flex-col gap-5 overflow-hidden rounded-2xl p-7 text-white shadow-cta"
         style={{
-          background:
-            'linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #00a4c0 100%)',
+          background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #00a4c0 100%)',
         }}
       >
         {badge && (
@@ -79,9 +78,7 @@ export function AccessCard({
         </span>
       )}
       <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-bold leading-tight text-maps-heading">
-          {title}
-        </h2>
+        <h2 className="text-2xl font-bold leading-tight text-maps-heading">{title}</h2>
         <p className="text-sm leading-relaxed text-maps-body">{description}</p>
       </div>
       <a

@@ -1,9 +1,6 @@
 import { Calendar, Image as ImageIcon, Pencil } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
-import {
-  CATEGORIA_LABEL,
-  type News,
-} from '@/modules/admin/types/news';
+import { CATEGORIA_LABEL, type News } from '@/modules/admin/types/news';
 import { NewsAudienceBadge } from '@/modules/admin/components/NewsAudienceBadge';
 import { NewsStatusBadge } from '@/modules/admin/components/NewsStatusBadge';
 

@@ -57,12 +57,8 @@ export function NewsPreviewSection() {
                   </span>
                   <span className="text-maps-muted-soft">{item.date}</span>
                 </div>
-                <h3 className="text-xl font-bold leading-[25px] text-maps-heading">
-                  {item.title}
-                </h3>
-                <span
-                  className="mt-auto inline-flex items-center gap-2 text-sm font-bold text-maps-brand"
-                >
+                <h3 className="text-xl font-bold leading-[25px] text-maps-heading">{item.title}</h3>
+                <span className="mt-auto inline-flex items-center gap-2 text-sm font-bold text-maps-brand">
                   Leer más
                   <ArrowIcon />
                 </span>

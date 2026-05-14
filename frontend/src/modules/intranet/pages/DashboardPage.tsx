@@ -1,10 +1,7 @@
 import { AccessCard } from '@/shared/components/AccessCard';
 import { DashboardGreeting } from '@/shared/components/DashboardGreeting';
 import { RecentNewsGrid } from '@/shared/components/RecentNewsGrid';
-import {
-  BIBLIOTECA_DRIVE_URL,
-  SELF_PORTAL_URL,
-} from '@/shared/constants/dashboardLinks';
+import { BIBLIOTECA_DRIVE_URL, SELF_PORTAL_URL } from '@/shared/constants/dashboardLinks';
 
 const ShieldIcon = () => (
   <svg

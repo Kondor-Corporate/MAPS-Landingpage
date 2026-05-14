@@ -95,12 +95,8 @@ export function AppSidebar() {
           M
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-bold leading-tight text-maps-heading">
-            MAPS Asesores
-          </span>
-          <span className="text-xs leading-tight text-maps-muted">
-            Portal de Productores
-          </span>
+          <span className="text-sm font-bold leading-tight text-maps-heading">MAPS Asesores</span>
+          <span className="text-xs leading-tight text-maps-muted">Portal de Productores</span>
         </div>
       </div>
 
@@ -116,12 +112,8 @@ export function AppSidebar() {
             {getInitials(user.usuario)}
           </div>
           <div className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-semibold text-maps-heading">
-              {user.usuario}
-            </span>
-            <span className="truncate text-xs text-maps-muted">
-              {roleLabel}
-            </span>
+            <span className="truncate text-sm font-semibold text-maps-heading">{user.usuario}</span>
+            <span className="truncate text-xs text-maps-muted">{roleLabel}</span>
           </div>
         </div>
         <button

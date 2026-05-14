@@ -5,9 +5,15 @@ import { authenticate } from '../../../middlewares/authenticate.js';
 
 export const authRouter = Router();
 
+function loginAttemptsPerWindow(): number {
+  if (process.env.NODE_ENV === 'test') return 10_000;
+  if (process.env.NODE_ENV === 'development') return 500;
+  return 10;
+}
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'test' ? 10_000 : 10,
+  max: loginAttemptsPerWindow(),
   standardHeaders: true,
   legacyHeaders: false,
   message: {
