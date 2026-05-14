@@ -107,8 +107,7 @@ Definidas en [`backend/src/api/v1/routes/auth.routes.ts`](../backend/src/api/v1/
 - `JWT_SECRET` y `REFRESH_SECRET` (mínimo 32 caracteres cada uno)
 - `JWT_EXPIRES_IN`, `REFRESH_EXPIRES_IN`
 - `FRONTEND_ORIGIN` (debe coincidir con el origen del Vite dev server, p. ej. `http://localhost:5173`)
-
-En esta etapa Docker se usa solo para PostgreSQL. Backend y frontend corren localmente con `npm run dev`. La base oficial de desarrollo es `maps_asesores_dev`, expuesta en `localhost:5432` por `docker-compose.yml`.
+- `DEFAULT_PRODUCER_PASSWORD` (MAPS-009: contraseña inicial al crear productores desde admin; ver `backend/.env.example`) Backend y frontend corren localmente con `npm run dev`. La base oficial de desarrollo es `maps_asesores_dev`, expuesta en `localhost:5432` por `docker-compose.yml`.
 
 **Frontend** — [`frontend/.env.example`](../frontend/.env.example):
 
@@ -281,6 +280,17 @@ El sistema de routing y autenticación del cliente está **completamente impleme
 
 ---
 
+## Estado real (alto nivel, MAPS-009)
+
+| Módulo | Estado |
+|--------|--------|
+| Admin — **productores** | Integrado con **API real** `/api/v1/producers` (ver work-log MAPS-009). |
+| Admin — **noticias** | **Mock** en cliente; sin API de negocio. |
+| Público — **landing / mapa** | **Locales / mock** según implementación actual. |
+| **Perfil público** `/productor/:slug` | No sustituido por API de lectura en MAPS-009. |
+
+---
+
 ## Pendientes para próximas features
 
 ### 1. Layouts finales (próxima feature)
@@ -293,10 +303,10 @@ El sistema de routing y autenticación del cliente está **completamente impleme
 |--------|---------|----------------|
 | Dashboard intranet | [`intranet/pages/DashboardPage.tsx`](../frontend/src/modules/intranet/pages/DashboardPage.tsx) | Contenido real |
 | Dashboard admin | [`admin/pages/DashboardPage.tsx`](../frontend/src/modules/admin/pages/DashboardPage.tsx) | Contenido real |
-| CRUD productores | [`admin/pages/ProducersPage.tsx`](../frontend/src/modules/admin/pages/ProducersPage.tsx) | Conectar endpoints `/producers` |
-| Noticias | [`admin/pages/NewsManagementPage.tsx`](../frontend/src/modules/admin/pages/NewsManagementPage.tsx) | Conectar endpoints `/news` |
+| CRUD productores | [`admin/pages/ProducersPage.tsx`](../frontend/src/modules/admin/pages/ProducersPage.tsx) | **MAPS-009** — integrado con `/api/v1/producers` |
+| Noticias | [`admin/pages/NewsManagementPage.tsx`](../frontend/src/modules/admin/pages/NewsManagementPage.tsx) | **Mock** — conectar API futura `/news` |
 | Biblioteca | [`intranet/pages/DigitalLibraryPage.tsx`](../frontend/src/modules/intranet/pages/DigitalLibraryPage.tsx) | Conectar endpoints `/library` |
-| Landing + mapa | [`public-web/pages/HomePage.tsx`](../frontend/src/modules/public-web/pages/HomePage.tsx) | Componentes de Figma |
+| Landing + mapa | [`public-web/pages/HomePage.tsx`](../frontend/src/modules/public-web/pages/HomePage.tsx) | Contenidos **locales/mock**; catálogo backend pendiente |
 
 ### 3. Otros pendientes
 
@@ -306,7 +316,8 @@ El sistema de routing y autenticación del cliente está **completamente impleme
 | Assets locales | Logo en `AuthLayout` usa URL temporal de Figma; copiar a `frontend/public/` |
 | Tests E2E | Valorar Playwright: flujo login → zona protegida → logout por rol |
 | CORS en producción | Verificar `FRONTEND_ORIGIN` y `secure: true` en cookies por entorno |
+| Docs MAPS-009 | [`tdd/MAPS-009-tdd-admin-api-productores.md`](./tdd/MAPS-009-tdd-admin-api-productores.md) y [`worklog/MAPS-009-admin-api-productores.md`](./worklog/MAPS-009-admin-api-productores.md) |
 
 ---
 
-*Documento técnico de las features MAPS-003 y MAPS-004. Para arquitectura global y convenciones del equipo, ver el [README raíz](../README.md).*
+*Documento técnico principalmente MAPS-003 y MAPS-004 (auth/routing); ver también estado real MAPS-009 arriba. Para arquitectura global y convenciones del equipo, ver el [README raíz](../README.md).*

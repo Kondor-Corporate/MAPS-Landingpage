@@ -92,6 +92,23 @@ Documentación relacionada: [TDD MAPS-008](docs/tdd/MAPS-008-tdd-ui-stabilizatio
 
 ---
 
+## Estado real del sistema
+
+Resumen ejecutivo para no confundir qué está cableado contra la API y qué sigue en **demo local / mock**:
+
+| Área | Estado |
+|------|--------|
+| **Login / auth API** | Implementado (`/api/v1/auth`, guards en frontend). |
+| **Admin — productores** | **Integrado con API real** `/api/v1/producers` (MAPS-009). |
+| **Admin — noticias** | **Mock / estado en cliente** (`useNews`, etc.). |
+| **Público — landing y mapa** | Contenidos **locales/mock** según página; no implica backend de catálogo. |
+| **Perfil público `/productor/:slug`** | **No** enlazado a la API admin de esta feature. |
+| **Intranet productor** | Independiente del cierre MAPS-009. |
+
+Detalle y pruebas manuales: [`docs/worklog/MAPS-009-admin-api-productores.md`](docs/worklog/MAPS-009-admin-api-productores.md).
+
+---
+
 ## Requisitos
 
 - **Node.js** LTS (≥ 20) — [descargar](https://nodejs.org/)
@@ -364,6 +381,9 @@ JWT_SECRET=dev_access_secret_change_me_32_chars_minimum
 JWT_EXPIRES_IN=15m
 REFRESH_SECRET=dev_refresh_secret_change_me_32_chars_minimum
 REFRESH_EXPIRES_IN=30d
+
+# Contraseña inicial al dar de alta un productor desde el admin (MAPS-009). En producción usar valor largo y política de rotación.
+DEFAULT_PRODUCER_PASSWORD=Dev_DefaultProducer_12chars
 ```
 
 ### `frontend/.env.example`

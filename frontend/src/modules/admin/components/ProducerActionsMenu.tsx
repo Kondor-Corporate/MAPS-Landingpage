@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Eye, MoreVertical, Pencil, Trash2, UserCheck, UserMinus } from 'lucide-react';
 import type { Producer } from '@/modules/admin/types/producer';
+import { producerNombreCompleto } from '@/modules/admin/types/producer';
 
 type Props = {
   producer: Producer;
@@ -19,6 +20,7 @@ export function ProducerActionsMenu({
 }: Props) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const name = producerNombreCompleto(producer);
 
   useEffect(() => {
     if (!open) return;
@@ -55,7 +57,7 @@ export function ProducerActionsMenu({
         className="flex h-8 w-8 items-center justify-center rounded-full text-maps-muted transition hover:bg-maps-surface hover:text-maps-heading"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Acciones para ${producer.nombre}`}
+        aria-label={`Acciones para ${name}`}
       >
         <MoreVertical size={18} strokeWidth={1.75} />
       </button>

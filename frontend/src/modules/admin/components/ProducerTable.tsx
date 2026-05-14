@@ -4,6 +4,7 @@ import { relativeTimeFromNow } from '@/shared/utils/relativeTime';
 import { ProducerActionsMenu } from '@/modules/admin/components/ProducerActionsMenu';
 import { ProducerStatusBadge } from '@/modules/admin/components/ProducerStatusBadge';
 import type { Producer } from '@/modules/admin/types/producer';
+import { producerNombreCompleto } from '@/modules/admin/types/producer';
 
 type Props = {
   producers: Producer[];
@@ -13,7 +14,7 @@ type Props = {
   emptyMessage?: string;
 };
 
-const COLUMNS = ['Nombre', 'Estado', 'DNI', 'Última actividad', 'Acciones'];
+const COLUMNS = ['Nombre', 'Estado', 'DNI', 'Últ. act. cuenta', 'Acciones'];
 
 export function ProducerTable({
   producers,
@@ -56,7 +57,9 @@ export function ProducerTable({
             </tr>
           </thead>
           <tbody>
-            {producers.map((p, idx) => (
+            {producers.map((p, idx) => {
+              const name = producerNombreCompleto(p);
+              return (
               <tr
                 key={p.id}
                 className={[
@@ -66,9 +69,9 @@ export function ProducerTable({
               >
                 <td className="whitespace-nowrap px-6 py-3.5">
                   <div className="flex items-center gap-3">
-                    <Avatar name={p.nombre} src={p.avatarUrl} size="md" />
+                    <Avatar name={name} src={p.avatarUrl} size="md" />
                     <span className="text-sm font-semibold text-maps-heading">
-                      {p.nombre}
+                      {name}
                     </span>
                   </div>
                 </td>
@@ -90,25 +93,28 @@ export function ProducerTable({
                   />
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* Mobile cards */}
       <ul className="flex flex-col divide-y divide-maps-border lg:hidden">
-        {producers.map((p) => (
+        {producers.map((p) => {
+          const name = producerNombreCompleto(p);
+          return (
           <li key={p.id} className="flex flex-col gap-3 p-4">
             <div className="flex items-center gap-3">
-              <Avatar name={p.nombre} src={p.avatarUrl} size="md" />
+              <Avatar name={name} src={p.avatarUrl} size="md" />
               <div className="flex flex-1 flex-col">
-                <span className="text-sm font-semibold text-maps-heading">{p.nombre}</span>
+                <span className="text-sm font-semibold text-maps-heading">{name}</span>
                 <span className="text-xs text-maps-muted">DNI {p.dni}</span>
               </div>
               <ProducerStatusBadge estado={p.estado} />
             </div>
             <div className="flex items-center justify-between text-xs text-maps-muted">
-              <span>Última actividad: {relativeTimeFromNow(p.ultimaActividad)}</span>
+              <span>Cuenta: {relativeTimeFromNow(p.ultimaActividad)}</span>
               <ProducerActionsMenu
                 producer={p}
                 onView={onView}
@@ -117,7 +123,8 @@ export function ProducerTable({
               />
             </div>
           </li>
-        ))}
+        );
+        })}
       </ul>
     </div>
   );
