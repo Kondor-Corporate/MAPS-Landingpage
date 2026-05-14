@@ -162,9 +162,11 @@ curl http://localhost:3000/api/v1/health
 # Respuesta esperada: { "status": "ok", "timestamp": "..." }
 ```
 
-### 8. Tests de integración del backend (auth)
+### 8. Tests de integración del backend (auth + productores)
 
 Requisitos: PostgreSQL levantado, migraciones aplicadas y seed ejecutado (`cd backend && npm run db:seed`). El archivo `backend/.env` debe incluir `DATABASE_URL`, `JWT_SECRET`, `REFRESH_SECRET` y el resto de variables validadas en `src/config/env.ts`.
+
+**Nota:** no hay base de datos de test separada en esta fase: la suite usa el `DATABASE_URL` de tu `backend/.env` (desarrollo local). En CI, el workflow define `DATABASE_URL` contra un Postgres efímero del job.
 
 ```bash
 cd backend
@@ -172,7 +174,11 @@ npm test              # una pasada
 npm run test:watch    # modo observación
 ```
 
-Los tests viven en `backend/tests/` y usan **Vitest** + **Supertest** contra la app en memoria (`createApp()`), sin levantar un servidor real.
+Los tests viven en `backend/tests/` y usan **Vitest** + **Supertest** contra la app en memoria (`createApp()`), sin levantar un servidor real. Incluyen **auth**, **productores (admin)** y **middlewares** `authorize` / `validate`.
+
+#### CI en GitHub
+
+El archivo [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) ejecuta `npm ci`, `typecheck`, `lint`, `build` y `npm test` en backend (tras `prisma migrate deploy` y seed sobre Postgres del servicio del workflow) y las mismas comprobaciones de calidad en frontend, **sin deploy**.
 
 #### Qué hace cada test (`tests/auth.integration.test.ts`)
 

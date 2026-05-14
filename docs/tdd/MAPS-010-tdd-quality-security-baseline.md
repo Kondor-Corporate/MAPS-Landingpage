@@ -2,7 +2,7 @@
 
 Documento de diseño técnico para establecer baseline de **calidad de código**, **seguridad en Express**, **tests ampliados** y **CI mínimo** tras MAPS-009, sin introducir nuevas features funcionales en dominio negocio.
 
-**Estado:** **MAPS-010A** y **MAPS-010B** implementadas (2026-05-14); **010C** pendiente.  
+**Estado:** **MAPS-010A**, **010B** y **010C** implementadas (2026-05-14).  
 **Autor:** (equipo)  
 **Revisores:** —  
 **Creado:** 2026-05-14  
@@ -28,11 +28,20 @@ Documento de diseño técnico para establecer baseline de **calidad de código**
 - **Rate limiting:** `express-rate-limit` ya existía en `POST /login`; se mantiene **solo login**; desarrollo **500**/15 min, test alto, producción **10**/15 min. **No** se añadió limiter en `/refresh`: el token se valida con `REFRESH_SECRET` y sesión en BD; el riesgo principal en fuerza bruta sigue siendo contraseña en login (ya limitado). Reevaluar en 010C si hay tráfico anómalo.
 - **Variables nuevas / documentadas:** `TRUST_PROXY`, `ALLOW_REFRESH_BODY` en `backend/.env.example`, `README.md` (referencia) y `docs/README.md` (auth).
 
+### MAPS-010C — Testing + CI (cierre técnico)
+
+- **Tests productores:** `backend/tests/producers.integration.test.ts` — 401 sin token, 403 como `PRODUCTOR`, 200 como `ADMIN`/`SUPERADMIN`, alta 201, duplicado 409, `whatsapp` estricto 422, PATCH datos, desactivar + refresh 401, listado `activo=false`.
+- **Middlewares:** `backend/tests/authorize-validate.middleware.test.ts` — `authorize` (401/403/next) y `validate` (422 params/body, body parseado).
+- **DB de test:** sin base dedicada; `tests/setup.ts` documenta uso de `DATABASE_URL` de `backend/.env` en local y variables del job en CI.
+- **Scripts:** `npm test` (Vitest `run`) aglutina la suite; `test:watch` ya existía.
+- **GitHub Actions:** `.github/workflows/ci.yml` — servicio Postgres, `prisma migrate deploy`, `db seed`, `typecheck` / `lint` / `build` / `test` backend y calidad frontend.
+- **Docs:** `README.md` (tests + CI); este TDD actualizado.
+
 ---
 
 ## 1. Resumen
 
-Hoy el proyecto carece de endurecimiento sistémico de Express, pipeline CI y tests de capa admin más allá de auth. Tras **MAPS-010A** (2026-05-14) ya hay **Prettier**, **ESLint** mínimo, scripts **`typecheck` / `lint` / `format`** y documentación alineada con **`5432:5432`** en Compose y **npm** como gestor. **MAPS-010B** (2026-05-14) añade **helmet**, límites de body, **trust proxy** configurable, política de refresh **cookie-first en producción**, `errorHandler` más robusto y rate limit de login menos agresivo en desarrollo. Sigue pendiente **010C** (tests ampliados + CI).
+Hoy el proyecto carece de endurecimiento sistémico de Express, pipeline CI y tests de capa admin más allá de auth. Tras **MAPS-010A** (2026-05-14) ya hay **Prettier**, **ESLint** mínimo, scripts **`typecheck` / `lint` / `format`** y documentación alineada con **`5432:5432`** en Compose y **npm** como gestor. **MAPS-010B** (2026-05-14) añade **helmet**, límites de body, **trust proxy** configurable, política de refresh **cookie-first en producción**, `errorHandler` más robusto y rate limit de login menos agresivo en desarrollo. **MAPS-010C** (2026-05-14) incorpora tests de **productores**, **authorize** / **validate**, documentación de estrategia de DB de test y workflow **GitHub Actions** mínimo (sin deploy).
 
 ---
 
@@ -60,8 +69,8 @@ Hoy el proyecto carece de endurecimiento sistémico de Express, pipeline CI y te
 | **Express**            | `backend/src/app.ts`: **helmet** (CSP off, CORP cross-origin), CORS + cookies + **JSON/urlencoded límite 1mb**; **`trust proxy`** vía `TRUST_PROXY`. Rate limit en `POST /login` (relajado en dev).      |
 | **Refresh token**      | Cookie httpOnly `maps_refresh` + body opcional solo si `allowRefreshBody` (prod: false por defecto; `ALLOW_REFRESH_BODY=true` para excepciones).                                                            |
 | **Validación / HTTP**  | Middleware `backend/src/middlewares/validate.ts` responde **422**; `auth.controller` usa **400** para Zod manual en varios handlers. _(Unificación 422: pendiente 010B/PR futuro; fuera de 010A.)_ |
-| **Tests**              | `backend/tests/auth.integration.test.ts` (Vitest + Supertest). Sin tests dedicados de productores, `authorize` ni `validate`.                                                                      |
-| **CI**                 | No hay `.github/workflows`.                                                                                                                                                                        |
+| **Tests**              | `backend/tests/*.test.ts` (Vitest + Supertest): auth, productores (integración admin), `authorize` / `validate` (middlewares). DB local vía `DATABASE_URL` de `backend/.env` o Postgres del job en CI. |
+| **CI**                 | `.github/workflows/ci.yml`: Postgres servicio, `prisma migrate deploy` + seed, typecheck/lint/build/test backend y calidad frontend.                                                                 |
 | **Riesgo producto**    | `DEFAULT_PRODUCER_PASSWORD` en `backend/src/config/env.ts` / `producers.service.ts` — contraseña inicial compartida por altas admin.                                                               |
 
 ### Por qué ahora
@@ -154,9 +163,9 @@ MAPS-009 integró productores a API real; el siguiente incremento natural es **r
 
 ### Fase 010C — Testing + CI
 
-1. Nuevo archivo(s) de test productores (mismo patrón que `auth.integration.test.ts`: app real + agent si cookies).
-2. Tests `authorize` / `validate`.
-3. `.github/workflows/ci.yml` (o nombre acordado) con pasos §9.
+1. ~~Nuevo archivo(s) de test productores (mismo patrón que `auth.integration.test.ts`: app real + agent si cookies).~~ (**hecho 2026-05-14**)
+2. ~~Tests `authorize` / `validate`.~~ (**hecho**)
+3. ~~`.github/workflows/ci.yml` con pasos acordados (install → migrate → seed → calidad backend/frontend).~~ (**hecho**)
 4. Badge opcional en README (diferible).
 
 **Orden recomendado:** **010A → 010B → 010C**. 010A desbloquea confianza en scripts y docs; 010B toca contrato auth en prod; 010C asume lint/typecheck estables para no complicar el primer workflow.
@@ -203,7 +212,7 @@ _(Versiones exactas se fijan al implementar; sin `--force` en audit.)_
 
 ### CI
 
-Secuencia: `npm ci` → `npm run typecheck` → `npm run lint` → `npm run build` → `npm test` (backend). Espejo para frontend sin `test` hasta existir.
+Secuencia local/CI: `npm ci` → migraciones + seed donde aplique → `npm run typecheck` → `npm run lint` → `npm run build` → `npm test` (backend). El repo incluye **`.github/workflows/ci.yml`** con Postgres de servicio y la misma secuencia para PR/push.
 
 ---
 
@@ -215,7 +224,7 @@ Secuencia: `npm ci` → `npm run typecheck` → `npm run lint` → `npm run buil
 | ESLint revela deuda masiva                               | Alta  | Medio   | Fases: `warn` → `error`, o `--max-warnings` acotado con plan de bajar.             |
 | Cambio 422 en auth rompe frontend si asumía 400          | Media | Medio   | Buscar manejo de status en front; actualizar en mismo PR.                          |
 | Cookie-only refresh en prod rompe cliente que usaba body | Baja  | Alto    | Confirmar que SPA solo usa cookie; documentar breaking change si hubo API externa. |
-| Tests productores requieren DB + seed                    | Media | Medio   | Reusar patrón de `tests/setup.ts` y env `test`; documentar en README.              |
+| Tests productores requieren DB + seed                    | Media | Medio   | Patrón `tests/setup.ts` + `DATABASE_URL` local o CI; README y comentario en `setup.ts` documentan el alcance. |
 
 ---
 
@@ -226,8 +235,8 @@ Secuencia: `npm ci` → `npm run typecheck` → `npm run lint` → `npm run buil
 - [x] `helmet` y límite de JSON activos en `createApp`.
 - [x] En **producción**, refresh vía body deshabilitado por defecto; flag `ALLOW_REFRESH_BODY=true` para excepciones.
 - [ ] Validación Zod unificada a **422** (o documento de excepción firmado en §12). *(Parcial: middleware `validate` usa 422; `errorHandler` global Zod→422; auth sigue respondiendo 400 en `safeParse` manual — 010C / PR dedicado.)*
-- [ ] Tests: productores + `authorize` + `validate` en verde localmente.
-- [ ] GitHub Actions ejecuta pipeline mínimo sin deploy; badge opcional.
+- [x] Tests: productores + `authorize` + `validate` en verde (con DB y seed).
+- [x] GitHub Actions ejecuta pipeline mínimo sin deploy; badge opcional.
 - [ ] No se añade Husky, TanStack Query, ni `npm audit fix --force` en el alcance de MAPS-010.
 - [ ] **Work-log** `docs/worklog/MAPS-010-*.md` creado **al cerrar** la última fase (no forma parte de este borrador).
 

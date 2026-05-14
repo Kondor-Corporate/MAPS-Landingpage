@@ -1,6 +1,12 @@
 /**
  * Carga `backend/.env` de forma explícita (no depende del cwd al lanzar Vitest).
- * Requiere PostgreSQL, migraciones y `npm run db:seed`.
+ *
+ * **Base de datos:** no hay DB de test dedicada en esta fase. La suite de integración
+ * usa el mismo `DATABASE_URL` que definás en `backend/.env` (típicamente la Postgres
+ * local de desarrollo del equipo). En **GitHub Actions** el workflow exporta
+ * `DATABASE_URL` al servicio Postgres del job antes de `prisma migrate deploy` y tests.
+ *
+ * Requisitos locales: PostgreSQL accesible, migraciones aplicadas y `npm run db:seed`.
  */
 import { config } from 'dotenv';
 import { dirname, resolve } from 'node:path';
