@@ -1,6 +1,7 @@
 import { AlertTriangle, UserCheck } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import type { Producer } from '@/modules/admin/types/producer';
+import { producerNombreCompleto } from '@/modules/admin/types/producer';
 
 type Mode = 'deactivate' | 'reactivate';
 
@@ -9,7 +10,9 @@ type Props = {
   onClose: () => void;
   producer: Producer | null;
   mode: Mode;
-  onConfirm: (p: Producer) => void;
+  isBusy?: boolean;
+  submitError?: string | null;
+  onConfirm: (p: Producer) => Promise<void>;
 };
 
 export function DeactivateConfirmModal({
@@ -17,10 +20,13 @@ export function DeactivateConfirmModal({
   onClose,
   producer,
   mode,
+  isBusy = false,
+  submitError,
   onConfirm,
 }: Props) {
   if (!producer) return null;
   const isDeactivate = mode === 'deactivate';
+  const label = producerNombreCompleto(producer);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
@@ -42,42 +48,51 @@ export function DeactivateConfirmModal({
               {isDeactivate ? (
                 <>
                   ¿Seguro querés desactivar a{' '}
-                  <strong className="text-maps-heading">{producer.nombre}</strong>? Dejará de
-                  aparecer en el listado de activos hasta que se lo reactive.
+                  <strong className="text-maps-heading">{label}</strong>? Dejará de aparecer en
+                  el listado de activos hasta que se lo reactive.
                 </>
               ) : (
                 <>
                   ¿Seguro querés reactivar a{' '}
-                  <strong className="text-maps-heading">{producer.nombre}</strong>? Volverá al
-                  listado principal de productores activos.
+                  <strong className="text-maps-heading">{label}</strong>? Volverá al listado
+                  principal de productores activos.
                 </>
               )}
             </p>
           </div>
         </div>
 
+        {submitError ? (
+          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            {submitError}
+          </p>
+        ) : null}
+
         <footer className="flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-maps-border bg-white px-4 py-2 text-sm font-medium text-maps-heading transition hover:bg-maps-surface"
+            disabled={isBusy}
+            className="rounded-lg border border-maps-border bg-white px-4 py-2 text-sm font-medium text-maps-heading transition hover:bg-maps-surface disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             type="button"
-            onClick={() => {
-              onConfirm(producer);
-              onClose();
-            }}
+            disabled={isBusy}
+            onClick={() => void onConfirm(producer)}
             className={[
-              'rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-cta transition',
+              'rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-cta transition disabled:opacity-50',
               isDeactivate
                 ? 'bg-rose-600 hover:bg-rose-700'
                 : 'bg-maps-brand hover:bg-maps-brand-hover',
             ].join(' ')}
           >
-            {isDeactivate ? 'Desactivar' : 'Reactivar'}
+            {isBusy
+              ? 'Procesando…'
+              : isDeactivate
+                ? 'Desactivar'
+                : 'Reactivar'}
           </button>
         </footer>
       </div>

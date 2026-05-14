@@ -31,6 +31,7 @@ function within(iso: string, days: number): boolean {
   return Date.now() - ts <= days * 24 * 60 * 60 * 1000;
 }
 
+/** `sucursal`/`estado por sucursales` sin dato persistido si `sucursal` está siempre vacío. */
 export function useProducerFilters() {
   const [filters, setFilters] = useState<ProducerFilters>(INITIAL_FILTERS);
   const [search, setSearch] = useState('');
@@ -45,9 +46,16 @@ export function useProducerFilters() {
     () =>
       (producers: Producer[]): Producer[] => {
         const term = search.trim().toLowerCase();
+        const sucursalesSinPersistencia = producers.every((p) => !p.sucursal.trim());
         return producers.filter((p) => {
           if (filters.estado !== 'TODOS' && p.estado !== filters.estado) return false;
-          if (filters.sucursal !== 'TODOS' && p.sucursal !== filters.sucursal) return false;
+          if (
+            !sucursalesSinPersistencia &&
+            filters.sucursal !== 'TODOS' &&
+            p.sucursal !== filters.sucursal
+          ) {
+            return false;
+          }
           if (filters.fechaAltaDesde && p.fechaAlta < filters.fechaAltaDesde) return false;
           if (filters.fechaAltaHasta && p.fechaAlta > `${filters.fechaAltaHasta}T23:59:59.999Z`)
             return false;
@@ -56,7 +64,8 @@ export function useProducerFilters() {
             if (!within(p.ultimaActividad, days)) return false;
           }
           if (term) {
-            const haystack = `${p.nombre} ${p.dni} ${p.email}`.toLowerCase();
+            const haystack =
+              `${p.nombre} ${p.apellido} ${p.dni} ${p.email}`.toLowerCase();
             if (!haystack.includes(term)) return false;
           }
           return true;

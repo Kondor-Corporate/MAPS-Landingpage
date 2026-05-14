@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { UserPlus } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
-import { SUCURSALES_OPTIONS } from '@/modules/admin/data/producersMock';
-import type { Producer, ProducerInput } from '@/modules/admin/types/producer';
+import type { Producer, ProducerFormSubmit } from '@/modules/admin/types/producer';
+import { producerNombreCompleto } from '@/modules/admin/types/producer';
 
 type Mode = 'create' | 'edit';
 
@@ -11,51 +11,51 @@ type Props = {
   onClose: () => void;
   mode: Mode;
   producer?: Producer | null;
-  onSubmit: (input: ProducerInput) => void;
+  submitting?: boolean;
+  submitError?: string | null;
+  onSubmit: (input: ProducerFormSubmit) => Promise<void>;
 };
 
 type FormState = {
   nombre: string;
-  dni: string;
+  apellido: string;
   email: string;
   telefono: string;
-  sucursal: string;
-  estado: Producer['estado'];
-  avatarUrl: string;
 };
 
 const EMPTY_FORM: FormState = {
   nombre: '',
-  dni: '',
+  apellido: '',
   email: '',
   telefono: '',
-  sucursal: SUCURSALES_OPTIONS[0],
-  estado: 'ACTIVO',
-  avatarUrl: '',
 };
 
 function fromProducer(p: Producer): FormState {
   return {
     nombre: p.nombre,
-    dni: p.dni,
+    apellido: p.apellido,
     email: p.email,
     telefono: p.telefono,
-    sucursal: p.sucursal,
-    estado: p.estado,
-    avatarUrl: p.avatarUrl ?? '',
   };
 }
 
 function validate(form: FormState): Partial<Record<keyof FormState, string>> {
   const errors: Partial<Record<keyof FormState, string>> = {};
   if (!form.nombre.trim()) errors.nombre = 'Requerido';
-  if (!/^\d{7,9}$/.test(form.dni.trim())) errors.dni = 'DNI inválido (7–9 dígitos)';
+  if (!form.apellido.trim()) errors.apellido = 'Requerido';
   if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) errors.email = 'Email inválido';
-  if (!form.telefono.trim()) errors.telefono = 'Requerido';
   return errors;
 }
 
-export function ProducerFormModal({ isOpen, onClose, mode, producer, onSubmit }: Props) {
+export function ProducerFormModal({
+  isOpen,
+  onClose,
+  mode,
+  producer,
+  submitting = false,
+  submitError,
+  onSubmit,
+}: Props) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<ReturnType<typeof validate>>({});
 
@@ -73,26 +73,29 @@ export function ProducerFormModal({ isOpen, onClose, mode, producer, onSubmit }:
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const v = validate(form);
     setErrors(v);
     if (Object.keys(v).length > 0) return;
-    onSubmit({
-      nombre: form.nombre.trim(),
-      dni: form.dni.trim(),
-      email: form.email.trim(),
-      telefono: form.telefono.trim(),
-      sucursal: form.sucursal,
-      estado: form.estado,
-      avatarUrl: form.avatarUrl.trim() || undefined,
-    });
-    onClose();
+    try {
+      await onSubmit({
+        nombre: form.nombre.trim(),
+        apellido: form.apellido.trim(),
+        email: form.email.trim(),
+        telefono: form.telefono.trim(),
+      });
+    } catch {
+      /* error mostrado vía submitError props */
+    }
   }
+
+  const titleNombre =
+    mode === 'edit' && producer ? producerNombreCompleto(producer) : null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-2xl">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6 p-6">
+      <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-6 p-6">
         <header className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-maps-brand-soft text-maps-brand">
             <UserPlus size={20} strokeWidth={1.75} />
@@ -103,30 +106,37 @@ export function ProducerFormModal({ isOpen, onClose, mode, producer, onSubmit }:
             </h2>
             <p className="text-sm text-maps-muted">
               {mode === 'create'
-                ? 'Completá los datos para dar de alta un productor.'
-                : 'Actualizá los datos del productor seleccionado.'}
+                ? 'Los datos enviados se guardan según MAPS (sin sucursal ni redes en esta etapa).'
+                : titleNombre
+                  ? `Editando: ${titleNombre}`
+                  : 'Actualizá los datos del productor seleccionado.'}
             </p>
           </div>
         </header>
 
+        {submitError ? (
+          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            {submitError}
+          </p>
+        ) : null}
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Nombre completo" error={errors.nombre} required>
+          <Field label="Nombre" error={errors.nombre} required>
             <input
               type="text"
               value={form.nombre}
               onChange={(e) => handleChange('nombre', e.target.value)}
               className={inputClasses}
-              placeholder="Juan Pérez"
+              placeholder="María"
             />
           </Field>
-          <Field label="DNI" error={errors.dni} required>
+          <Field label="Apellido" error={errors.apellido} required>
             <input
               type="text"
-              inputMode="numeric"
-              value={form.dni}
-              onChange={(e) => handleChange('dni', e.target.value)}
+              value={form.apellido}
+              onChange={(e) => handleChange('apellido', e.target.value)}
               className={inputClasses}
-              placeholder="12345678"
+              placeholder="Juárez"
             />
           </Field>
           <Field label="Email" error={errors.email} required>
@@ -135,10 +145,10 @@ export function ProducerFormModal({ isOpen, onClose, mode, producer, onSubmit }:
               value={form.email}
               onChange={(e) => handleChange('email', e.target.value)}
               className={inputClasses}
-              placeholder="juan@maps.com.ar"
+              placeholder="maria.juarez@..."
             />
           </Field>
-          <Field label="Teléfono" error={errors.telefono} required>
+          <Field label="Teléfono" hint="Opcional">
             <input
               type="tel"
               value={form.telefono}
@@ -147,58 +157,23 @@ export function ProducerFormModal({ isOpen, onClose, mode, producer, onSubmit }:
               placeholder="+54 11 ..."
             />
           </Field>
-          <Field label="Sucursal">
-            <select
-              value={form.sucursal}
-              onChange={(e) => handleChange('sucursal', e.target.value)}
-              className={inputClasses}
-            >
-              {SUCURSALES_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </Field>
-          {mode === 'edit' ? (
-            <Field label="Estado">
-              <select
-                value={form.estado}
-                onChange={(e) =>
-                  handleChange('estado', e.target.value as Producer['estado'])
-                }
-                className={inputClasses}
-              >
-                <option value="ACTIVO">Activo</option>
-                <option value="INACTIVO">Inactivo</option>
-              </select>
-            </Field>
-          ) : (
-            <Field label="Avatar URL (opcional)">
-              <input
-                type="url"
-                value={form.avatarUrl}
-                onChange={(e) => handleChange('avatarUrl', e.target.value)}
-                className={inputClasses}
-                placeholder="https://..."
-              />
-            </Field>
-          )}
         </div>
 
         <footer className="flex items-center justify-end gap-2 border-t border-maps-border pt-4">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-maps-border bg-white px-4 py-2 text-sm font-medium text-maps-heading transition hover:bg-maps-surface"
+            disabled={submitting}
+            className="rounded-lg border border-maps-border bg-white px-4 py-2 text-sm font-medium text-maps-heading transition hover:bg-maps-surface disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="rounded-lg bg-maps-brand px-4 py-2 text-sm font-semibold text-white shadow-cta transition hover:bg-maps-brand-hover"
+            disabled={submitting}
+            className="rounded-lg bg-maps-brand px-4 py-2 text-sm font-semibold text-white shadow-cta transition hover:bg-maps-brand-hover disabled:opacity-50"
           >
-            {mode === 'create' ? 'Crear productor' : 'Guardar cambios'}
+            {submitting ? 'Guardando…' : mode === 'create' ? 'Crear productor' : 'Guardar cambios'}
           </button>
         </footer>
       </form>
@@ -214,16 +189,21 @@ function Field({
   children,
   error,
   required,
+  hint,
 }: {
   label: string;
   children: React.ReactNode;
   error?: string;
   required?: boolean;
+  hint?: string;
 }) {
   return (
     <label className="flex flex-col gap-1.5 text-sm">
       <span className="text-xs font-semibold uppercase tracking-wider text-maps-muted">
         {label}
+        {hint ? (
+          <span className="ml-1 normal-case font-normal text-maps-muted">{hint}</span>
+        ) : null}
         {required ? <span className="ml-0.5 text-rose-500">*</span> : null}
       </span>
       {children}
