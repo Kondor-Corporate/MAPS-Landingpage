@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Filter } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
-import { SUCURSALES_OPTIONS } from '@/modules/admin/data/producersMock';
 import type {
   ProducerFilters,
   UltimaActividadRange,
@@ -72,17 +71,15 @@ export function ProducerFilterModal({
 
           <Field label="Sucursal">
             <select
-              value={draft.sucursal}
-              onChange={(e) => update('sucursal', e.target.value)}
-              className={selectClasses}
+              value="TODOS"
+              disabled
+              className={selectClassesDisabled}
             >
-              <option value="TODOS">Todas</option>
-              {SUCURSALES_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
+              <option value="TODOS">Todas (sin datos en API)</option>
             </select>
+            <p className="mt-1 text-xs text-maps-muted">
+              El listado viene del backend sin sucursal. Próximo si se persiste en MAPS.
+            </p>
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
@@ -104,7 +101,7 @@ export function ProducerFilterModal({
             </Field>
           </div>
 
-          <Field label="Última actividad">
+          <Field label="Actividad (aprox.)">
             <select
               value={draft.ultimaActividad}
               onChange={(e) =>
@@ -118,6 +115,9 @@ export function ProducerFilterModal({
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-xs text-maps-muted">
+              Basado en la última actualización de cuenta devuelta por el servidor.
+            </p>
           </Field>
         </div>
 
@@ -143,7 +143,10 @@ export function ProducerFilterModal({
             <button
               type="button"
               onClick={() => {
-                onApply(draft);
+                onApply({
+                  ...draft,
+                  sucursal: 'TODOS',
+                });
                 onClose();
               }}
               className="rounded-lg bg-maps-brand px-4 py-2 text-sm font-semibold text-white shadow-cta transition hover:bg-maps-brand-hover"
@@ -159,6 +162,9 @@ export function ProducerFilterModal({
 
 const selectClasses =
   'w-full rounded-lg border border-maps-border bg-white px-3 py-2 text-sm text-maps-heading transition focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20';
+
+const selectClassesDisabled =
+  'w-full cursor-not-allowed rounded-lg border border-maps-border bg-maps-surface px-3 py-2 text-sm text-maps-muted';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

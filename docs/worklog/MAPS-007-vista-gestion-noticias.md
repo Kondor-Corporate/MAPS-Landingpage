@@ -36,7 +36,7 @@ Se trabaja con mock porque el backend (`backend/src/controllers/`) no tiene cont
 - `frontend/src/modules/admin/hooks/useNews.ts`
 - `frontend/src/modules/admin/hooks/useNewsFilters.ts`
 
-`useNews` es un store Zustand (mismo patrón que `useProducers`) con la lista en memoria y CRUD: `addNews`, `updateNews`, `setEstado`, `removeNews`. Cada operación actualiza `ultimaModificacion`. Generación de IDs con `Date.now().toString(36)` + random.
+`useNews` es un store Zustand (mismo **patrón de store mock** histórico en admin que `useProducers` antes de MAPS-009; productores ya migró a API) con la lista en memoria y CRUD: `addNews`, `updateNews`, `setEstado`, `removeNews`. Cada operación actualiza `ultimaModificacion`. Generación de IDs con `Date.now().toString(36)` + random.
 
 `useNewsFilters` expone `search`, `filters` (audiencia / estado / categoría / rango fechas), `setFilter`, `reset`, `apply(items)` (función pura) y `activeCount` (cantidad de filtros activos para el badge del botón Filtrar).
 

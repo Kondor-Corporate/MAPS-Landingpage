@@ -10,6 +10,12 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('15m'),
   REFRESH_SECRET: z.string().min(32),
   REFRESH_EXPIRES_IN: z.string().default('30d'),
+
+  /**
+   * Contraseña inicial asignada a nuevos usuarios PRODUCTOR (alta admin) hasta existir
+   * invitación / primer login. Exigir valor fuerte en producción (no commitear en .env real).
+   */
+  DEFAULT_PRODUCER_PASSWORD: z.string().min(12),
 });
 
 export type Env = z.infer<typeof envSchema>;

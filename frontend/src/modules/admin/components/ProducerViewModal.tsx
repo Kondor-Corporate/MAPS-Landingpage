@@ -3,6 +3,7 @@ import { Modal } from '@/shared/components/Modal';
 import { Avatar } from '@/shared/components/Avatar';
 import { ProducerStatusBadge } from '@/modules/admin/components/ProducerStatusBadge';
 import type { Producer } from '@/modules/admin/types/producer';
+import { producerNombreCompleto } from '@/modules/admin/types/producer';
 
 type Props = {
   isOpen: boolean;
@@ -29,20 +30,30 @@ function formatDateTime(iso: string): string {
   });
 }
 
+function sucursalLabel(p: Producer): string {
+  const s = p.sucursal.trim();
+  return s === '' ? 'Sin dato (no persistido en API)' : s;
+}
+
 export function ProducerViewModal({ isOpen, onClose, producer, onEdit }: Props) {
   if (!producer) return null;
+
+  const name = producerNombreCompleto(producer);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-2xl">
       <div className="flex flex-col">
         <div className="bg-gradient-to-br from-maps-brand-soft via-white to-white px-8 pb-6 pt-10">
           <div className="flex items-start gap-5">
-            <Avatar name={producer.nombre} src={producer.avatarUrl} size="xl" />
+            <Avatar name={name} src={producer.avatarUrl} size="xl" />
             <div className="flex flex-1 flex-col gap-2">
-              <h2 className="text-2xl font-bold text-maps-heading">{producer.nombre}</h2>
+              <h2 className="text-2xl font-bold text-maps-heading">{name}</h2>
               <div className="flex items-center gap-3">
                 <ProducerStatusBadge estado={producer.estado} />
-                <span className="text-sm text-maps-muted">DNI {producer.dni}</span>
+                <span className="text-sm text-maps-muted">
+                  DNI {producer.dni}
+                  {producer.dni === '—' ? ' (vacío)' : ''}
+                </span>
               </div>
             </div>
           </div>
@@ -50,19 +61,28 @@ export function ProducerViewModal({ isOpen, onClose, producer, onEdit }: Props) 
 
         <div className="grid grid-cols-1 gap-4 px-8 py-6 sm:grid-cols-2">
           <InfoRow icon={<Mail size={16} />} label="Email" value={producer.email} />
-          <InfoRow icon={<Phone size={16} />} label="Teléfono" value={producer.telefono} />
-          <InfoRow icon={<MapPin size={16} />} label="Sucursal" value={producer.sucursal} />
+          <InfoRow
+            icon={<Phone size={16} />}
+            label="Teléfono"
+            value={producer.telefono.trim() === '' ? '—' : producer.telefono}
+          />
+          <InfoRow icon={<MapPin size={16} />} label="Sucursal" value={sucursalLabel(producer)} />
           <InfoRow icon={<IdCard size={16} />} label="DNI" value={producer.dni} />
           <InfoRow
             icon={<CalendarDays size={16} />}
             label="Alta"
             value={formatDate(producer.fechaAlta)}
           />
-          <InfoRow
-            icon={<Activity size={16} />}
-            label="Última actividad"
-            value={formatDateTime(producer.ultimaActividad)}
-          />
+          <div className="flex flex-col sm:col-span-2">
+            <InfoRow
+              icon={<Activity size={16} />}
+              label="Últ. actualización cuenta"
+              value={formatDateTime(producer.ultimaActividad)}
+            />
+            <p className="mt-2 text-xs text-maps-muted sm:pl-11">
+              Aproxima actividad; el backend entrega fecha de cuenta, no uso de MAPS intranet.
+            </p>
+          </div>
         </div>
 
         <footer className="flex items-center justify-end gap-2 border-t border-maps-border bg-maps-surface px-8 py-4">
