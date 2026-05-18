@@ -1,3 +1,9 @@
+import { CtaSection } from '../components/CtaSection';
+
 export function HomePage() {
-  return null;
+  return (
+    <div>
+      <CtaSection />
+    </div>
+  );
 }

@@ -1,8 +1,7 @@
 import { useId, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthLayout } from '@/shared/layouts/AuthLayout';
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
+import { authService } from '@/shared/services/authService';
 
 type FieldErrors = {
   usuario?: string;
@@ -23,16 +22,8 @@ function validatePassword(value: string): string | undefined {
   return undefined;
 }
 
-type LoginResponse = {
-  data: {
-    accessToken: string;
-    user: { id: number; usuario: string; rol: string };
-  } | null;
-  message: string;
-  error: unknown;
-};
-
 export function LoginPage() {
+  const navigate = useNavigate();
   const formId = useId();
   const usuarioId = `${formId}-usuario`;
   const passwordId = `${formId}-password`;
@@ -62,32 +53,21 @@ export function LoginPage() {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          usuario: usuario.trim(),
-          password,
-        }),
-      });
+      const result = await authService.login(usuario.trim(), password, rememberMe);
 
-      const json = (await res.json()) as LoginResponse;
+      // Guardar información del usuario
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem('maps_user', JSON.stringify(result.user));
 
-      if (!res.ok) {
-        setApiError(json.message || 'No se pudo iniciar sesión.');
-        return;
-      }
+      setSuccessMessage(`Sesión iniciada como ${result.user.usuario}.`);
 
-      if (json.data?.accessToken) {
-        const storage = rememberMe ? localStorage : sessionStorage;
-        storage.setItem('maps_access_token', json.data.accessToken);
-        if (!rememberMe) localStorage.removeItem('maps_access_token');
-        else sessionStorage.removeItem('maps_access_token');
-        setSuccessMessage(`Sesión iniciada como ${json.data.user.usuario}.`);
-      }
-    } catch {
-      setApiError('Error de red. Comprueba tu conexión y la URL del API.');
+      // Redirigir después de 1 segundo
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo iniciar sesión.';
+      setApiError(message);
     } finally {
       setIsLoading(false);
     }
