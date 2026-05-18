@@ -5,11 +5,13 @@ import { producersRouter } from './routes/producers.routes.js';
 import { adminsRouter } from './routes/admins.routes.js';
 import { newsRouter } from './routes/news.routes.js';
 import { libraryRouter } from './routes/library.routes.js';
+import { contactRouter } from './routes/contact.routes.js';
 
 export const v1Router = Router();
 
 v1Router.use(healthRouter);
 v1Router.use('/auth', authRouter);
+v1Router.use('/contact', contactRouter);
 v1Router.use('/producers', producersRouter);
 v1Router.use('/admins', adminsRouter);
 v1Router.use('/news', newsRouter);
