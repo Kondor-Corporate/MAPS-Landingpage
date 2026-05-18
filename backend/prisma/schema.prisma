@@ -144,3 +144,19 @@ model Recurso {
   @@index([ramoId])
   @@index([subidoPorId])
 }
+
+model Contacto {
+  id           Int      @id @default(autoincrement())
+  nombre       String   @db.VarChar(100)
+  email        String   @db.VarChar(255)
+  telefono     String?  @db.VarChar(20)
+  asunto       String   @db.VarChar(150)
+  mensaje      String   @db.Text
+  leido        Boolean  @default(false)
+  respondido   Boolean  @default(false)
+  creadoEn     DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@index([email])
+  @@index([creadoEn])
+}
