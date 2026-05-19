@@ -7,6 +7,16 @@ type AppLayoutProps = {
   children: ReactNode;
 };
 
+const DESKTOP_SIDEBAR_STORAGE_KEY = 'maps-desktop-sidebar-collapsed';
+
+function readDesktopSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(DESKTOP_SIDEBAR_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 function MenuIcon() {
   return (
     <svg
@@ -52,11 +62,27 @@ function CloseNavIcon() {
  * Renderiza el sidebar lateral por rol + el contenido principal.
  * El logout vive dentro del footer del sidebar.
  * En viewports &lt; lg se ofrece un menú móvil (drawer) con los mismos items que el sidebar.
+ * En desktop (lg+) el sidebar lateral puede ocultarse para dar ancho completo al contenido.
  */
 export function AppLayout({ children }: AppLayoutProps) {
   const user = useAuthStore((s) => s.user);
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(
+    readDesktopSidebarCollapsed,
+  );
+
+  const toggleDesktopSidebar = () => {
+    setDesktopSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(DESKTOP_SIDEBAR_STORAGE_KEY, String(next));
+      } catch {
+        /* ignore quota / private mode */
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -82,10 +108,14 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-maps-surface">
-      <AppSidebar />
+      <AppSidebar
+        collapsed={desktopSidebarCollapsed}
+        onToggleCollapse={toggleDesktopSidebar}
+      />
       <div className="flex min-h-0 flex-1 flex-col">
         {user ? (
-          <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-maps-border bg-white px-4 py-3 lg:hidden">
+          <>
+            <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-maps-border bg-white px-4 py-3 lg:hidden">
             <button
               type="button"
               onClick={() => setMobileNavOpen(true)}
@@ -102,7 +132,30 @@ export function AppLayout({ children }: AppLayoutProps) {
               </span>
               <span className="truncate text-xs text-maps-muted">Portal</span>
             </div>
-          </header>
+            </header>
+            {desktopSidebarCollapsed ? (
+              <header className="sticky top-0 z-40 hidden items-center gap-3 border-b border-maps-border bg-white px-4 py-3 lg:flex">
+              <button
+                type="button"
+                onClick={toggleDesktopSidebar}
+                aria-expanded={false}
+                aria-label="Mostrar menú de navegación"
+                title="Mostrar menú"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-maps-heading transition-colors hover:bg-maps-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-maps-brand"
+              >
+                <MenuIcon />
+              </button>
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-sm font-bold text-maps-heading">
+                  MAPS Asesores
+                </span>
+                <span className="truncate text-xs text-maps-muted">
+                  Portal de Productores
+                </span>
+              </div>
+              </header>
+            ) : null}
+          </>
         ) : null}
 
         <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>

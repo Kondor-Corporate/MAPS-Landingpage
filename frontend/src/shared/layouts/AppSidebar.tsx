@@ -11,6 +11,25 @@ const ROLE_LABEL: Record<Rol, string> = {
   SUPERADMIN: 'SuperAdmin',
 };
 
+const CollapseNavIcon = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+  >
+    <path
+      d="M15 6l-6 6 6 6"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg
     width="18"
@@ -157,14 +176,40 @@ export function AppSidebarPanel({ user, headerTrailing }: AppSidebarPanelProps) 
   );
 }
 
-export function AppSidebar() {
+type AppSidebarProps = {
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+};
+
+export function AppSidebar({ collapsed = false, onToggleCollapse }: AppSidebarProps) {
   const user = useAuthStore((s) => s.user);
 
   if (!user) return null;
 
+  const collapseControl =
+    onToggleCollapse != null ? (
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        aria-label="Ocultar menú de navegación"
+        title="Ocultar menú"
+        className="flex h-10 w-10 items-center justify-center rounded-lg text-maps-heading transition-colors hover:bg-maps-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-maps-brand"
+      >
+        <CollapseNavIcon />
+      </button>
+    ) : null;
+
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-maps-border bg-white lg:flex">
-      <AppSidebarPanel user={user} />
+    <aside
+      className={[
+        'hidden shrink-0 flex-col overflow-hidden border-maps-border bg-white transition-[width] duration-200 ease-in-out lg:flex',
+        collapsed ? 'w-0 border-r-0' : 'w-64 border-r',
+      ].join(' ')}
+      aria-hidden={collapsed}
+    >
+      {!collapsed ? (
+        <AppSidebarPanel user={user} headerTrailing={collapseControl} />
+      ) : null}
     </aside>
   );
 }

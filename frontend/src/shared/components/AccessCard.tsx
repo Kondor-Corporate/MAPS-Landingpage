@@ -40,6 +40,7 @@ export function AccessCard({
   badgeIcon,
 }: AccessCardProps) {
   const ctaDisabled = href == null || href === '';
+  const isExternalLink = Boolean(href && /^https?:\/\//i.test(href));
 
   if (variant === 'self') {
     return (
@@ -70,8 +71,9 @@ export function AccessCard({
         ) : (
           <a
             href={href}
-            target="_blank"
-            rel="noreferrer"
+            {...(isExternalLink
+              ? { target: '_blank', rel: 'noopener noreferrer' }
+              : {})}
             className="mt-auto inline-flex w-fit items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-maps-heading transition-colors hover:bg-white/90"
           >
             {ctaLabel}
@@ -106,8 +108,9 @@ export function AccessCard({
       ) : (
         <a
           href={href}
-          target="_blank"
-          rel="noreferrer"
+          {...(isExternalLink
+            ? { target: '_blank', rel: 'noopener noreferrer' }
+            : {})}
           className="mt-auto inline-flex w-fit items-center gap-2 rounded-lg bg-maps-brand px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-maps-brand-hover"
         >
           {ctaLabel}
