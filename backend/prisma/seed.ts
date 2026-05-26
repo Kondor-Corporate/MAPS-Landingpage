@@ -191,7 +191,6 @@ async function main() {
       update: {
         descripcion: r.descripcion,
         icono: r.icono,
-        gdriveUrl: PLACEHOLDER_DRIVE,
         tipo: r.tipo,
         orden: r.orden,
         activo: true,

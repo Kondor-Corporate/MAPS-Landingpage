@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 type AccessCardProps = {
   variant: 'self' | 'library';
@@ -41,6 +42,7 @@ export function AccessCard({
 }: AccessCardProps) {
   const ctaDisabled = href == null || href === '';
   const isExternalLink = Boolean(href && /^https?:\/\//i.test(href));
+  const isInternalRoute = Boolean(href && href.startsWith('/'));
 
   if (variant === 'self') {
     return (
@@ -68,9 +70,17 @@ export function AccessCard({
           >
             Próximamente
           </span>
+        ) : isInternalRoute && href ? (
+          <Link
+            to={href}
+            className="mt-auto inline-flex w-fit items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-maps-heading transition-colors hover:bg-white/90"
+          >
+            {ctaLabel}
+            <ArrowRightIcon />
+          </Link>
         ) : (
           <a
-            href={href}
+            href={href ?? undefined}
             {...(isExternalLink
               ? { target: '_blank', rel: 'noopener noreferrer' }
               : {})}
@@ -105,9 +115,17 @@ export function AccessCard({
         >
           Próximamente
         </span>
+      ) : isInternalRoute && href ? (
+        <Link
+          to={href}
+          className="mt-auto inline-flex w-fit items-center gap-2 rounded-lg bg-maps-brand px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-maps-brand-hover"
+        >
+          {ctaLabel}
+          <ArrowRightIcon />
+        </Link>
       ) : (
         <a
-          href={href}
+          href={href ?? undefined}
           {...(isExternalLink
             ? { target: '_blank', rel: 'noopener noreferrer' }
             : {})}

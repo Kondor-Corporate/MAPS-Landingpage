@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { useLibraryRamos } from '@/modules/intranet/hooks/useLibraryRamos';
 import { LibraryCategoryGrid } from '@/modules/intranet/components/LibraryCategoryGrid';
+import type { Ramo } from '@/modules/admin/types/library';
 
 const ArrowIcon = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
@@ -14,9 +14,14 @@ const ArrowIcon = () => (
   </svg>
 );
 
-export function LibraryRamosSection() {
-  const { ramos, loading, error, refetch } = useLibraryRamos();
+type Props = {
+  ramos: Ramo[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => Promise<void> | void;
+};
 
+export function LibraryRamosSection({ ramos, loading, error, refetch }: Props) {
   const principales = useMemo(
     () =>
       ramos

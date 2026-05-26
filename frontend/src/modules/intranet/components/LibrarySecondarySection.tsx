@@ -1,12 +1,18 @@
 import { useMemo } from 'react';
-import { useLibraryRamos } from '@/modules/intranet/hooks/useLibraryRamos';
 import { RamoIcon } from '@/modules/admin/components/RamoIcon';
+import type { Ramo } from '@/modules/admin/types/library';
 
 const LIBRARY_GRADIENT =
   'linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #00a4c0 100%)';
 
-export function LibrarySecondarySection() {
-  const { ramos, loading, error, refetch } = useLibraryRamos();
+type Props = {
+  ramos: Ramo[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => Promise<void> | void;
+};
+
+export function LibrarySecondarySection({ ramos, loading, error, refetch }: Props) {
 
   const secundarios = useMemo(
     () =>
