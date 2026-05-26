@@ -8,20 +8,20 @@ const avatars = [avatar1, avatar2, avatar3];
 
 export function HeroSection() {
   return (
-    <section id="inicio" className="bg-white px-4 pt-4">
-      <div className="relative mx-auto flex min-h-[480px] sm:min-h-[520px] lg:min-h-[560px] max-w-[1236px] flex-col justify-center gap-8 overflow-hidden rounded-xl px-6 sm:px-10 lg:px-16 py-10 shadow-cta">
-        <img
-          src={heroBg}
-          alt=""
-          aria-hidden
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-hero-gradient"
-        />
+    <section
+      id="inicio"
+      className="relative flex w-full min-h-[480px] flex-col justify-center overflow-hidden bg-white pt-4 sm:min-h-[520px] lg:min-h-[560px]"
+    >
+      <img
+        src={heroBg}
+        alt=""
+        aria-hidden
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <div aria-hidden className="absolute inset-0 bg-hero-gradient" />
 
-        <div className="relative z-10 flex max-w-[640px] flex-col gap-6">
+      <div className="relative z-10 mx-auto w-full max-w-[1236px] px-6 py-10 sm:px-10 lg:px-16">
+        <div className="flex max-w-[640px] flex-col gap-6">
           <span className="inline-flex w-fit items-center gap-2 rounded-full border border-maps-brand/30 bg-maps-brand/20 px-3 py-[5px] backdrop-blur-sm">
             <span className="h-2 w-2 rounded-full bg-maps-brand" />
             <span className="text-[12px] font-bold uppercase tracking-[0.3px] text-white">

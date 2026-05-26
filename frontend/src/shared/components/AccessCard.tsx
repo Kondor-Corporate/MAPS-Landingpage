@@ -5,7 +5,8 @@ type AccessCardProps = {
   title: string;
   description: string;
   ctaLabel: string;
-  href: string;
+  /** `null`: CTA deshabilitada ("Próximamente"), sin href falso. */
+  href: string | null;
   badge?: string;
   badgeIcon?: ReactNode;
 };
@@ -38,6 +39,8 @@ export function AccessCard({
   badge,
   badgeIcon,
 }: AccessCardProps) {
+  const ctaDisabled = href == null || href === '';
+
   if (variant === 'self') {
     return (
       <article
@@ -57,15 +60,24 @@ export function AccessCard({
           <h2 className="text-2xl font-bold leading-tight">{title}</h2>
           <p className="text-sm leading-relaxed text-white/80">{description}</p>
         </div>
-        <a
-          href={href}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-auto inline-flex w-fit items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-maps-heading transition-colors hover:bg-white/90"
-        >
-          {ctaLabel}
-          <ArrowRightIcon />
-        </a>
+        {ctaDisabled ? (
+          <span
+            className="mt-auto inline-flex w-fit cursor-not-allowed items-center gap-2 rounded-lg border border-white/20 bg-white/15 px-5 py-2.5 text-sm font-bold text-white/70"
+            aria-disabled="true"
+          >
+            Próximamente
+          </span>
+        ) : (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-auto inline-flex w-fit items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-maps-heading transition-colors hover:bg-white/90"
+          >
+            {ctaLabel}
+            <ArrowRightIcon />
+          </a>
+        )}
       </article>
     );
   }
@@ -84,15 +96,24 @@ export function AccessCard({
         </h2>
         <p className="text-sm leading-relaxed text-maps-body">{description}</p>
       </div>
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-auto inline-flex w-fit items-center gap-2 rounded-lg bg-maps-brand px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-maps-brand-hover"
-      >
-        {ctaLabel}
-        <ArrowRightIcon />
-      </a>
+      {ctaDisabled ? (
+        <span
+          className="mt-auto inline-flex w-fit cursor-not-allowed items-center gap-2 rounded-lg border border-maps-border bg-maps-surface px-5 py-2.5 text-sm font-bold text-maps-muted"
+          aria-disabled="true"
+        >
+          Próximamente
+        </span>
+      ) : (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-auto inline-flex w-fit items-center gap-2 rounded-lg bg-maps-brand px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-maps-brand-hover"
+        >
+          {ctaLabel}
+          <ArrowRightIcon />
+        </a>
+      )}
     </article>
   );
 }

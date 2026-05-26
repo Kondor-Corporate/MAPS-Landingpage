@@ -11,6 +11,48 @@ Incluye tres zonas diferenciadas:
 
 > **Fuera de alcance en esta etapa:** Ecommerce y Cotizador (proyectos separados; la arquitectura contempla su integración futura sin rehacer el core).
 
+> **Nota (MAPS-008):** La tabla resume zonas y propósito del producto; el **grado real de integración con API** por módulo está detallado en [Estado real del sistema](#estado-real-del-sistema). No asumir que las pantallas admin de productores o noticias persisten en servidor hasta que exista el ticket de integración correspondiente.
+
+---
+
+## Estado real del sistema
+
+Última revisión documental: **MAPS-008** (2026-05). Esta sección complementa la tabla de zonas arriba: distingue lo **integrado o alineado con backend/infra**, lo que es **UI con mocks o datos locales**, y lo **pendiente**, para evitar interpretar demos como producción integrada.
+
+### Integrado o alineado con backend e infraestructura
+
+| Pieza | Notas |
+|-------|--------|
+| **Autenticación** | Login, refresh, logout, JWT y roles contra la API (`/api/v1/auth`). Detalle en [`docs/README.md`](docs/README.md). |
+| **Routing y guards** | Rutas públicas, intranet (`PRODUCTOR`) y admin (`ADMIN` / `SUPERADMIN`) con guards de rol. |
+| **Base de datos local** | Docker Compose (PostgreSQL), migraciones Prisma, seed (p. ej. usuarios admin/superadmin). |
+| **Layouts base** | `PublicLayout`, `AuthLayout`, `AppLayout` (shell autenticado). |
+| **Navegación móvil (intranet/admin)** | Menú tipo drawer bajo el breakpoint `lg` en `AppLayout`; mismos ítems de sidebar por rol. |
+
+### UI implementada con mocks o datos locales (no implica API de negocio lista)
+
+| Pieza | Notas |
+|-------|--------|
+| **Perfil público `/productor/:slug`** | Vista mínima operativa con **datos mock en cliente**; **sin** API pública de productor aún. |
+| **Admin — productores** | Listado, filtros, CRUD en **Zustand / memoria** (ver worklog MAPS-007). |
+| **Admin — noticias** | Gestión con **mocks** en cliente. |
+| **Noticias en landing y dashboards** | Grillas y modales con **contenido mock** (p. ej. `mockNews`). |
+| **Mapa en landing (`FindAdvisorMap`)** | MapLibre con **marcadores/datos locales**; **no** depende del backend MAPS para el mapa; **lazy-load del chunk** pendiente como mejora de performance. |
+| **Biblioteca digital (contenido)** | Rutas de app existen; contenido **no** sustentado en API de biblioteca aún. |
+| **SELF y enlaces externos tipo Drive** | Hasta tener URLs reales, `dashboardLinks` puede usar **`null`** y la UI muestra **«Próximamente»** en CTAs/sidebar donde aplique. |
+
+### Pendiente explícito
+
+- Integración **API** para **productores** (persistencia y contratos REST).
+- Integración **API** para **noticias**.
+- **Perfil público** desde backend (sustituir mock por fetch real).
+- **Mapa** alimentado desde backend o fuentes acordadas.
+- **URLs reales** portal SELF y biblioteca (Drive u otra).
+- **Lazy-load** de MapLibre (o issue con métrica objetivo).
+- **Tests E2E** (p. ej. Playwright).
+
+Documentación relacionada: [TDD MAPS-008](docs/tdd/MAPS-008-tdd-ui-stabilization.md), [worklog MAPS-008](docs/worklog/MAPS-008-ui-stabilization.md).
+
 ---
 
 ## Stack Tecnológico
