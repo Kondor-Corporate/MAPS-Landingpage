@@ -57,23 +57,49 @@ model SesionToken {
 }
 
 model Productor {
-  id        Int      @id @default(autoincrement())
-  usuarioId Int      @unique
-  slug      String   @unique
-  nombre    String
-  apellido  String
-  bio       String?
-  ciudad    String?
-  dni       String?  @unique
-  foto      String?
-  latitud   Float?
-  longitud  Float?
-  telefono  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  Int      @id @default(autoincrement())
+  usuarioId           Int      @unique
+  slug                String   @unique
+  nombre              String
+  apellido            String
+  bio                 String?
+  ciudad              String?
+  dni                 String?  @unique
+  foto                String?
+  latitud             Float?
+  longitud            Float?
+  telefono            String?
+  matricula           String?  @unique
+  verificado          Boolean  @default(false)
+  idiomas             Json?
+  whatsapp            String?
+  anosExperiencia     Int?     @map("anos_experiencia")
+  clientesActivos     Int?     @map("clientes_activos")
+  tituloProfesional   String?  @map("titulo_profesional")
+  especialidades      String?  @db.Text
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  usuario       Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  redesSociales RedSocial[]
+  usuario         Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  redesSociales   RedSocial[]
+  certificaciones Certificacion[]
+}
+
+model Certificacion {
+  id          Int      @id @default(autoincrement())
+  productorId Int      @map("productor_id")
+  nombre      String
+  archivoUrl  String   @map("archivo_url")
+  tamanoBytes Int?     @map("tamano_bytes")
+  mimeType    String   @default("application/pdf") @map("mime_type")
+  orden       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  productor Productor @relation(fields: [productorId], references: [id], onDelete: Cascade)
+
+  @@index([productorId])
+  @@map("Certificacion")
 }
 
 model RedSocial {

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { UserPlus } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
+import { ProducerCertificationsManager } from '@/shared/components/profile/ProducerCertificationsManager';
+import { ProducerProfileAdminFields } from '@/modules/admin/components/ProducerProfileAdminFields';
 import type { Producer, ProducerFormSubmit } from '@/modules/admin/types/producer';
 import { producerNombreCompleto } from '@/modules/admin/types/producer';
 
@@ -14,6 +16,8 @@ type Props = {
   submitting?: boolean;
   submitError?: string | null;
   onSubmit: (input: ProducerFormSubmit) => Promise<void>;
+  onUploadCertificacion?: (file: File, nombre: string) => Promise<void>;
+  onDeleteCertificacion?: (certId: number) => Promise<void>;
 };
 
 type FormState = {
@@ -21,6 +25,12 @@ type FormState = {
   apellido: string;
   email: string;
   telefono: string;
+  ciudad: string;
+  matricula: string;
+  tituloProfesional: string;
+  verificado: boolean;
+  anosExperiencia: string;
+  clientesActivos: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -28,6 +38,12 @@ const EMPTY_FORM: FormState = {
   apellido: '',
   email: '',
   telefono: '',
+  ciudad: '',
+  matricula: '',
+  tituloProfesional: '',
+  verificado: false,
+  anosExperiencia: '',
+  clientesActivos: '',
 };
 
 function fromProducer(p: Producer): FormState {
@@ -36,14 +52,23 @@ function fromProducer(p: Producer): FormState {
     apellido: p.apellido,
     email: p.email,
     telefono: p.telefono,
+    ciudad: p.ciudad,
+    matricula: p.matricula ?? '',
+    tituloProfesional: p.tituloProfesional ?? '',
+    verificado: p.verificado,
+    anosExperiencia: p.anosExperiencia != null ? String(p.anosExperiencia) : '',
+    clientesActivos: p.clientesActivos != null ? String(p.clientesActivos) : '',
   };
 }
 
-function validate(form: FormState): Partial<Record<keyof FormState, string>> {
+function validate(form: FormState, mode: Mode): Partial<Record<keyof FormState, string>> {
   const errors: Partial<Record<keyof FormState, string>> = {};
   if (!form.nombre.trim()) errors.nombre = 'Requerido';
   if (!form.apellido.trim()) errors.apellido = 'Requerido';
   if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) errors.email = 'Email inválido';
+  if (mode === 'create' && form.ciudad.trim().length < 5) {
+    errors.ciudad = 'Dirección requerida (mínimo 5 caracteres)';
+  }
   return errors;
 }
 
@@ -55,6 +80,8 @@ export function ProducerFormModal({
   submitting = false,
   submitError,
   onSubmit,
+  onUploadCertificacion,
+  onDeleteCertificacion,
 }: Props) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<ReturnType<typeof validate>>({});
@@ -75,7 +102,7 @@ export function ProducerFormModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const v = validate(form);
+    const v = validate(form, mode);
     setErrors(v);
     if (Object.keys(v).length > 0) return;
     try {
@@ -84,6 +111,12 @@ export function ProducerFormModal({
         apellido: form.apellido.trim(),
         email: form.email.trim(),
         telefono: form.telefono.trim(),
+        ciudad: form.ciudad.trim(),
+        matricula: form.matricula.trim(),
+        tituloProfesional: form.tituloProfesional.trim(),
+        verificado: form.verificado,
+        anosExperiencia: form.anosExperiencia.trim(),
+        clientesActivos: form.clientesActivos.trim(),
       });
     } catch {
       /* error mostrado vía submitError props */
@@ -95,71 +128,100 @@ export function ProducerFormModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-2xl">
-      <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-6 p-6">
-        <header className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-maps-brand-soft text-maps-brand">
-            <UserPlus size={20} strokeWidth={1.75} />
-          </span>
-          <div>
-            <h2 className="text-xl font-bold text-maps-heading">
-              {mode === 'create' ? 'Nuevo productor' : 'Editar productor'}
-            </h2>
-            <p className="text-sm text-maps-muted">
-              {mode === 'create'
-                ? 'Los datos enviados se guardan según MAPS (sin sucursal ni redes en esta etapa).'
-                : titleNombre
-                  ? `Editando: ${titleNombre}`
-                  : 'Actualizá los datos del productor seleccionado.'}
+      <form onSubmit={(e) => void handleSubmit(e)} className="flex max-h-[90vh] flex-col">
+        <div className="flex flex-col gap-6 overflow-y-auto p-6">
+          <header className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-maps-brand-soft text-maps-brand">
+              <UserPlus size={20} strokeWidth={1.75} />
+            </span>
+            <div>
+              <h2 className="text-xl font-bold text-maps-heading">
+                {mode === 'create' ? 'Nuevo productor' : 'Editar productor'}
+              </h2>
+              <p className="text-sm text-maps-muted">
+                {mode === 'create'
+                  ? 'Datos básicos y perfil profesional inicial.'
+                  : titleNombre
+                    ? `Editando: ${titleNombre}`
+                    : 'Actualizá los datos del productor seleccionado.'}
+              </p>
+            </div>
+          </header>
+
+          {submitError ? (
+            <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+              {submitError}
             </p>
+          ) : null}
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Nombre" error={errors.nombre} required>
+              <input
+                type="text"
+                value={form.nombre}
+                onChange={(e) => handleChange('nombre', e.target.value)}
+                className={inputClasses}
+              />
+            </Field>
+            <Field label="Apellido" error={errors.apellido} required>
+              <input
+                type="text"
+                value={form.apellido}
+                onChange={(e) => handleChange('apellido', e.target.value)}
+                className={inputClasses}
+              />
+            </Field>
+            <Field label="Email" error={errors.email} required>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => handleChange('email', e.target.value)}
+                className={inputClasses}
+              />
+            </Field>
+            <Field label="Teléfono" hint="Opcional">
+              <input
+                type="tel"
+                value={form.telefono}
+                onChange={(e) => handleChange('telefono', e.target.value)}
+                className={inputClasses}
+              />
+            </Field>
+            <Field
+              label="Dirección"
+              error={errors.ciudad}
+              required={mode === 'create'}
+              hint={mode === 'edit' ? 'Opcional si no cambia' : undefined}
+            >
+              <input
+                type="text"
+                value={form.ciudad}
+                onChange={(e) => handleChange('ciudad', e.target.value)}
+                placeholder="Av. 7 1234, La Plata, Buenos Aires, Argentina"
+                className={inputClasses}
+              />
+            </Field>
           </div>
-        </header>
 
-        {submitError ? (
-          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-            {submitError}
-          </p>
-        ) : null}
+          <ProducerProfileAdminFields
+            matricula={form.matricula}
+            tituloProfesional={form.tituloProfesional}
+            verificado={form.verificado}
+            anosExperiencia={form.anosExperiencia}
+            clientesActivos={form.clientesActivos}
+            onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+          />
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Nombre" error={errors.nombre} required>
-            <input
-              type="text"
-              value={form.nombre}
-              onChange={(e) => handleChange('nombre', e.target.value)}
-              className={inputClasses}
-              placeholder="María"
+          {mode === 'edit' && producer && onUploadCertificacion && onDeleteCertificacion ? (
+            <ProducerCertificationsManager
+              certificaciones={producer.certificaciones}
+              onUpload={onUploadCertificacion}
+              onDelete={onDeleteCertificacion}
             />
-          </Field>
-          <Field label="Apellido" error={errors.apellido} required>
-            <input
-              type="text"
-              value={form.apellido}
-              onChange={(e) => handleChange('apellido', e.target.value)}
-              className={inputClasses}
-              placeholder="Juárez"
-            />
-          </Field>
-          <Field label="Email" error={errors.email} required>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => handleChange('email', e.target.value)}
-              className={inputClasses}
-              placeholder="maria.juarez@..."
-            />
-          </Field>
-          <Field label="Teléfono" hint="Opcional">
-            <input
-              type="tel"
-              value={form.telefono}
-              onChange={(e) => handleChange('telefono', e.target.value)}
-              className={inputClasses}
-              placeholder="+54 11 ..."
-            />
-          </Field>
+          ) : null}
         </div>
 
-        <footer className="flex items-center justify-end gap-2 border-t border-maps-border pt-4">
+        <footer className="flex items-center justify-end gap-2 border-t border-maps-border bg-white px-6 py-4">
           <button
             type="button"
             onClick={onClose}

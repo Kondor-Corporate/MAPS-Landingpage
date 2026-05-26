@@ -1,11 +1,13 @@
+import type { AdminProducerCertificacion } from '@/modules/admin/types/adminProducer';
+
 export type ProducerEstado = 'ACTIVO' | 'INACTIVO';
 
 /**
  * Fila/listado UI admin productores (no es el DTO crudo del API).
- * `sucursal` puede quedar vacío: sin dato persistido en backend (placeholder UI).
  */
 export type Producer = {
   id: string;
+  slug: string;
   nombre: string;
   apellido: string;
   avatarUrl?: string;
@@ -16,18 +18,29 @@ export type Producer = {
   sucursal: string;
   fechaAlta: string;
   ultimaActividad: string;
+  matricula: string | null;
+  verificado: boolean;
+  tituloProfesional: string | null;
+  anosExperiencia: number | null;
+  clientesActivos: number | null;
+  certificaciones: AdminProducerCertificacion[];
+  ciudad: string;
 };
 
 export function producerNombreCompleto(p: Producer): string {
   return [p.nombre, p.apellido].join(' ').trim();
 }
 
-/** Payload sólo para formularios (campos persistidos por API MAPS-009). */
 export type ProducerFormSubmit = {
   nombre: string;
   apellido: string;
   email: string;
   telefono: string;
-  /** Alta en página de inactivos: el backend puede recibir cuenta activa inicial. */
+  ciudad: string;
   activo?: boolean;
+  matricula?: string;
+  verificado?: boolean;
+  tituloProfesional?: string;
+  anosExperiencia?: string;
+  clientesActivos?: string;
 };
