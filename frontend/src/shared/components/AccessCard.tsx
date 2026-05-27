@@ -42,7 +42,6 @@ export function AccessCard({
 }: AccessCardProps) {
   const ctaDisabled = href == null || href === '';
   const isExternalLink = Boolean(href && /^https?:\/\//i.test(href));
-  const isInternalRoute = Boolean(href && href.startsWith('/'));
 
   if (variant === 'self') {
     return (
@@ -80,7 +79,7 @@ export function AccessCard({
           </Link>
         ) : (
           <a
-            href={href ?? undefined}
+            href={href}
             {...(isExternalLink
               ? { target: '_blank', rel: 'noopener noreferrer' }
               : {})}
@@ -125,7 +124,7 @@ export function AccessCard({
         </Link>
       ) : (
         <a
-          href={href ?? undefined}
+          href={href}
           {...(isExternalLink
             ? { target: '_blank', rel: 'noopener noreferrer' }
             : {})}

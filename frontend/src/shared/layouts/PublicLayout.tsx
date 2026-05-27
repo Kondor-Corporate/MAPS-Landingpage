@@ -1,49 +1,116 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 
 type PublicLayoutProps = {
   children: ReactNode;
 };
 
 const navLinks = [
-  { label: 'Inicio', href: '#inicio' },
-  { label: 'Nosotros', href: '#nosotros' },
-  { label: 'Noticias', href: '#noticias' },
-  { label: 'Mapa de Asesores', href: '#mapa' },
+  { label: 'Inicio', sectionId: 'inicio' },
+  { label: 'Nosotros', sectionId: 'nosotros' },
+  { label: 'Noticias', sectionId: 'noticias' },
+  { label: 'Mapa de Asesores', sectionId: 'mapa' },
 ];
 
 const brandLogoSrc = '/mapsLogo.webp';
 
+const navLinkClassName =
+  'whitespace-nowrap text-base font-medium text-maps-heading transition-colors hover:text-maps-brand';
+
+const mobileNavLinkClassName =
+  'rounded-lg px-4 py-3 text-sm font-medium text-maps-heading hover:bg-maps-surface hover:text-maps-brand transition-colors';
+
+type PublicNavLinkProps = {
+  sectionId: string;
+  label: string;
+  className: string;
+  onNavigate?: () => void;
+};
+
+function PublicNavLink({ sectionId, label, className, onNavigate }: PublicNavLinkProps) {
+  const { pathname } = useLocation();
+  const isHome = pathname === '/';
+
+  if (isHome) {
+    return (
+      <a href={`#${sectionId}`} className={className} onClick={onNavigate}>
+        {label}
+      </a>
+    );
+  }
+
+  return (
+    <Link to={`/#${sectionId}`} className={className} onClick={onNavigate}>
+      {label}
+    </Link>
+  );
+}
+
+function PublicBrandLink({ className }: { className: string }) {
+  const { pathname } = useLocation();
+  const isHome = pathname === '/';
+
+  const content = (
+    <>
+      <img
+        src={brandLogoSrc}
+        alt=""
+        className="h-10 w-auto max-h-10 shrink-0 object-contain"
+      />
+      <span className="text-[20px] font-bold tracking-[-0.3px] text-maps-heading">
+        MAPSASESORES
+      </span>
+    </>
+  );
+
+  if (isHome) {
+    return (
+      <a href="#inicio" className={className}>
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <Link to="/" className={className}>
+      {content}
+    </Link>
+  );
+}
+
 export function PublicLayout({ children }: PublicLayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.pathname !== '/' || !location.hash) return;
+
+    const sectionId = location.hash.slice(1);
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.pathname, location.hash]);
 
   return (
     <div className="flex min-h-screen flex-col bg-white font-sans text-maps-body antialiased">
       <header className="sticky top-0 z-40 border-b border-maps-border bg-white/90 backdrop-blur-md">
         <div className="relative flex h-[70px] w-full items-center px-4 sm:px-6 lg:px-10">
-          <a href="#inicio" className="relative z-10 flex shrink-0 items-center gap-2">
-            <img
-              src={brandLogoSrc}
-              alt=""
-              className="h-10 w-auto max-h-10 shrink-0 object-contain"
-            />
-            <span className="text-[20px] font-bold tracking-[-0.3px] text-maps-heading">
-              MAPSASESORES
-            </span>
-          </a>
+          <PublicBrandLink className="relative z-10 flex shrink-0 items-center gap-2" />
 
           <nav
             className="absolute left-1/2 top-1/2 z-0 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-6 lg:flex lg:gap-9"
             aria-label="Principal"
           >
             {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="whitespace-nowrap text-base font-medium text-maps-heading transition-colors hover:text-maps-brand"
-              >
-                {link.label}
-              </a>
+              <PublicNavLink
+                key={link.sectionId}
+                sectionId={link.sectionId}
+                label={link.label}
+                className={navLinkClassName}
+              />
             ))}
           </nav>
 
@@ -79,14 +146,13 @@ export function PublicLayout({ children }: PublicLayoutProps) {
           <div className="lg:hidden border-t border-maps-border bg-white px-4 py-3">
             <nav className="flex flex-col gap-1">
               {navLinks.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setIsMenuOpen(false)}
-                  className="rounded-lg px-4 py-3 text-sm font-medium text-maps-heading hover:bg-maps-surface hover:text-maps-brand transition-colors"
-                >
-                  {link.label}
-                </a>
+                <PublicNavLink
+                  key={link.sectionId}
+                  sectionId={link.sectionId}
+                  label={link.label}
+                  className={mobileNavLinkClassName}
+                  onNavigate={() => setIsMenuOpen(false)}
+                />
               ))}
               <a
                 href="/login"

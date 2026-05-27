@@ -33,23 +33,29 @@ Incluye tres zonas diferenciadas:
 
 | Pieza | Notas |
 |-------|--------|
-| **Perfil público `/productor/:slug`** | Vista mínima operativa con **datos mock en cliente**; **sin** API pública de productor aún. |
-| **Admin — productores** | Listado, filtros, CRUD en **Zustand / memoria** (ver worklog MAPS-007). |
+| **Perfil público `/productor/:slug`** | Consume `GET /producers/by-slug/:slug` (público). |
+| **Admin — productores** | CRUD vía API REST (`/producers`); alta con **dirección** geocodificada a coordenadas. |
 | **Admin — noticias** | Gestión con **mocks** en cliente. |
 | **Noticias en landing y dashboards** | Grillas y modales con **contenido mock** (p. ej. `mockNews`). |
-| **Mapa en landing (`FindAdvisorMap`)** | MapLibre con **marcadores/datos locales**; **no** depende del backend MAPS para el mapa; **lazy-load del chunk** pendiente como mejora de performance. |
+| **Mapa en landing (`FindAdvisorMap`)** | MapLibre alimentado por `GET /producers/map` (productores activos con coords); **lazy-load del chunk** pendiente como mejora de performance. |
 | **Biblioteca digital (contenido)** | Rutas de app existen; contenido **no** sustentado en API de biblioteca aún. |
 | **SELF y enlaces externos tipo Drive** | Hasta tener URLs reales, `dashboardLinks` puede usar **`null`** y la UI muestra **«Próximamente»** en CTAs/sidebar donde aplique. |
 
 ### Pendiente explícito
 
-- Integración **API** para **productores** (persistencia y contratos REST).
 - Integración **API** para **noticias**.
-- **Perfil público** desde backend (sustituir mock por fetch real).
-- **Mapa** alimentado desde backend o fuentes acordadas.
 - **URLs reales** portal SELF y biblioteca (Drive u otra).
 - **Lazy-load** de MapLibre (o issue con métrica objetivo).
 - **Tests E2E** (p. ej. Playwright).
+
+### API pública de productores (mapa y perfiles)
+
+| Método | Ruta | Auth | Uso |
+|--------|------|------|-----|
+| `GET` | `/api/v1/producers/map` | No | Marcadores para el mapa de la landing (slug, nombre, coords, sin email/id) |
+| `GET` | `/api/v1/producers/by-slug/:slug` | No | Perfil público del productor |
+
+Al crear un productor desde admin, el campo **Dirección** se geocodifica vía Nominatim y persiste `latitud`/`longitud` en PostgreSQL.
 
 Documentación relacionada: [TDD MAPS-008](docs/tdd/MAPS-008-tdd-ui-stabilization.md), [worklog MAPS-008](docs/worklog/MAPS-008-ui-stabilization.md).
 

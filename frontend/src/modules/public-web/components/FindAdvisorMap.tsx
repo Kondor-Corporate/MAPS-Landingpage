@@ -1,96 +1,60 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
+import { MapPinIcon } from '@/shared/components/map/MapPinIcon';
+import { LA_PLATA_VIEW, MAP_STYLE } from '@/shared/components/map/mapStyle';
+import { useProducersMap } from '@/modules/public-web/hooks/useProducersMap';
+import { geocodeQuery } from '@/shared/lib/geocode';
 
-const PinIcon = ({ className = '' }: { className?: string }) => (
-  <svg
-    viewBox="0 0 20 20"
-    fill="currentColor"
-    aria-hidden
-    className={className}
-  >
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M10 1.667c-3.682 0-6.667 2.985-6.667 6.667 0 4.583 6.667 10 6.667 10s6.667-5.417 6.667-10c0-3.682-2.985-6.667-6.667-6.667Zm0 9.166a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"
-    />
-  </svg>
-);
-
-type Advisor = {
-  id: string;
-  name: string;
-  role: string;
-  longitude: number;
-  latitude: number;
-  highlighted?: boolean;
-};
-
-const DEFAULT_VIEW = {
-  longitude: -58.3816,
-  latitude: -34.6037,
-  zoom: 12,
-};
-
-const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
-
-const ADVISORS: Advisor[] = [
-  {
-    id: 'carlos-rivera',
-    name: 'Carlos Rivera',
-    role: 'Asesor · 1.2 km de distancia',
-    longitude: -58.3816,
-    latitude: -34.6037,
-    highlighted: true,
-  },
-  {
-    id: 'lucia-fernandez',
-    name: 'Lucía Fernández',
-    role: 'Asesora · Palermo',
-    longitude: -58.4302,
-    latitude: -34.5889,
-  },
-  {
-    id: 'martin-ibanez',
-    name: 'Martín Ibáñez',
-    role: 'Asesor · Belgrano',
-    longitude: -58.4583,
-    latitude: -34.5627,
-  },
-  {
-    id: 'sofia-paz',
-    name: 'Sofía Paz',
-    role: 'Asesora · San Telmo',
-    longitude: -58.3731,
-    latitude: -34.6212,
-  },
-];
+const DEFAULT_VIEW = LA_PLATA_VIEW;
 
 type GeocodeStatus = 'idle' | 'loading' | 'not-found' | 'error';
 
-async function geocode(query: string) {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
-  const res = await fetch(url, {
-    headers: { Accept: 'application/json' },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data: Array<{ lat: string; lon: string }> = await res.json();
-  if (!data.length) return null;
-  return {
-    longitude: parseFloat(data[0].lon),
-    latitude: parseFloat(data[0].lat),
-  };
-}
-
 export function FindAdvisorMap() {
   const mapRef = useRef<MapRef | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const { producers, loading, error: loadError } = useProducersMap();
+  const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<GeocodeStatus>('idle');
+  const boundsFitted = useRef(false);
 
-  const activeAdvisor = useMemo(
-    () => ADVISORS.find((a) => a.id === activeId) ?? null,
-    [activeId]
+  const activeProducer = useMemo(
+    () => producers.find((p) => p.slug === activeSlug) ?? null,
+    [activeSlug, producers],
   );
+
+  useEffect(() => {
+    if (loading || producers.length === 0 || boundsFitted.current) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    if (producers.length === 1) {
+      map.flyTo({
+        center: [producers[0].longitud, producers[0].latitud],
+        zoom: 13,
+        duration: 800,
+      });
+    } else {
+      let minLng = Infinity;
+      let minLat = Infinity;
+      let maxLng = -Infinity;
+      let maxLat = -Infinity;
+      for (const p of producers) {
+        minLng = Math.min(minLng, p.longitud);
+        minLat = Math.min(minLat, p.latitud);
+        maxLng = Math.max(maxLng, p.longitud);
+        maxLat = Math.max(maxLat, p.latitud);
+      }
+      map.fitBounds(
+        [
+          [minLng, minLat],
+          [maxLng, maxLat],
+        ],
+        { padding: 48, duration: 800, maxZoom: 14 },
+      );
+    }
+    boundsFitted.current = true;
+  }, [loading, producers]);
 
   const handleZoom = (delta: number) => {
     const map = mapRef.current;
@@ -106,7 +70,7 @@ export function FindAdvisorMap() {
 
     setStatus('loading');
     try {
-      const result = await geocode(q);
+      const result = await geocodeQuery(q);
       if (!result) {
         setStatus('not-found');
         return;
@@ -128,7 +92,7 @@ export function FindAdvisorMap() {
       <div className="flex items-center bg-white px-6 sm:px-10 lg:px-16 py-12 sm:py-16 lg:py-32">
         <div className="flex max-w-[560px] flex-col gap-5">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-maps-brand-soft text-maps-brand">
-            <PinIcon className="h-6 w-6" />
+            <MapPinIcon className="h-6 w-6" />
           </div>
 
           <h2 className="text-2xl sm:text-3xl lg:text-[36px] font-bold leading-tight lg:leading-[48px] tracking-[-0.9px] text-maps-heading">
@@ -145,7 +109,7 @@ export function FindAdvisorMap() {
             onSubmit={handleSearch}
           >
             <span className="flex w-9 items-center justify-center text-maps-muted-soft">
-              <PinIcon className="h-[18px] w-[18px]" />
+              <MapPinIcon className="h-[18px] w-[18px]" />
             </span>
             <input
               type="text"
@@ -176,10 +140,24 @@ export function FindAdvisorMap() {
               Hubo un problema al buscar. Intentá de nuevo en un momento.
             </p>
           )}
+          {loadError && (
+            <p className="text-sm text-red-600">{loadError}</p>
+          )}
+          {!loading && !loadError && producers.length === 0 && (
+            <p className="text-sm text-maps-muted">
+              Aún no hay asesores geolocalizados en el mapa.
+            </p>
+          )}
         </div>
       </div>
 
       <div className="relative min-h-[300px] sm:min-h-[400px] lg:min-h-[600px] overflow-hidden">
+        {loading && (
+          <div className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-100/80">
+            <p className="text-sm font-medium text-maps-muted">Cargando mapa…</p>
+          </div>
+        )}
+
         <Map
           ref={mapRef}
           initialViewState={DEFAULT_VIEW}
@@ -189,46 +167,55 @@ export function FindAdvisorMap() {
           dragRotate={false}
           touchZoomRotate
         >
-          {ADVISORS.map((advisor) => (
+          {producers.map((producer) => (
             <Marker
-              key={advisor.id}
-              longitude={advisor.longitude}
-              latitude={advisor.latitude}
+              key={producer.slug}
+              longitude={producer.longitud}
+              latitude={producer.latitud}
               anchor="bottom"
               onClick={(e) => {
                 e.originalEvent.stopPropagation();
-                setActiveId(advisor.id);
+                setActiveSlug(producer.slug);
               }}
             >
               <button
                 type="button"
-                aria-label={advisor.name}
-                className={`flex h-9 w-9 -translate-y-1 cursor-pointer items-center justify-center rounded-full border-2 border-white text-white shadow-floating transition-transform hover:scale-110 ${
-                  advisor.highlighted
-                    ? 'bg-maps-brand'
-                    : 'bg-maps-dark'
-                }`}
+                aria-label={producer.nombreCompleto}
+                className="flex h-9 w-9 -translate-y-1 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-maps-brand text-white shadow-floating transition-transform hover:scale-110"
               >
-                <PinIcon className="h-5 w-5" />
+                <MapPinIcon className="h-5 w-5" />
               </button>
             </Marker>
           ))}
 
-          {activeAdvisor && (
+          {activeProducer && (
             <Popup
-              longitude={activeAdvisor.longitude}
-              latitude={activeAdvisor.latitude}
+              longitude={activeProducer.longitud}
+              latitude={activeProducer.latitud}
               anchor="bottom"
               offset={36}
               closeButton
               closeOnClick={false}
-              onClose={() => setActiveId(null)}
+              onClose={() => setActiveSlug(null)}
               className="maps-popup"
             >
               <p className="text-sm font-bold text-maps-heading">
-                {activeAdvisor.name}
+                {activeProducer.nombreCompleto}
               </p>
-              <p className="text-xs text-maps-muted">{activeAdvisor.role}</p>
+              {activeProducer.tituloProfesional && (
+                <p className="text-xs text-maps-muted">
+                  {activeProducer.tituloProfesional}
+                </p>
+              )}
+              {activeProducer.ciudad && (
+                <p className="text-xs text-maps-muted">{activeProducer.ciudad}</p>
+              )}
+              <Link
+                to={`/productor/${activeProducer.slug}`}
+                className="mt-2 inline-block text-xs font-semibold text-maps-brand hover:underline"
+              >
+                Ver perfil
+              </Link>
             </Popup>
           )}
         </Map>

@@ -1,7 +1,8 @@
-import { Mail, MapPin, Phone, CalendarDays, Activity, IdCard } from 'lucide-react';
+import { Mail, MapPin, Phone, CalendarDays, Activity, IdCard, BadgeCheck, Award } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { Avatar } from '@/shared/components/Avatar';
 import { ProducerStatusBadge } from '@/modules/admin/components/ProducerStatusBadge';
+import { ProfileCertificationsList } from '@/shared/components/profile/ProfileCertificationsList';
 import type { Producer } from '@/modules/admin/types/producer';
 import { producerNombreCompleto } from '@/modules/admin/types/producer';
 
@@ -30,11 +31,6 @@ function formatDateTime(iso: string): string {
   });
 }
 
-function sucursalLabel(p: Producer): string {
-  const s = p.sucursal.trim();
-  return s === '' ? 'Sin dato (no persistido en API)' : s;
-}
-
 export function ProducerViewModal({ isOpen, onClose, producer, onEdit }: Props) {
   if (!producer) return null;
 
@@ -48,8 +44,14 @@ export function ProducerViewModal({ isOpen, onClose, producer, onEdit }: Props) 
             <Avatar name={name} src={producer.avatarUrl} size="xl" />
             <div className="flex flex-1 flex-col gap-2">
               <h2 className="text-2xl font-bold text-maps-heading">{name}</h2>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <ProducerStatusBadge estado={producer.estado} />
+                {producer.verificado ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    <BadgeCheck size={14} aria-hidden />
+                    Verificado
+                  </span>
+                ) : null}
                 <span className="text-sm text-maps-muted">
                   DNI {producer.dni}
                   {producer.dni === '—' ? ' (vacío)' : ''}
@@ -66,8 +68,33 @@ export function ProducerViewModal({ isOpen, onClose, producer, onEdit }: Props) 
             label="Teléfono"
             value={producer.telefono.trim() === '' ? '—' : producer.telefono}
           />
-          <InfoRow icon={<MapPin size={16} />} label="Sucursal" value={sucursalLabel(producer)} />
+          <InfoRow
+            icon={<MapPin size={16} />}
+            label="Dirección"
+            value={producer.ciudad.trim() === '' ? '—' : producer.ciudad}
+          />
           <InfoRow icon={<IdCard size={16} />} label="DNI" value={producer.dni} />
+          <InfoRow
+            icon={<Award size={16} />}
+            label="Matrícula"
+            value={producer.matricula?.trim() ? `#${producer.matricula}` : '—'}
+          />
+          <InfoRow
+            icon={<Award size={16} />}
+            label="Título"
+            value={producer.tituloProfesional?.trim() || '—'}
+          />
+          <InfoRow
+            icon={<Activity size={16} />}
+            label="Experiencia / Clientes"
+            value={`${producer.anosExperiencia ?? '—'} años · ${producer.clientesActivos ?? '—'} clientes`}
+          />
+          <div className="sm:col-span-2">
+            <ProfileCertificationsList
+              certificaciones={producer.certificaciones}
+              emptyMessage="Sin certificaciones cargadas."
+            />
+          </div>
           <InfoRow
             icon={<CalendarDays size={16} />}
             label="Alta"

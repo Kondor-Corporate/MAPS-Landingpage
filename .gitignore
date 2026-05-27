@@ -76,6 +76,9 @@ skills-lock.json
 # docker-compose.yml SÍ se versiona; ignorar overrides locales
 docker-compose.override.yml
 
+# ── Uploads (certificaciones PDF MAPS-013) ───────────────────
+backend/uploads/
+
 # ── Misc ─────────────────────────────────────────────────────
 *.local
 .cache/

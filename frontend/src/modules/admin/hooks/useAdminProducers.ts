@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
-import { mapAdminProducerToProducer } from '@/modules/admin/lib/mapAdminProducer';
+import {
+  mapAdminProducerToProducer,
+  producerFormToApiPayload,
+} from '@/modules/admin/lib/mapAdminProducer';
 import {
   createProducer,
+  deleteProducerCertificacion,
   listProducers,
   setProducerActive,
   updateProducer,
+  uploadProducerCertificacion,
 } from '@/modules/admin/services/producers.service';
 import type { Producer, ProducerFormSubmit } from '@/modules/admin/types/producer';
 
@@ -40,12 +45,9 @@ export function useAdminProducers(scope: Scope) {
     async (input: ProducerFormSubmit) => {
       setError(null);
       const row = await createProducer({
-        nombre: input.nombre,
-        apellido: input.apellido,
-        email: input.email,
-        telefono: input.telefono.trim() === '' ? undefined : input.telefono,
+        ...producerFormToApiPayload(input),
         activo: input.activo ?? true,
-      });
+      } as Parameters<typeof createProducer>[0]);
       await refetch();
       return mapAdminProducerToProducer(row);
     },
@@ -56,14 +58,29 @@ export function useAdminProducers(scope: Scope) {
     async (id: string, input: ProducerFormSubmit) => {
       setError(null);
       const numId = Number.parseInt(id, 10);
-      const row = await updateProducer(numId, {
-        nombre: input.nombre,
-        apellido: input.apellido,
-        email: input.email,
-        telefono: input.telefono.trim() === '' ? '' : input.telefono,
-      });
+      const row = await updateProducer(numId, producerFormToApiPayload(input));
       await refetch();
       return mapAdminProducerToProducer(row);
+    },
+    [refetch],
+  );
+
+  const uploadCertificacion = useCallback(
+    async (producerId: string, file: File, nombre?: string) => {
+      setError(null);
+      const numId = Number.parseInt(producerId, 10);
+      await uploadProducerCertificacion(numId, file, nombre);
+      await refetch();
+    },
+    [refetch],
+  );
+
+  const deleteCertificacion = useCallback(
+    async (producerId: string, certId: number) => {
+      setError(null);
+      const numId = Number.parseInt(producerId, 10);
+      await deleteProducerCertificacion(numId, certId);
+      await refetch();
     },
     [refetch],
   );
@@ -95,6 +112,8 @@ export function useAdminProducers(scope: Scope) {
     refetch,
     create,
     update,
+    uploadCertificacion,
+    deleteCertificacion,
     activate,
     deactivate,
   };
