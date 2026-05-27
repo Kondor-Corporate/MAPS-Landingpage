@@ -109,6 +109,7 @@ cd frontend && npm run build  # vite build
 | Pendiente | Detalle |
 |-----------|---------|
 | Noticias admin | Sigue con mock / store local; sin API en este ticket. |
+| Biblioteca digital | UI mock MAPS-011; API en [MAPS-012-tdd-biblioteca-digital-api.md](../tdd/MAPS-012-tdd-biblioteca-digital-api.md). |
 | Perfil público `/productor/:slug` | Datos locales/mock según módulo público; no contratado aquí. |
 | Mapa / landing | Datos locales o stub; no alimentado por esta API. |
 | Intranet productor | Sin cambios; edición de perfil por el propio productor es otra historia. |

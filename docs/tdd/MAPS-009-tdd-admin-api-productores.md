@@ -83,7 +83,7 @@ MAPS-007 dejó la UI admin de productores presentable con mocks; MAPS-008 (conte
 ## 5. Fuera de alcance
 
 - Noticias (`/admin/noticias` mock y futuro backend noticias).
-- Biblioteca digital (admin/intranet).
+- Biblioteca digital — ver [MAPS-012-tdd-biblioteca-digital-api.md](./MAPS-012-tdd-biblioteca-digital-api.md) (ticket separado).
 - **Mapa** alimentado desde backend / geo queries.
 - **Perfil público** real (`/productor/:slug`) servido por API; cualquier UI mock puede mantenerse sin contrato estable en esta entrega.
 - **Intranet productor** (edición de perfil por el propio productor, MR separate).

@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { AdminsPage } from '@/modules/admin/pages/AdminsPage';
 import { DashboardPage as AdminDashboardPage } from '@/modules/admin/pages/DashboardPage';
 import { InactiveProducersPage } from '@/modules/admin/pages/InactiveProducersPage';
+import { LibraryManagementPage } from '@/modules/admin/pages/LibraryManagementPage';
 import { NewsManagementPage } from '@/modules/admin/pages/NewsManagementPage';
 import { ProducersPage } from '@/modules/admin/pages/ProducersPage';
 import { LoginPage } from '@/modules/auth/pages/LoginPage';
@@ -86,7 +87,7 @@ const adminBranch = {
             { path: 'productores', element: <ProducersPage /> },
             { path: 'inactivos', element: <InactiveProducersPage /> },
             { path: 'noticias', element: <NewsManagementPage /> },
-            { path: 'biblioteca', element: <DigitalLibraryPage /> },
+            { path: 'biblioteca', element: <LibraryManagementPage /> },
             { path: 'mi-perfil', element: <MyProfilePage /> },
             { index: true, element: <Navigate to="dashboard" replace /> },
           ],

@@ -1,3 +1,1 @@
-export function LibraryCard() {
-  return null;
-}
+export { LibraryRamoCard as LibraryCard } from '@/modules/intranet/components/LibraryRamoCard';

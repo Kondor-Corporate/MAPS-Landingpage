@@ -19,6 +19,11 @@ enum Visibilidad {
   PUBLICA
 }
 
+enum RamoTipo {
+  PRINCIPAL
+  SECUNDARIO
+}
+
 model Usuario {
   id           Int      @id @default(autoincrement())
   activo       Boolean  @default(true)
@@ -120,6 +125,10 @@ model Ramo {
   bibliotecaId Int
   nombre       String
   descripcion  String?
+  icono        String
+  gdriveUrl    String
+  tipo         RamoTipo @default(PRINCIPAL)
+  activo       Boolean  @default(true)
   orden        Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -127,6 +136,7 @@ model Ramo {
   biblioteca Biblioteca @relation(fields: [bibliotecaId], references: [id], onDelete: Cascade)
   recursos   Recurso[]
 
+  @@unique([bibliotecaId, nombre])
   @@index([bibliotecaId])
 }
 
