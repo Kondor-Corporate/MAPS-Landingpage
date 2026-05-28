@@ -13,7 +13,7 @@ export function CtaSection() {
           te importa, hoy mismo.
         </p>
         <a
-          href="#contactanos"
+          href="/#contacto"
           className="inline-flex h-16 min-w-[244px] items-center justify-center rounded-xl bg-white px-8 text-lg font-bold text-maps-brand shadow-cta transition-transform hover:-translate-y-0.5"
         >
           Contactanos

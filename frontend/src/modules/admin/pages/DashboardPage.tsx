@@ -1,7 +1,7 @@
 import { AccessCard } from '@/shared/components/AccessCard';
 import { DashboardGreeting } from '@/shared/components/DashboardGreeting';
 import { RecentNewsGrid } from '@/shared/components/RecentNewsGrid';
-import { BIBLIOTECA_DRIVE_URL, SELF_PORTAL_URL } from '@/shared/constants/dashboardLinks';
+import { BIBLIOTECA_ADMIN_PATH, SELF_PORTAL_URL } from '@/shared/constants/dashboardLinks';
 import { useAuthStore } from '@/store/authStore';
 
 const ShieldIcon = () => (
@@ -63,7 +63,7 @@ export function DashboardPage() {
           title="Biblioteca Digital"
           description="Accedé a manuales, formularios y material comercial actualizado."
           ctaLabel="Ingresar a la Biblioteca"
-          href={BIBLIOTECA_DRIVE_URL}
+          href={BIBLIOTECA_ADMIN_PATH}
           badge="Recursos"
           badgeIcon={<BookIcon />}
         />

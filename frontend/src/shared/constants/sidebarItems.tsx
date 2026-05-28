@@ -199,12 +199,29 @@ export type SidebarItem = {
   to: string;
   icon: ComponentType<IconProps>;
   external?: boolean;
+  /** Sin URL real: entrada no navegable (p. ej. enlace externo pendiente). */
+  disabled?: boolean;
 };
+
+function accesoSelfSidebarItem(): SidebarItem {
+  const url = SELF_PORTAL_URL;
+  if (url) {
+    return { label: 'Acceso SELF', to: url, icon: ExternalIcon, external: true };
+  }
+  return {
+    label: 'Acceso SELF',
+    to: '',
+    icon: ExternalIcon,
+    disabled: true,
+  };
+}
+
+const accesoSelfItem = accesoSelfSidebarItem();
 
 const producerItems: SidebarItem[] = [
   { label: 'Dashboard', to: '/intranet/dashboard', icon: DashboardIcon },
   { label: 'Biblioteca Digital', to: '/intranet/biblioteca', icon: LibraryIcon },
-  { label: 'Acceso SELF', to: SELF_PORTAL_URL, icon: ExternalIcon, external: true },
+  accesoSelfItem,
   { label: 'Mi Perfil', to: '/intranet/mi-perfil', icon: ProfileIcon },
 ];
 
@@ -213,7 +230,7 @@ const adminItems: SidebarItem[] = [
   { label: 'Productores', to: '/admin/productores', icon: ProducersIcon },
   { label: 'Noticias', to: '/admin/noticias', icon: NewsIcon },
   { label: 'Biblioteca Digital', to: '/admin/biblioteca', icon: LibraryIcon },
-  { label: 'Acceso SELF', to: SELF_PORTAL_URL, icon: ExternalIcon, external: true },
+  accesoSelfItem,
   { label: 'Mi Perfil', to: '/admin/mi-perfil', icon: ProfileIcon },
 ];
 
@@ -223,7 +240,7 @@ const superadminItems: SidebarItem[] = [
   { label: 'Administradores', to: '/admin/admins', icon: AdminsIcon },
   { label: 'Noticias', to: '/admin/noticias', icon: NewsIcon },
   { label: 'Biblioteca Digital', to: '/admin/biblioteca', icon: LibraryIcon },
-  { label: 'Acceso SELF', to: SELF_PORTAL_URL, icon: ExternalIcon, external: true },
+  accesoSelfItem,
   { label: 'Mi Perfil', to: '/admin/mi-perfil', icon: ProfileIcon },
 ];
 

@@ -1,9 +1,25 @@
-import { Prisma, type Productor, type Usuario } from '@prisma/client';
+import { Prisma, type Usuario } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { loadEnv } from '../config/env.js';
 import { AppError } from '../lib/errors.js';
+import { geocodeAddress } from '../lib/geocode.js';
+import {
+  buildProductorUpdateFromAdmin,
+  buildProductorUpdateFromMyProfile,
+  serializeEspecialidades,
+  toAdminProducerDto,
+  toMapProducerDto,
+  toProducerProfileDto,
+  toPublicProducerProfileDto,
+  type AdminProducerRow,
+  type MapProducerRow,
+  type ProductorWithRelations,
+  type UpdateAdminProducerInput,
+  type UpdateMyProfileInput,
+} from '../lib/producerProfileMapper.js';
 import { prisma } from '../lib/prisma.js';
+import { getStorageAdapter } from '../lib/storage/index.js';
 
 const usuarioListSelect = {
   id: true,
@@ -12,14 +28,14 @@ const usuarioListSelect = {
   rol: true,
   createdAt: true,
   updatedAt: true,
+  lastLoginAt: true,
 } satisfies Record<
-  keyof Pick<Usuario, 'id' | 'usuario' | 'activo' | 'rol' | 'createdAt' | 'updatedAt'>,
+  keyof Pick<
+    Usuario,
+    'id' | 'usuario' | 'activo' | 'rol' | 'createdAt' | 'updatedAt' | 'lastLoginAt'
+  >,
   true
 >;
-
-export type AdminProducerRow = Productor & {
-  usuario: Pick<Usuario, keyof typeof usuarioListSelect>;
-};
 
 function isPrismaUniqueViolation(err: unknown): err is Prisma.PrismaClientKnownRequestError {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
@@ -47,51 +63,142 @@ async function ensureUniqueSlug(base: string): Promise<string> {
   throw new AppError(500, 'No se pudo generar un slug único');
 }
 
-function toAdminProducerDto(row: AdminProducerRow) {
-  return {
-    id: row.id,
-    slug: row.slug,
-    nombre: row.nombre,
-    apellido: row.apellido,
-    bio: row.bio,
-    ciudad: row.ciudad,
-    dni: row.dni,
-    foto: row.foto,
-    latitud: row.latitud,
-    longitud: row.longitud,
-    telefono: row.telefono,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    usuario: row.usuario,
-  };
-}
-
 export type ListProducersQuery = {
   activo?: boolean;
 };
+
+const adminProducerInclude = {
+  usuario: { select: usuarioListSelect },
+  redesSociales: { orderBy: { orden: 'asc' as const } },
+  certificaciones: { orderBy: [{ orden: 'asc' as const }, { id: 'asc' as const }] },
+} satisfies Prisma.ProductorInclude;
+
+const productorProfileInclude = {
+  usuario: { select: { usuario: true, activo: true } },
+  redesSociales: { orderBy: { orden: 'asc' as const } },
+  certificaciones: { orderBy: [{ orden: 'asc' as const }, { id: 'asc' as const }] },
+} satisfies Prisma.ProductorInclude;
+
+async function syncRedesSociales(
+  tx: Prisma.TransactionClient,
+  productorId: number,
+  redes?: { plataforma: string; url: string; orden?: number }[],
+) {
+  if (redes === undefined) return;
+  await tx.redSocial.deleteMany({ where: { productorId } });
+  if (redes.length > 0) {
+    await tx.redSocial.createMany({
+      data: redes.map((r, i) => ({
+        productorId,
+        plataforma: r.plataforma,
+        url: r.url,
+        orden: r.orden ?? i,
+      })),
+    });
+  }
+}
+
+async function findProductorByUsuarioId(
+  usuarioId: number,
+): Promise<ProductorWithRelations | null> {
+  return prisma.productor.findUnique({
+    where: { usuarioId },
+    include: productorProfileInclude,
+  });
+}
+
+async function findProductorBySlugActive(
+  slug: string,
+): Promise<ProductorWithRelations | null> {
+  return prisma.productor.findFirst({
+    where: { slug, usuario: { activo: true } },
+    include: productorProfileInclude,
+  });
+}
+
+async function addCertificacion(
+  productorId: number,
+  file: Express.Multer.File,
+  nombre?: string,
+) {
+  if (!file.buffer) {
+    throw new AppError(400, 'Archivo PDF requerido');
+  }
+
+  const storage = getStorageAdapter();
+  const uploaded = await storage.uploadCertificacion({
+    buffer: file.buffer,
+    mimeType: file.mimetype,
+    productorId,
+  });
+
+  const count = await prisma.certificacion.count({ where: { productorId } });
+  const cert = await prisma.certificacion.create({
+    data: {
+      productorId,
+      nombre: nombre?.trim() || file.originalname || 'Certificación',
+      archivoUrl: uploaded.url,
+      tamanoBytes: uploaded.tamanoBytes,
+      mimeType: uploaded.mimeType,
+      orden: count,
+    },
+  });
+
+  return {
+    id: cert.id,
+    nombre: cert.nombre,
+    archivoUrl: cert.archivoUrl,
+    tamanoBytes: cert.tamanoBytes,
+    mimeType: cert.mimeType,
+  };
+}
+
+async function removeCertificacion(productorId: number, certId: number) {
+  const cert = await prisma.certificacion.findFirst({
+    where: { id: certId, productorId },
+  });
+  if (!cert) {
+    throw new AppError(404, 'Certificación no encontrada');
+  }
+
+  const storage = getStorageAdapter();
+  await storage.deleteCertificacion(cert.archivoUrl);
+  await prisma.certificacion.delete({ where: { id: cert.id } });
+}
+
+async function resolveCoordinates(ciudad: string): Promise<{ latitud: number; longitud: number }> {
+  const trimmed = ciudad.trim();
+  if (trimmed.length < 5) {
+    throw new AppError(400, 'La dirección es demasiado corta');
+  }
+  const coords = await geocodeAddress(trimmed);
+  if (!coords) {
+    throw new AppError(400, 'No se pudo ubicar la dirección. Verificá el texto e intentá de nuevo.');
+  }
+  return coords;
+}
 
 export const producersService = {
   async list(query: ListProducersQuery): Promise<AdminProducerRow[]> {
     const where: Prisma.ProductorWhereInput =
       query.activo === undefined ? {} : { usuario: { activo: query.activo } };
 
-    const rows = await prisma.productor.findMany({
+    return prisma.productor.findMany({
       where,
-      include: { usuario: { select: usuarioListSelect } },
+      include: adminProducerInclude,
       orderBy: { id: 'desc' },
     });
-    return rows;
   },
 
   async getById(id: number): Promise<AdminProducerRow | null> {
     return prisma.productor.findUnique({
       where: { id },
-      include: { usuario: { select: usuarioListSelect } },
+      include: adminProducerInclude,
     });
   },
 
   async create(
-    input: {
+    input: UpdateAdminProducerInput & {
       nombre: string;
       apellido: string;
       email: string;
@@ -115,6 +222,12 @@ export const producersService = {
     const slug = await ensureUniqueSlug(slugBase);
     const activo = input.activo ?? true;
 
+    const ciudadTrimmed = input.ciudad?.trim();
+    if (!ciudadTrimmed) {
+      throw new AppError(400, 'La dirección es requerida');
+    }
+    const coords = await resolveCoordinates(ciudadTrimmed);
+
     try {
       const created = await prisma.$transaction(async (tx) => {
         const usuario = await tx.usuario.create({
@@ -134,10 +247,31 @@ export const producersService = {
             nombre: input.nombre.trim(),
             apellido: input.apellido.trim(),
             telefono: input.telefono?.trim() || null,
+            bio: input.bio?.trim() || null,
+            ciudad: ciudadTrimmed,
+            whatsapp: input.whatsapp?.trim() || null,
+            foto: input.foto?.trim() || null,
+            idiomas: input.idiomas ?? undefined,
+            latitud: coords.latitud,
+            longitud: coords.longitud,
+            matricula: input.matricula?.trim() || null,
+            verificado: input.verificado ?? false,
+            anosExperiencia: input.anosExperiencia,
+            clientesActivos: input.clientesActivos,
+            tituloProfesional: input.tituloProfesional?.trim() || null,
+            especialidades:
+              input.especialidades !== undefined
+                ? serializeEspecialidades(input.especialidades)
+                : undefined,
           },
-          include: { usuario: { select: usuarioListSelect } },
         });
-        return productor;
+
+        await syncRedesSociales(tx, productor.id, input.redesSociales);
+
+        return tx.productor.findUniqueOrThrow({
+          where: { id: productor.id },
+          include: adminProducerInclude,
+        });
       });
       return created;
     } catch (err) {
@@ -152,15 +286,7 @@ export const producersService = {
     }
   },
 
-  async update(
-    id: number,
-    input: {
-      nombre?: string;
-      apellido?: string;
-      email?: string;
-      telefono?: string;
-    },
-  ): Promise<AdminProducerRow> {
+  async update(id: number, input: UpdateAdminProducerInput): Promise<AdminProducerRow> {
     const current = await prisma.productor.findUnique({
       where: { id },
       include: { usuario: { select: { id: true, usuario: true } } },
@@ -169,11 +295,14 @@ export const producersService = {
       throw new AppError(404, 'Productor no encontrado');
     }
 
-    const dataProductor: Prisma.ProductorUpdateInput = {};
-    if (input.nombre !== undefined) dataProductor.nombre = input.nombre.trim();
-    if (input.apellido !== undefined) dataProductor.apellido = input.apellido.trim();
-    if (input.telefono !== undefined) {
-      dataProductor.telefono = input.telefono.trim() === '' ? null : input.telefono.trim();
+    const dataProductor = buildProductorUpdateFromAdmin(input);
+
+    if (input.ciudad !== undefined) {
+      const ciudadTrimmed = input.ciudad.trim();
+      const coords = await resolveCoordinates(ciudadTrimmed);
+      dataProductor.ciudad = ciudadTrimmed;
+      dataProductor.latitud = coords.latitud;
+      dataProductor.longitud = coords.longitud;
     }
 
     const emailNorm = input.email !== undefined ? input.email.trim().toLowerCase() : undefined;
@@ -201,11 +330,12 @@ export const producersService = {
           });
         }
 
-        const row = await tx.productor.findUniqueOrThrow({
+        await syncRedesSociales(tx, id, input.redesSociales);
+
+        return tx.productor.findUniqueOrThrow({
           where: { id },
-          include: { usuario: { select: usuarioListSelect } },
+          include: adminProducerInclude,
         });
-        return row;
       });
       return updated;
     } catch (err) {
@@ -242,13 +372,127 @@ export const producersService = {
 
     const row = await prisma.productor.findUnique({
       where: { id },
-      include: { usuario: { select: usuarioListSelect } },
+      include: adminProducerInclude,
     });
     if (!row) {
       throw new AppError(404, 'Productor no encontrado');
     }
     return row;
   },
+
+  async getMe(usuarioId: number) {
+    const row = await findProductorByUsuarioId(usuarioId);
+    if (!row) {
+      throw new AppError(404, 'Perfil de productor no encontrado');
+    }
+    return toProducerProfileDto(row);
+  },
+
+  async updateMe(usuarioId: number, input: UpdateMyProfileInput) {
+    const current = await findProductorByUsuarioId(usuarioId);
+    if (!current) {
+      throw new AppError(404, 'Perfil de productor no encontrado');
+    }
+
+    const dataProductor = buildProductorUpdateFromMyProfile(input);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (Object.keys(dataProductor).length > 0) {
+        await tx.productor.update({
+          where: { id: current.id },
+          data: dataProductor,
+        });
+      }
+
+      await syncRedesSociales(tx, current.id, input.redesSociales);
+
+      return tx.productor.findUniqueOrThrow({
+        where: { id: current.id },
+        include: productorProfileInclude,
+      });
+    });
+
+    return toProducerProfileDto(updated);
+  },
+
+  async uploadCertificacionMe(
+    usuarioId: number,
+    file: Express.Multer.File,
+    nombre?: string,
+  ) {
+    const current = await findProductorByUsuarioId(usuarioId);
+    if (!current) {
+      throw new AppError(404, 'Perfil de productor no encontrado');
+    }
+    return addCertificacion(current.id, file, nombre);
+  },
+
+  async deleteCertificacionMe(usuarioId: number, certId: number) {
+    const current = await findProductorByUsuarioId(usuarioId);
+    if (!current) {
+      throw new AppError(404, 'Perfil de productor no encontrado');
+    }
+    await removeCertificacion(current.id, certId);
+  },
+
+  async uploadCertificacionAdmin(
+    productorId: number,
+    file: Express.Multer.File,
+    nombre?: string,
+  ) {
+    const current = await prisma.productor.findUnique({
+      where: { id: productorId },
+      select: { id: true },
+    });
+    if (!current) {
+      throw new AppError(404, 'Productor no encontrado');
+    }
+    return addCertificacion(productorId, file, nombre);
+  },
+
+  async deleteCertificacionAdmin(productorId: number, certId: number) {
+    const current = await prisma.productor.findUnique({
+      where: { id: productorId },
+      select: { id: true },
+    });
+    if (!current) {
+      throw new AppError(404, 'Productor no encontrado');
+    }
+    await removeCertificacion(productorId, certId);
+  },
+
+  async getBySlug(slug: string) {
+    const row = await findProductorBySlugActive(slug);
+    if (!row) {
+      throw new AppError(404, 'Productor no encontrado');
+    }
+    return toPublicProducerProfileDto(row);
+  },
+
+  async listForMap(): Promise<MapProducerRow[]> {
+    return prisma.productor.findMany({
+      where: {
+        usuario: { activo: true },
+        latitud: { not: null },
+        longitud: { not: null },
+      },
+      select: {
+        slug: true,
+        nombre: true,
+        apellido: true,
+        tituloProfesional: true,
+        ciudad: true,
+        latitud: true,
+        longitud: true,
+        foto: true,
+        whatsapp: true,
+        verificado: true,
+        especialidades: true,
+      },
+      orderBy: { nombre: 'asc' },
+    });
+  },
 };
 
-export { toAdminProducerDto };
+export { toAdminProducerDto, toMapProducerDto, toProducerProfileDto, toPublicProducerProfileDto };
+export type { AdminProducerRow, MapProducerRow };

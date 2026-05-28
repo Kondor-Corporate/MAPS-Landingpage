@@ -2,6 +2,7 @@ import type { AxiosResponse } from 'axios';
 import { api } from '@/lib/axios';
 import type {
   AdminProducer,
+  AdminProducerCertificacion,
   CreateProducerPayload,
   ListProducersFilters,
   SetProducerActivePayload,
@@ -46,4 +47,29 @@ export async function setProducerActive(
 ): Promise<AdminProducer> {
   const res = await api.patch<ApiSuccess<AdminProducer>>(`/producers/${id}/activo`, payload);
   return unwrap(res);
+}
+
+export async function uploadProducerCertificacion(
+  producerId: number,
+  file: File,
+  nombre?: string,
+): Promise<AdminProducerCertificacion> {
+  const form = new FormData();
+  form.append('file', file);
+  if (nombre?.trim()) {
+    form.append('nombre', nombre.trim());
+  }
+  const res = await api.post<ApiSuccess<{ certificacion: AdminProducerCertificacion }>>(
+    `/producers/${producerId}/certificaciones`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return unwrap(res).certificacion;
+}
+
+export async function deleteProducerCertificacion(
+  producerId: number,
+  certId: number,
+): Promise<void> {
+  await api.delete(`/producers/${producerId}/certificaciones/${certId}`);
 }

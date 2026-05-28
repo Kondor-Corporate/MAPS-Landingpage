@@ -35,6 +35,8 @@ export function ProducersDashboard({ scope }: Props) {
     refetch,
     create,
     update,
+    uploadCertificacion,
+    deleteCertificacion,
     activate,
     deactivate,
   } = useAdminProducers(scope);
@@ -233,13 +235,21 @@ export function ProducersDashboard({ scope }: Props) {
       <ProducerFormModal
         isOpen={editing !== null}
         mode="edit"
-        producer={editing}
+        producer={editing ? producers.find((p) => p.id === editing.id) ?? editing : null}
         submitError={formError}
         submitting={formSubmitting}
         onClose={() => {
           if (!formSubmitting) setEditing(null);
         }}
         onSubmit={handleUpdate}
+        onUploadCertificacion={async (file, nombre) => {
+          if (!editing) return;
+          await uploadCertificacion(editing.id, file, nombre);
+        }}
+        onDeleteCertificacion={async (certId) => {
+          if (!editing) return;
+          await deleteCertificacion(editing.id, certId);
+        }}
       />
 
       <ProducerViewModal

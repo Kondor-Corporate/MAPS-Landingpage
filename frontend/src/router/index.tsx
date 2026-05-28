@@ -1,13 +1,16 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import { AdminProfilePage } from '@/modules/admin/pages/AdminProfilePage';
 import { AdminsPage } from '@/modules/admin/pages/AdminsPage';
 import { DashboardPage as AdminDashboardPage } from '@/modules/admin/pages/DashboardPage';
 import { InactiveProducersPage } from '@/modules/admin/pages/InactiveProducersPage';
+import { LibraryManagementPage } from '@/modules/admin/pages/LibraryManagementPage';
 import { NewsManagementPage } from '@/modules/admin/pages/NewsManagementPage';
 import { ProducersPage } from '@/modules/admin/pages/ProducersPage';
 import { LoginPage } from '@/modules/auth/pages/LoginPage';
 import { DashboardPage as IntranetDashboardPage } from '@/modules/intranet/pages/DashboardPage';
 import { DigitalLibraryPage } from '@/modules/intranet/pages/DigitalLibraryPage';
 import { MyProfilePage } from '@/modules/intranet/pages/MyProfilePage';
+import { ProducerProfileViewPage } from '@/modules/intranet/pages/ProducerProfileViewPage';
 import { HomePage } from '@/modules/public-web/pages/HomePage';
 import { ProducerProfilePage } from '@/modules/public-web/pages/ProducerProfilePage';
 import { AppLayout } from '@/shared/layouts/AppLayout';
@@ -44,6 +47,7 @@ const intranetRolePath = {
             { path: 'dashboard', element: <IntranetDashboardPage /> },
             { path: 'biblioteca', element: <DigitalLibraryPage /> },
             { path: 'mi-perfil', element: <MyProfilePage /> },
+            { path: 'perfil/:slug', element: <ProducerProfileViewPage /> },
             { index: true, element: <Navigate to="dashboard" replace /> },
           ],
         },
@@ -84,8 +88,8 @@ const adminBranch = {
             { path: 'productores', element: <ProducersPage /> },
             { path: 'inactivos', element: <InactiveProducersPage /> },
             { path: 'noticias', element: <NewsManagementPage /> },
-            { path: 'biblioteca', element: <DigitalLibraryPage /> },
-            { path: 'mi-perfil', element: <MyProfilePage /> },
+            { path: 'biblioteca', element: <LibraryManagementPage /> },
+            { path: 'mi-perfil', element: <AdminProfilePage /> },
             { index: true, element: <Navigate to="dashboard" replace /> },
           ],
         },

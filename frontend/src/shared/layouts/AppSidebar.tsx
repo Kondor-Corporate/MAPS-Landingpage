@@ -1,14 +1,34 @@
+import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useLogout } from '@/modules/auth/hooks/useLogout';
 import { getSidebarItems, type SidebarItem } from '@/shared/constants/sidebarItems';
 import { getInitials } from '@/shared/utils/initials';
-import { useAuthStore, type Rol } from '@/store/authStore';
+import { useAuthStore, type AuthUser, type Rol } from '@/store/authStore';
 
 const ROLE_LABEL: Record<Rol, string> = {
   PRODUCTOR: 'Productor',
   ADMIN: 'Admin',
   SUPERADMIN: 'SuperAdmin',
 };
+
+const CollapseNavIcon = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+  >
+    <path
+      d="M15 6l-6 6 6 6"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 
 const LogoutIcon = () => (
   <svg
@@ -43,8 +63,21 @@ const LogoutIcon = () => (
   </svg>
 );
 
-function SidebarLink({ item }: { item: SidebarItem }) {
+export function SidebarLink({ item }: { item: SidebarItem }) {
   const Icon = item.icon;
+
+  if (item.disabled) {
+    return (
+      <span
+        className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-maps-muted"
+        aria-disabled="true"
+        title="Próximamente"
+      >
+        <Icon className="shrink-0 opacity-70" />
+        <span>{item.label}</span>
+      </span>
+    );
+  }
 
   if (item.external) {
     return (
@@ -79,25 +112,33 @@ function SidebarLink({ item }: { item: SidebarItem }) {
   );
 }
 
-export function AppSidebar() {
-  const user = useAuthStore((s) => s.user);
+type AppSidebarPanelProps = {
+  user: AuthUser;
+  /** Accesorio al final de la fila del encabezado (p. ej. botón cerrar en drawer móvil). */
+  headerTrailing?: ReactNode;
+};
+
+/**
+ * Contenido interior del sidebar (misma fuente de items que desktop vía `getSidebarItems`).
+ */
+export function AppSidebarPanel({ user, headerTrailing }: AppSidebarPanelProps) {
   const logout = useLogout();
-
-  if (!user) return null;
-
   const items = getSidebarItems(user.rol);
   const roleLabel = ROLE_LABEL[user.rol];
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-maps-border bg-white lg:flex">
+    <>
       <div className="flex items-center gap-3 border-b border-maps-border px-5 py-5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-maps-brand text-base font-bold text-white">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-maps-brand text-base font-bold text-white">
           M
         </div>
-        <div className="flex flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <span className="text-sm font-bold leading-tight text-maps-heading">MAPS Asesores</span>
           <span className="text-xs leading-tight text-maps-muted">Portal de Productores</span>
         </div>
+        {headerTrailing ? (
+          <div className="flex shrink-0 items-center justify-end">{headerTrailing}</div>
+        ) : null}
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
@@ -125,6 +166,44 @@ export function AppSidebar() {
           <span>Cerrar Sesión</span>
         </button>
       </div>
+    </>
+  );
+}
+
+type AppSidebarProps = {
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+};
+
+export function AppSidebar({ collapsed = false, onToggleCollapse }: AppSidebarProps) {
+  const user = useAuthStore((s) => s.user);
+
+  if (!user) return null;
+
+  const collapseControl =
+    onToggleCollapse != null ? (
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        aria-label="Ocultar menú de navegación"
+        title="Ocultar menú"
+        className="flex h-10 w-10 items-center justify-center rounded-lg text-maps-heading transition-colors hover:bg-maps-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-maps-brand"
+      >
+        <CollapseNavIcon />
+      </button>
+    ) : null;
+
+  return (
+    <aside
+      className={[
+        'hidden shrink-0 flex-col overflow-hidden border-maps-border bg-white transition-[width] duration-200 ease-in-out lg:flex',
+        collapsed ? 'w-0 border-r-0' : 'w-64 border-r',
+      ].join(' ')}
+      aria-hidden={collapsed}
+    >
+      {!collapsed ? (
+        <AppSidebarPanel user={user} headerTrailing={collapseControl} />
+      ) : null}
     </aside>
   );
 }

@@ -30,6 +30,37 @@ const envSchema = z.object({
    * invitación / primer login. Exigir valor fuerte en producción (no commitear en .env real).
    */
   DEFAULT_PRODUCER_PASSWORD: z.string().min(12),
+
+  /** URL pública del API (para URLs de archivos en storage local). */
+  API_PUBLIC_URL: z.string().url().optional(),
+
+  /** `local` = disco en uploads/; `s3` = bucket S3-compatible. */
+  STORAGE_PROVIDER: z.enum(['local', 's3']).default('local'),
+
+  S3_BUCKET: z.string().min(1).optional(),
+  S3_REGION: z.string().min(1).optional(),
+  S3_ACCESS_KEY: z.string().min(1).optional(),
+  S3_SECRET_KEY: z.string().min(1).optional(),
+  S3_PUBLIC_BASE_URL: z.string().url().optional(),
+
+  /** User-Agent para peticiones a Nominatim (política de uso obligatoria). */
+  NOMINATIM_USER_AGENT: z
+    .string()
+    .min(1)
+    .default('maps-landingpage-dev/1.0 (contact@kondor.local)'),
+}).superRefine((data, ctx) => {
+  if (data.STORAGE_PROVIDER === 's3') {
+    const required = ['S3_BUCKET', 'S3_REGION', 'S3_ACCESS_KEY', 'S3_SECRET_KEY'] as const;
+    for (const key of required) {
+      if (!data[key]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${key} is required when STORAGE_PROVIDER=s3`,
+          path: [key],
+        });
+      }
+    }
+  }
 });
 
 type ParsedEnv = z.infer<typeof envSchema>;

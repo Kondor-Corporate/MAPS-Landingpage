@@ -1,11 +1,7 @@
 import { z } from 'zod';
+import { PRODUCER_SPECIALTY_KEYS } from '../constants/producerSpecialties.js';
+import { redesSocialesSchema } from './producerProfile.schema.js';
 
-/**
- * Campos de productor para alta/edición admin (MAPS-009).
- *
- * Pendiente (fuera de alcance actual): aceptar **WhatsApp** u otros medios solo tras
- * decisión de negocio y migración Prisma (p. ej. columna `whatsapp` en `Productor`).
- */
 const producerCoreFields = {
   nombre: z.string().trim().min(1, { message: 'Nombre requerido' }),
   apellido: z.string().trim().min(1, { message: 'Apellido requerido' }),
@@ -13,15 +9,43 @@ const producerCoreFields = {
   telefono: z.string().trim().optional(),
 };
 
-/** Alta admin: crea `Usuario` PRODUCTOR + `Productor`. Estado inicial opcional en cuenta. */
+const producerExtendedFields = {
+  bio: z.string().trim().optional(),
+  ciudad: z.string().trim().optional(),
+  whatsapp: z.string().trim().optional(),
+  foto: z.string().trim().url().optional().or(z.literal('')),
+  idiomas: z.array(z.string().trim().min(1)).optional(),
+  latitud: z.number().optional(),
+  longitud: z.number().optional(),
+  especialidades: z.array(z.enum(PRODUCER_SPECIALTY_KEYS)).optional(),
+  redesSociales: redesSocialesSchema,
+  matricula: z.string().trim().optional().or(z.literal('')),
+  verificado: z.boolean().optional(),
+  anosExperiencia: z.number().int().min(0).optional(),
+  clientesActivos: z.number().int().min(0).optional(),
+  tituloProfesional: z.string().trim().optional(),
+};
+
+/** Alta admin: crea `Usuario` PRODUCTOR + `Productor`. */
 export const createProducerSchema = z
   .object({
     ...producerCoreFields,
     activo: z.boolean().optional(),
+    ...producerExtendedFields,
+    ciudad: z
+      .string()
+      .trim()
+      .min(5, { message: 'Dirección requerida (mínimo 5 caracteres)' }),
   })
   .strict();
 
-const producerPatchFields = z.object(producerCoreFields).strict().partial();
+const producerPatchFields = z
+  .object({
+    ...producerCoreFields,
+    ...producerExtendedFields,
+  })
+  .strict()
+  .partial();
 
 /** Actualización parcial: al menos un campo debe enviarse. */
 export const updateProducerSchema = producerPatchFields.refine(

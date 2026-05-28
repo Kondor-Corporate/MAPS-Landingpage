@@ -64,7 +64,8 @@ export function useProducerFilters() {
             if (!within(p.ultimaActividad, days)) return false;
           }
           if (term) {
-            const haystack = `${p.nombre} ${p.apellido} ${p.dni} ${p.email}`.toLowerCase();
+            const haystack =
+              `${p.nombre} ${p.apellido} ${p.dni ?? ''} ${p.email}`.toLowerCase();
             if (!haystack.includes(term)) return false;
           }
           return true;

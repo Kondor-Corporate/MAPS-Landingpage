@@ -2,6 +2,11 @@
 
 Documentación de la entrega **Auth (API + pantalla de login responsive)** dentro del ecosistema **MAPS Asesores**. Complementa el [README principal del repositorio](../README.md) con detalle técnico y pasos de verificación para el equipo.
 
+## Estado del producto (vista actual)
+
+Para el inventario **integrado vs UI con mocks vs pendiente** (productores, noticias, mapa, perfil público, enlaces SELF/Drive), usar la sección **[Estado real del sistema](../README.md#estado-real-del-sistema)** del README raíz.  
+Este archivo (`docs/README.md`) profundiza la etapa **Auth**; no reemplaza ese inventario del monorepo. *(MAPS-008, 2026-05.)*
+
 ---
 
 ## Propósito de este módulo
