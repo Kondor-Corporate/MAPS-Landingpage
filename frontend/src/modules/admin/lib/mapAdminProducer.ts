@@ -1,30 +1,43 @@
 import type { AdminProducer } from '@/modules/admin/types/adminProducer';
 import type { Producer } from '@/modules/admin/types/producer';
 
+function nullableString(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
 export function mapAdminProducerToProducer(row: AdminProducer): Producer {
   const estado = row.usuario.activo ? 'ACTIVO' : 'INACTIVO';
-  const dniDisplay = row.dni?.trim() ? row.dni : '—';
 
   return {
     id: String(row.id),
     slug: row.slug,
     nombre: row.nombre.trim(),
     apellido: row.apellido.trim(),
-    avatarUrl: row.foto ?? undefined,
+    avatarUrl: nullableString(row.foto),
     estado,
-    dni: dniDisplay,
+    dni: nullableString(row.dni),
     email: row.usuario.usuario,
-    telefono: row.telefono?.trim() ?? '',
+    telefono: nullableString(row.telefono),
     sucursal: '',
     fechaAlta: row.createdAt,
-    ultimaActividad: row.usuario.updatedAt,
+    ultimaActividad: row.usuario.lastLoginAt ?? row.usuario.updatedAt,
+    ultimoLogin: row.usuario.lastLoginAt,
     matricula: row.matricula,
     verificado: row.verificado,
     tituloProfesional: row.tituloProfesional,
     anosExperiencia: row.anosExperiencia,
     clientesActivos: row.clientesActivos,
-    certificaciones: row.certificaciones,
-    ciudad: row.ciudad?.trim() ?? '',
+    bio: nullableString(row.bio),
+    ciudad: nullableString(row.ciudad),
+    whatsapp: nullableString(row.whatsapp),
+    latitud: row.latitud,
+    longitud: row.longitud,
+    idiomas: row.idiomas ?? [],
+    especialidades: row.especialidades ?? [],
+    redesSociales: row.redesSociales ?? [],
+    certificaciones: row.certificaciones ?? [],
   };
 }
 

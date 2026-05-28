@@ -28,7 +28,7 @@ function validatePassword(value: string): string | undefined {
 type LoginResponse = {
   data: {
     accessToken: string;
-    user: { id: number; usuario: string; rol: string };
+    user: { id: number; usuario: string; rol: string; slug: string | null };
   } | null;
   message: string;
   error: unknown;
@@ -77,6 +77,7 @@ export function LoginPage() {
         id: u.id,
         usuario: u.usuario,
         rol: u.rol as Rol,
+        slug: u.slug ?? null,
       };
       login(user, accessToken);
       if (user.rol === 'PRODUCTOR') {

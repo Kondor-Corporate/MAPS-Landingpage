@@ -111,7 +111,7 @@ export function ProfileHeaderCard({ profile, onEdit, variant = 'intranet' }: Pro
                 Email
               </a>
             )}
-            {isPublic && profile.telefono && (
+            {profile.telefono && (
               <a
                 href={`tel:${profile.telefono.replace(/\s/g, '')}`}
                 className="inline-flex h-[46px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-base font-bold text-slate-700 transition-colors hover:bg-slate-50"

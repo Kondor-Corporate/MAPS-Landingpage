@@ -65,7 +65,7 @@ export function useProducerFilters() {
           }
           if (term) {
             const haystack =
-              `${p.nombre} ${p.apellido} ${p.dni} ${p.email}`.toLowerCase();
+              `${p.nombre} ${p.apellido} ${p.dni ?? ''} ${p.email}`.toLowerCase();
             if (!haystack.includes(term)) return false;
           }
           return true;

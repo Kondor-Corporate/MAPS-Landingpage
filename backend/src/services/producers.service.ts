@@ -28,7 +28,8 @@ const usuarioListSelect = {
   rol: true,
   createdAt: true,
   updatedAt: true,
-} satisfies Record<keyof Pick<Usuario, 'id' | 'usuario' | 'activo' | 'rol' | 'createdAt' | 'updatedAt'>, true>;
+  lastLoginAt: true,
+} satisfies Record<keyof Pick<Usuario, 'id' | 'usuario' | 'activo' | 'rol' | 'createdAt' | 'updatedAt' | 'lastLoginAt'>, true>;
 
 function isPrismaUniqueViolation(err: unknown): err is Prisma.PrismaClientKnownRequestError {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
@@ -486,6 +487,9 @@ export const producersService = {
         latitud: true,
         longitud: true,
         foto: true,
+        whatsapp: true,
+        verificado: true,
+        especialidades: true,
       },
       orderBy: { nombre: 'asc' },
     });

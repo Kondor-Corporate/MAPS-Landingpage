@@ -14,7 +14,7 @@ export type ProductorWithRelations = Productor & {
 export type AdminProducerRow = Productor & {
   usuario: Pick<
     Usuario,
-    'id' | 'usuario' | 'activo' | 'rol' | 'createdAt' | 'updatedAt'
+    'id' | 'usuario' | 'activo' | 'rol' | 'createdAt' | 'updatedAt' | 'lastLoginAt'
   >;
   redesSociales: RedSocial[];
   certificaciones: Certificacion[];
@@ -94,7 +94,17 @@ export function toPublicProducerProfileDto(row: ProductorWithRelations) {
 
 export type MapProducerRow = Pick<
   Productor,
-  'slug' | 'nombre' | 'apellido' | 'tituloProfesional' | 'ciudad' | 'latitud' | 'longitud' | 'foto'
+  | 'slug'
+  | 'nombre'
+  | 'apellido'
+  | 'tituloProfesional'
+  | 'ciudad'
+  | 'latitud'
+  | 'longitud'
+  | 'foto'
+  | 'whatsapp'
+  | 'verificado'
+  | 'especialidades'
 >;
 
 export type MapProducerDto = {
@@ -105,9 +115,13 @@ export type MapProducerDto = {
   latitud: number;
   longitud: number;
   foto: string | null;
+  whatsapp: string | null;
+  verificado: boolean;
+  especialidades: { clave: ProducerSpecialtyKey; label: string }[];
 };
 
 export function toMapProducerDto(row: MapProducerRow): MapProducerDto {
+  const keys = parseEspecialidadesJson(row.especialidades);
   return {
     slug: row.slug,
     nombreCompleto: `${row.nombre} ${row.apellido}`.trim(),
@@ -116,6 +130,9 @@ export function toMapProducerDto(row: MapProducerRow): MapProducerDto {
     latitud: row.latitud!,
     longitud: row.longitud!,
     foto: row.foto,
+    whatsapp: row.whatsapp,
+    verificado: row.verificado,
+    especialidades: keys.map((clave) => ({ clave, label: specialtyKeyToLabel(clave) })),
   };
 }
 

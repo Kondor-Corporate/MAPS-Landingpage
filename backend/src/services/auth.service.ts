@@ -15,12 +15,17 @@ function getEnv() {
   return loadEnv();
 }
 
-export type AuthUserPublic = Pick<Usuario, 'id' | 'usuario' | 'rol'>;
+export type AuthUserPublic = Pick<Usuario, 'id' | 'usuario' | 'rol'> & {
+  slug: string | null;
+};
 
 export const authService = {
   async login(usuario: string, password: string) {
     const env = getEnv();
-    const user = await prisma.usuario.findUnique({ where: { usuario } });
+    const user = await prisma.usuario.findUnique({
+      where: { usuario },
+      include: { productor: { select: { slug: true } } },
+    });
 
     if (!user) {
       throw new AppError(401, 'Credenciales inválidas');
@@ -32,6 +37,11 @@ export const authService = {
     if (!passwordOk) {
       throw new AppError(401, 'Credenciales inválidas');
     }
+
+    await prisma.usuario.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
 
     const accessPayload: JWTPayload = {
       sub: String(user.id),
@@ -73,6 +83,7 @@ export const authService = {
         id: user.id,
         usuario: user.usuario,
         rol: user.rol,
+        slug: user.productor?.slug ?? null,
       },
     };
   },

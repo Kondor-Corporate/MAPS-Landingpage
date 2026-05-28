@@ -8,6 +8,13 @@ export type AdminProducerUsuario = {
   rol: string;
   createdAt: string;
   updatedAt: string;
+  lastLoginAt: string | null;
+};
+
+export type AdminProducerRedSocial = {
+  plataforma: string;
+  url: string;
+  orden: number;
 };
 
 export type AdminProducerSpecialty = {
@@ -43,6 +50,7 @@ export type AdminProducer = {
   anosExperiencia: number | null;
   clientesActivos: number | null;
   especialidades: AdminProducerSpecialty[];
+  redesSociales: AdminProducerRedSocial[];
   certificaciones: AdminProducerCertificacion[];
   createdAt: string;
   updatedAt: string;

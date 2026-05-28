@@ -21,8 +21,7 @@ export function ProducerCertificationsManager({
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleUpload(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleUpload() {
     if (!file) {
       setError('Seleccioná un archivo PDF');
       return;
@@ -62,10 +61,7 @@ export function ProducerCertificationsManager({
       />
 
       {!disabled ? (
-        <form
-          onSubmit={(e) => void handleUpload(e)}
-          className="rounded-lg border border-dashed border-maps-border p-4"
-        >
+        <div className="rounded-lg border border-dashed border-maps-border p-4">
           <p className="text-sm font-medium text-maps-heading">Agregar certificación (PDF)</p>
           {error ? (
             <p className="mt-2 text-xs text-rose-600" role="alert">
@@ -91,13 +87,14 @@ export function ProducerCertificationsManager({
             />
           </label>
           <button
-            type="submit"
+            type="button"
+            onClick={() => void handleUpload()}
             disabled={busy || !file}
             className="mt-3 rounded-lg bg-maps-brand px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             {busy ? 'Subiendo…' : 'Subir PDF'}
           </button>
-        </form>
+        </div>
       ) : null}
     </div>
   );
