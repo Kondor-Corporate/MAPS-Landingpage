@@ -79,7 +79,7 @@ export function ProducerTable({
                   <ProducerStatusBadge estado={p.estado} />
                 </td>
                 <td className="whitespace-nowrap px-6 py-3.5 text-sm font-semibold text-maps-heading">
-                  {p.dni}
+                  {p.dni ?? '—'}
                 </td>
                 <td className="whitespace-nowrap px-6 py-3.5 text-sm text-maps-muted">
                   {relativeTimeFromNow(p.ultimaActividad)}
@@ -109,7 +109,7 @@ export function ProducerTable({
               <Avatar name={name} src={p.avatarUrl} size="md" />
               <div className="flex flex-1 flex-col">
                 <span className="text-sm font-semibold text-maps-heading">{name}</span>
-                <span className="text-xs text-maps-muted">DNI {p.dni}</span>
+                <span className="text-xs text-maps-muted">DNI {p.dni ?? '—'}</span>
               </div>
               <ProducerStatusBadge estado={p.estado} />
             </div>
