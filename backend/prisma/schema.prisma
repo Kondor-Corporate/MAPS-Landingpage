@@ -33,6 +33,7 @@ model Usuario {
   creadoPorId  Int?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  lastLoginAt  DateTime? @map("last_login_at")
 
   creadoPor Usuario?  @relation("CreadoPor", fields: [creadoPorId], references: [id])
   creadados Usuario[] @relation("CreadoPor")

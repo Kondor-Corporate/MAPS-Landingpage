@@ -14,7 +14,7 @@ export type ProductorWithRelations = Productor & {
 export type AdminProducerRow = Productor & {
   usuario: Pick<
     Usuario,
-    'id' | 'usuario' | 'activo' | 'rol' | 'createdAt' | 'updatedAt'
+    'id' | 'usuario' | 'activo' | 'rol' | 'createdAt' | 'updatedAt' | 'lastLoginAt'
   >;
   redesSociales: RedSocial[];
   certificaciones: Certificacion[];
