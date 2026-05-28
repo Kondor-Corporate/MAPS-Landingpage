@@ -487,6 +487,9 @@ export const producersService = {
         latitud: true,
         longitud: true,
         foto: true,
+        whatsapp: true,
+        verificado: true,
+        especialidades: true,
       },
       orderBy: { nombre: 'asc' },
     });
