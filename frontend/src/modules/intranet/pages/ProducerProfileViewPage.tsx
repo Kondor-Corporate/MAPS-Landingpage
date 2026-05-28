@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
+import { ExternalLink } from 'lucide-react';
 import { ProducerProfileForm } from '@/modules/intranet/components/ProducerProfileForm';
 import { ProfileCertificationsList } from '@/shared/components/profile/ProfileCertificationsList';
 import { ProfileHeaderCard } from '@/shared/components/profile/ProfileHeaderCard';
@@ -8,11 +9,36 @@ import { ProfileSpecialtiesGrid } from '@/shared/components/profile/ProfileSpeci
 import { ProfileStatsCards } from '@/shared/components/profile/ProfileStatsCards';
 import { ProfileTrajectorySection } from '@/shared/components/profile/ProfileTrajectorySection';
 import { useProducerProfile } from '@/modules/intranet/hooks/useProducerProfile';
+import { useAuthStore } from '@/store/authStore';
 
 export function ProducerProfileViewPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { profile, isLoading, error, refetch, updateProfile, uploadCertificacion, deleteCertificacion } =
-    useProducerProfile();
+  const userSlug = useAuthStore((s) => s.user?.slug ?? null);
+
+  // Guard temprano: si el usuario ya tiene slug en sesión y el slug pedido no
+  // coincide, cortamos antes del fetch del perfil.
+  if (slug && userSlug && slug !== userSlug) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return <ProducerProfileViewInner slug={slug} userSlug={userSlug} />;
+}
+
+function ProducerProfileViewInner({
+  slug,
+  userSlug,
+}: {
+  slug: string | undefined;
+  userSlug: string | null;
+}) {
+  const {
+    profile,
+    isLoading,
+    error,
+    updateProfile,
+    uploadCertificacion,
+    deleteCertificacion,
+  } = useProducerProfile();
   const [editOpen, setEditOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -37,9 +63,16 @@ export function ProducerProfileViewPage() {
     );
   }
 
+  // Guard tardío: si no había slug en el store (sesión vieja) y el del URL no
+  // coincide con el del perfil real, mandamos a unauthorized.
   if (slug && slug !== profile.slug) {
     return <Navigate to="/unauthorized" replace />;
   }
+  if (userSlug && userSlug !== profile.slug) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  const publicProfileUrl = `/productor/${profile.slug}`;
 
   return (
     <div className="flex flex-col gap-6 bg-maps-surface px-4 py-6 sm:px-8 sm:py-8">
@@ -51,6 +84,19 @@ export function ProducerProfileViewPage() {
           {toast}
         </div>
       )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-maps-heading">Mi Perfil</h1>
+        <a
+          href={publicProfileUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-maps-border bg-white px-4 text-sm font-semibold text-maps-heading transition hover:bg-maps-surface"
+        >
+          <ExternalLink className="h-4 w-4 text-maps-brand" aria-hidden />
+          Ver mi perfil público
+        </a>
+      </div>
 
       <ProfileHeaderCard profile={profile} onEdit={() => setEditOpen(true)} />
 

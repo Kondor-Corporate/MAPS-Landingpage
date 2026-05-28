@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import { AdminProfilePage } from '@/modules/admin/pages/AdminProfilePage';
 import { AdminsPage } from '@/modules/admin/pages/AdminsPage';
 import { DashboardPage as AdminDashboardPage } from '@/modules/admin/pages/DashboardPage';
 import { InactiveProducersPage } from '@/modules/admin/pages/InactiveProducersPage';
@@ -90,7 +91,7 @@ const adminBranch = {
             { path: 'inactivos', element: <InactiveProducersPage /> },
             { path: 'noticias', element: <NewsManagementPage /> },
             { path: 'biblioteca', element: <LibraryManagementPage /> },
-            { path: 'mi-perfil', element: <MyProfilePage /> },
+            { path: 'mi-perfil', element: <AdminProfilePage /> },
             { index: true, element: <Navigate to="dashboard" replace /> },
           ],
         },
