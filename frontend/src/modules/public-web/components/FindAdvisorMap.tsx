@@ -1,14 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { BadgeCheck, Crosshair, MessageCircle } from 'lucide-react';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { MapPinIcon } from '@/shared/components/map/MapPinIcon';
 import { LA_PLATA_VIEW, MAP_STYLE } from '@/shared/components/map/mapStyle';
 import { useProducersMap } from '@/modules/public-web/hooks/useProducersMap';
+import type { MapProducer } from '@/modules/public-web/types/producerMap';
 import { geocodeQuery } from '@/shared/lib/geocode';
+import { distanceKm, formatDistance } from '@/shared/lib/distance';
+import { getInitials } from '@/shared/utils/initials';
 
 const DEFAULT_VIEW = LA_PLATA_VIEW;
+const NEARBY_LIST_SIZE = 4;
 
 type GeocodeStatus = 'idle' | 'loading' | 'not-found' | 'error';
+type GeolocStatus = 'idle' | 'loading' | 'unsupported' | 'denied' | 'error';
+
+type UserLocation = {
+  latitude: number;
+  longitude: number;
+  /** Etiqueta humana para mostrar de dónde vino la ubicación. */
+  label: string;
+};
+
+type ProducerWithDistance = MapProducer & { distanceKm: number | null };
 
 export function FindAdvisorMap() {
   const mapRef = useRef<MapRef | null>(null);
@@ -16,11 +31,30 @@ export function FindAdvisorMap() {
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<GeocodeStatus>('idle');
+  const [geoStatus, setGeoStatus] = useState<GeolocStatus>('idle');
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const boundsFitted = useRef(false);
 
+  const sortedProducers: ProducerWithDistance[] = useMemo(() => {
+    if (!userLocation) {
+      return producers.map((p) => ({ ...p, distanceKm: null }));
+    }
+    return producers
+      .map((p) => ({
+        ...p,
+        distanceKm: distanceKm(userLocation, { latitude: p.latitud, longitude: p.longitud }),
+      }))
+      .sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+  }, [producers, userLocation]);
+
+  const nearby = useMemo(
+    () => (userLocation ? sortedProducers.slice(0, NEARBY_LIST_SIZE) : []),
+    [sortedProducers, userLocation],
+  );
+
   const activeProducer = useMemo(
-    () => producers.find((p) => p.slug === activeSlug) ?? null,
-    [activeSlug, producers],
+    () => sortedProducers.find((p) => p.slug === activeSlug) ?? null,
+    [activeSlug, sortedProducers],
   );
 
   useEffect(() => {
@@ -56,6 +90,28 @@ export function FindAdvisorMap() {
     boundsFitted.current = true;
   }, [loading, producers]);
 
+  const focusOnLocation = (loc: UserLocation, openClosest = true) => {
+    setUserLocation(loc);
+    const closest = producers
+      .map((p) => ({ p, d: distanceKm(loc, { latitude: p.latitud, longitude: p.longitud }) }))
+      .sort((a, b) => a.d - b.d)[0];
+
+    const center: [number, number] = closest && openClosest
+      ? [closest.p.longitud, closest.p.latitud]
+      : [loc.longitude, loc.latitude];
+
+    mapRef.current?.flyTo({
+      center,
+      zoom: 13,
+      duration: 1000,
+      essential: true,
+    });
+
+    if (openClosest && closest) {
+      setActiveSlug(closest.p.slug);
+    }
+  };
+
   const handleZoom = (delta: number) => {
     const map = mapRef.current;
     if (!map) return;
@@ -75,11 +131,10 @@ export function FindAdvisorMap() {
         setStatus('not-found');
         return;
       }
-      mapRef.current?.flyTo({
-        center: [result.longitude, result.latitude],
-        zoom: 13,
-        duration: 1200,
-        essential: true,
+      focusOnLocation({
+        latitude: result.latitude,
+        longitude: result.longitude,
+        label: q,
       });
       setStatus('idle');
     } catch {
@@ -87,10 +142,41 @@ export function FindAdvisorMap() {
     }
   };
 
+  const handleUseMyLocation = () => {
+    if (!('geolocation' in navigator)) {
+      setGeoStatus('unsupported');
+      return;
+    }
+    setGeoStatus('loading');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        focusOnLocation({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          label: 'Mi ubicación',
+        });
+        setGeoStatus('idle');
+      },
+      (err) => {
+        setGeoStatus(err.code === err.PERMISSION_DENIED ? 'denied' : 'error');
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  };
+
+  const handlePickProducer = (producer: ProducerWithDistance) => {
+    setActiveSlug(producer.slug);
+    mapRef.current?.flyTo({
+      center: [producer.longitud, producer.latitud],
+      zoom: 14,
+      duration: 800,
+    });
+  };
+
   return (
     <section id="mapa" className="grid grid-cols-1 lg:grid-cols-[704px_1fr]">
       <div className="flex items-center bg-white px-6 sm:px-10 lg:px-16 py-12 sm:py-16 lg:py-32">
-        <div className="flex max-w-[560px] flex-col gap-5">
+        <div className="flex w-full max-w-[560px] flex-col gap-5">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-maps-brand-soft text-maps-brand">
             <MapPinIcon className="h-6 w-6" />
           </div>
@@ -100,8 +186,8 @@ export function FindAdvisorMap() {
           </h2>
 
           <p className="text-lg leading-[29px] text-maps-muted">
-            Utiliza nuestro mapa interactivo para encontrar el asesor más
-            cercano a tu ubicación y recibir atención personalizada.
+            Buscá por ciudad o usá tu ubicación actual y vamos a mostrarte los
+            asesores más cercanos.
           </p>
 
           <form
@@ -130,6 +216,16 @@ export function FindAdvisorMap() {
             </button>
           </form>
 
+          <button
+            type="button"
+            onClick={handleUseMyLocation}
+            disabled={geoStatus === 'loading'}
+            className="inline-flex h-11 w-fit items-center gap-2 rounded-lg border border-maps-border bg-white px-4 text-sm font-semibold text-maps-heading transition hover:bg-maps-surface disabled:opacity-60"
+          >
+            <Crosshair className="h-4 w-4 text-maps-brand" aria-hidden />
+            {geoStatus === 'loading' ? 'Obteniendo ubicación…' : 'Usar mi ubicación'}
+          </button>
+
           {status === 'not-found' && (
             <p className="text-sm text-maps-muted">
               No encontramos esa ubicación. Probá con otra ciudad.
@@ -140,13 +236,67 @@ export function FindAdvisorMap() {
               Hubo un problema al buscar. Intentá de nuevo en un momento.
             </p>
           )}
-          {loadError && (
-            <p className="text-sm text-red-600">{loadError}</p>
+          {geoStatus === 'denied' && (
+            <p className="text-sm text-amber-700">
+              Necesitamos permiso para acceder a tu ubicación. Habilitalo desde
+              el navegador o usá la búsqueda por ciudad.
+            </p>
           )}
+          {geoStatus === 'unsupported' && (
+            <p className="text-sm text-maps-muted">
+              Tu navegador no soporta geolocalización.
+            </p>
+          )}
+          {geoStatus === 'error' && (
+            <p className="text-sm text-red-600">
+              No pudimos obtener tu ubicación. Probá de nuevo.
+            </p>
+          )}
+          {loadError && <p className="text-sm text-red-600">{loadError}</p>}
           {!loading && !loadError && producers.length === 0 && (
             <p className="text-sm text-maps-muted">
               Aún no hay asesores geolocalizados en el mapa.
             </p>
+          )}
+
+          {nearby.length > 0 && (
+            <div className="mt-4 rounded-xl border border-maps-border bg-white p-4 shadow-card">
+              <p className="text-xs font-bold uppercase tracking-wide text-maps-muted">
+                Más cercanos a {userLocation?.label}
+              </p>
+              <ul className="mt-3 flex flex-col gap-2">
+                {nearby.map((p) => (
+                  <li key={p.slug}>
+                    <button
+                      type="button"
+                      onClick={() => handlePickProducer(p)}
+                      className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${
+                        p.slug === activeSlug
+                          ? 'border-maps-brand bg-maps-brand-soft/40'
+                          : 'border-transparent hover:border-maps-border hover:bg-maps-surface'
+                      }`}
+                    >
+                      <ProducerAvatar producer={p} size="sm" />
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-sm font-bold text-maps-heading">
+                          {p.nombreCompleto}
+                        </span>
+                        {p.ciudad && (
+                          <span className="truncate text-xs text-maps-muted">
+                            {p.ciudad}
+                          </span>
+                        )}
+                      </span>
+                      {p.distanceKm != null && (
+                        <span className="shrink-0 text-xs font-semibold text-maps-brand">
+                          {formatDistance(p.distanceKm)}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       </div>
@@ -167,7 +317,20 @@ export function FindAdvisorMap() {
           dragRotate={false}
           touchZoomRotate
         >
-          {producers.map((producer) => (
+          {userLocation && (
+            <Marker
+              longitude={userLocation.longitude}
+              latitude={userLocation.latitude}
+              anchor="center"
+            >
+              <span
+                aria-label={`Ubicación: ${userLocation.label}`}
+                className="flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-amber-500 shadow-floating"
+              />
+            </Marker>
+          )}
+
+          {sortedProducers.map((producer) => (
             <Marker
               key={producer.slug}
               longitude={producer.longitud}
@@ -180,8 +343,22 @@ export function FindAdvisorMap() {
             >
               <button
                 type="button"
-                aria-label={producer.nombreCompleto}
-                className="flex h-9 w-9 -translate-y-1 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-maps-brand text-white shadow-floating transition-transform hover:scale-110"
+                aria-label={`Ver asesor ${producer.nombreCompleto}${
+                  producer.distanceKm != null
+                    ? `, a ${formatDistance(producer.distanceKm)}`
+                    : ''
+                }`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setActiveSlug(producer.slug);
+                  }
+                }}
+                className={`flex h-9 w-9 -translate-y-1 cursor-pointer items-center justify-center rounded-full border-2 border-white text-white shadow-floating transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-maps-brand focus-visible:ring-offset-2 ${
+                  producer.slug === activeSlug
+                    ? 'bg-maps-brand-hover scale-110'
+                    : 'bg-maps-brand'
+                }`}
               >
                 <MapPinIcon className="h-5 w-5" />
               </button>
@@ -198,24 +375,9 @@ export function FindAdvisorMap() {
               closeOnClick={false}
               onClose={() => setActiveSlug(null)}
               className="maps-popup"
+              maxWidth="320px"
             >
-              <p className="text-sm font-bold text-maps-heading">
-                {activeProducer.nombreCompleto}
-              </p>
-              {activeProducer.tituloProfesional && (
-                <p className="text-xs text-maps-muted">
-                  {activeProducer.tituloProfesional}
-                </p>
-              )}
-              {activeProducer.ciudad && (
-                <p className="text-xs text-maps-muted">{activeProducer.ciudad}</p>
-              )}
-              <Link
-                to={`/productor/${activeProducer.slug}`}
-                className="mt-2 inline-block text-xs font-semibold text-maps-brand hover:underline"
-              >
-                Ver perfil
-              </Link>
+              <ProducerPopupCard producer={activeProducer} />
             </Popup>
           )}
         </Map>
@@ -254,5 +416,108 @@ export function FindAdvisorMap() {
         </div>
       </div>
     </section>
+  );
+}
+
+function ProducerAvatar({
+  producer,
+  size,
+}: {
+  producer: MapProducer;
+  size: 'sm' | 'md';
+}) {
+  const dim = size === 'sm' ? 'h-10 w-10 text-xs' : 'h-14 w-14 text-base';
+  if (producer.foto) {
+    return (
+      <img
+        src={producer.foto}
+        alt={producer.nombreCompleto}
+        className={`${dim} shrink-0 rounded-full object-cover`}
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden
+      className={`${dim} flex shrink-0 items-center justify-center rounded-full bg-maps-brand-soft font-bold text-maps-brand`}
+    >
+      {getInitials(producer.nombreCompleto)}
+    </span>
+  );
+}
+
+function ProducerPopupCard({ producer }: { producer: ProducerWithDistance }) {
+  const waLink = producer.whatsapp
+    ? `https://wa.me/${producer.whatsapp.replace(/\D/g, '')}`
+    : null;
+  const specialties = producer.especialidades.slice(0, 3);
+
+  return (
+    <div className="flex flex-col gap-3 p-1">
+      <div className="flex items-start gap-3">
+        <ProducerAvatar producer={producer} size="md" />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex items-center gap-1.5">
+            <p className="truncate text-sm font-bold text-maps-heading">
+              {producer.nombreCompleto}
+            </p>
+            {producer.verificado && (
+              <BadgeCheck
+                className="h-4 w-4 shrink-0 text-maps-brand"
+                aria-label="Productor verificado"
+              />
+            )}
+          </div>
+          {producer.tituloProfesional && (
+            <p className="truncate text-xs text-maps-muted">
+              {producer.tituloProfesional}
+            </p>
+          )}
+          {producer.ciudad && (
+            <p className="truncate text-xs text-maps-muted">{producer.ciudad}</p>
+          )}
+          {producer.distanceKm != null && (
+            <p className="mt-0.5 text-xs font-semibold text-maps-brand">
+              A {formatDistance(producer.distanceKm)}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {specialties.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5">
+          {specialties.map((s) => (
+            <li
+              key={s.clave}
+              className="rounded-full bg-maps-brand-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-maps-brand"
+            >
+              {s.label}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="flex items-center gap-2 pt-1">
+        {waLink && (
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#22c55e] px-3 py-1.5 text-xs font-bold text-white hover:opacity-90"
+          >
+            <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+            WhatsApp
+          </a>
+        )}
+        <Link
+          to={`/productor/${producer.slug}`}
+          className={`inline-flex items-center justify-center rounded-lg bg-maps-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-maps-brand-hover ${
+            waLink ? '' : 'flex-1'
+          }`}
+        >
+          Ver perfil
+        </Link>
+      </div>
+    </div>
   );
 }
