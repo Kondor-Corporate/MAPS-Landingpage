@@ -1,10 +1,15 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { loadEnv } from '../src/config/env.js';
 
+vi.mock('../src/lib/geocode.js', () => ({
+  geocodeAddress: vi.fn(async () => ({ latitud: -34.9214, longitud: -57.9545 })),
+}));
+
 const BASE = '/api/v1/producers';
 const AUTH = '/api/v1/auth';
+const TEST_CIUDAD = 'Calle 7 776, La Plata, Buenos Aires, Argentina';
 
 function uniqueEmail(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
@@ -44,6 +49,7 @@ describe('producers API (integración)', () => {
         nombre: 'Forbidden',
         apellido: 'List',
         email,
+        ciudad: TEST_CIUDAD,
       })
       .expect(201);
 
@@ -85,6 +91,7 @@ describe('producers API (integración)', () => {
         apellido: 'Productor',
         email,
         telefono: '555-0000',
+        ciudad: TEST_CIUDAD,
       })
       .expect(201);
 
@@ -98,7 +105,7 @@ describe('producers API (integración)', () => {
   it('POST / — email duplicado → 409', async () => {
     const adminToken = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
     const email = uniqueEmail('dup-email');
-    const body = { nombre: 'A', apellido: 'B', email };
+    const body = { nombre: 'A', apellido: 'B', email, ciudad: TEST_CIUDAD };
 
     await request(app)
       .post(BASE)
@@ -141,6 +148,7 @@ describe('producers API (integración)', () => {
         nombre: 'Antes',
         apellido: 'Nombre',
         email,
+        ciudad: TEST_CIUDAD,
       })
       .expect(201);
 
@@ -168,6 +176,7 @@ describe('producers API (integración)', () => {
         nombre: 'Sesión',
         apellido: 'Revocada',
         email,
+        ciudad: TEST_CIUDAD,
       })
       .expect(201);
 
@@ -200,6 +209,7 @@ describe('producers API (integración)', () => {
         apellido: 'Lista',
         email,
         activo: false,
+        ciudad: TEST_CIUDAD,
       })
       .expect(201);
 

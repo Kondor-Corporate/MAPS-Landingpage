@@ -101,6 +101,7 @@ describe('validate', () => {
         nombre: '  Ana ',
         apellido: ' Gómez ',
         email: ' ANA@EXAMPLE.COM ',
+        ciudad: ' Calle 7 776, La Plata ',
       },
     } as Request;
     const res = mockRes();
@@ -114,6 +115,7 @@ describe('validate', () => {
       nombre: 'Ana',
       apellido: 'Gómez',
       email: 'ANA@EXAMPLE.COM',
+      ciudad: 'Calle 7 776, La Plata',
     });
   });
 });
