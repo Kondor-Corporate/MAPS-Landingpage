@@ -13,6 +13,7 @@ import { getInitials } from '@/shared/utils/initials';
 const DEFAULT_VIEW = LA_PLATA_VIEW;
 const NEARBY_LIST_SIZE = 4;
 
+
 type GeocodeStatus = 'idle' | 'loading' | 'not-found' | 'error';
 type GeolocStatus = 'idle' | 'loading' | 'unsupported' | 'denied' | 'error';
 
@@ -51,6 +52,7 @@ export function FindAdvisorMap() {
     () => (userLocation ? sortedProducers.slice(0, NEARBY_LIST_SIZE) : []),
     [sortedProducers, userLocation],
   );
+
 
   const activeProducer = useMemo(
     () => sortedProducers.find((p) => p.slug === activeSlug) ?? null,
@@ -186,8 +188,8 @@ export function FindAdvisorMap() {
           </h2>
 
           <p className="text-lg leading-[29px] text-maps-muted">
-            Buscá por ciudad o usá tu ubicación actual y vamos a mostrarte los
-            asesores más cercanos.
+            Buscá por ciudad o usá tu ubicación actual y vamos a mostrarte los asesores más
+            cercanos.
           </p>
 
           <form
@@ -356,7 +358,7 @@ export function FindAdvisorMap() {
                 }}
                 className={`flex h-9 w-9 -translate-y-1 cursor-pointer items-center justify-center rounded-full border-2 border-white text-white shadow-floating transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-maps-brand focus-visible:ring-offset-2 ${
                   producer.slug === activeSlug
-                    ? 'bg-maps-brand-hover scale-110'
+                    ? 'scale-110 bg-maps-brand-hover'
                     : 'bg-maps-brand'
                 }`}
               >
@@ -405,12 +407,7 @@ export function FindAdvisorMap() {
             className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-maps-heading shadow-floating hover:bg-maps-surface"
           >
             <svg width="14" height="2" viewBox="0 0 14 2" fill="none">
-              <path
-                d="M1 1h12"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
+              <path d="M1 1h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
         </div>

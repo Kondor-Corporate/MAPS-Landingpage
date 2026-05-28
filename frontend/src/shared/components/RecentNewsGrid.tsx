@@ -27,9 +27,7 @@ export function RecentNewsGrid() {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex items-end justify-between gap-4">
-        <h2 className="text-2xl font-bold text-maps-heading">
-          Comunicados Recientes
-        </h2>
+        <h2 className="text-2xl font-bold text-maps-heading">Comunicados Recientes</h2>
         <a
           href="/#noticias"
           className="inline-flex items-center gap-2 text-sm font-semibold text-maps-brand hover:text-maps-brand-hover"

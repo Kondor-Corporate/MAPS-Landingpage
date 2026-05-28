@@ -9,10 +9,18 @@ import { AppError } from '../lib/errors.js';
 import { authService } from '../services/auth.service.js';
 import { loginSchema, logoutBodySchema, refreshBodySchema } from '../validations/auth.schema.js';
 
-/** Lee el refresh token de la cookie httpOnly o, como fallback, del body. */
-function resolveRefreshToken(req: Parameters<RequestHandler>[0]): string | undefined {
-  return (req.cookies as Record<string, string | undefined>)[REFRESH_COOKIE_NAME] ??
-    (req.body as { refreshToken?: string }).refreshToken;
+/**
+ * Lee el refresh desde la cookie httpOnly (`maps_refresh`). El body solo se usa si
+ * `env.allowRefreshBody` (desarrollo/test por defecto, o `ALLOW_REFRESH_BODY=true` en prod).
+ */
+function resolveRefreshToken(
+  req: Parameters<RequestHandler>[0],
+  allowBody: boolean,
+): string | undefined {
+  const fromCookie = (req.cookies as Record<string, string | undefined>)[REFRESH_COOKIE_NAME];
+  if (fromCookie) return fromCookie;
+  if (!allowBody) return undefined;
+  return (req.body as { refreshToken?: string }).refreshToken;
 }
 
 export const authController: Record<string, RequestHandler> = {
@@ -35,9 +43,7 @@ export const authController: Record<string, RequestHandler> = {
         Buffer.from(result.refreshToken.split('.')[1], 'base64url').toString(),
       ) as { exp?: number };
       const maxAgeMs =
-        decoded.exp !== undefined
-          ? decoded.exp * 1000 - Date.now()
-          : 30 * 24 * 60 * 60 * 1000;
+        decoded.exp !== undefined ? decoded.exp * 1000 - Date.now() : 30 * 24 * 60 * 60 * 1000;
 
       res.cookie(
         REFRESH_COOKIE_NAME,
@@ -69,9 +75,13 @@ export const authController: Record<string, RequestHandler> = {
       return;
     }
 
-    const refreshToken = resolveRefreshToken(req);
+    const env = loadEnv();
+    const refreshToken = resolveRefreshToken(req, env.allowRefreshBody);
     if (!refreshToken) {
-      next(new AppError(401, 'Refresh token requerido'));
+      const msg = env.allowRefreshBody
+        ? 'Refresh token requerido'
+        : 'Refresh token requerido (cookie httpOnly)';
+      next(new AppError(401, msg));
       return;
     }
 
@@ -103,14 +113,17 @@ export const authController: Record<string, RequestHandler> = {
       return;
     }
 
-    const refreshToken = resolveRefreshToken(req);
+    const env = loadEnv();
+    const refreshToken = resolveRefreshToken(req, env.allowRefreshBody);
     if (!refreshToken) {
-      next(new AppError(401, 'Refresh token requerido'));
+      const msg = env.allowRefreshBody
+        ? 'Refresh token requerido'
+        : 'Refresh token requerido (cookie httpOnly)';
+      next(new AppError(401, msg));
       return;
     }
 
     try {
-      const env = loadEnv();
       await authService.logout(req.user.sub, refreshToken);
       res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieClearOptions(env));
       res.json({

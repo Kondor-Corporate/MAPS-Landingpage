@@ -1,8 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { getAuthState, useAuthStore } from '@/store/authStore';
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
 
 type ApiSuccess<T> = { data: T; message: string; error: null };
 type RefreshPayload = { accessToken: string };
@@ -28,10 +27,7 @@ let refreshLock: Promise<string> | null = null;
 export function refreshAccessToken() {
   if (!refreshLock) {
     refreshLock = (async () => {
-      const { data } = await refreshClient.post<ApiSuccess<RefreshPayload>>(
-        '/auth/refresh',
-        {},
-      );
+      const { data } = await refreshClient.post<ApiSuccess<RefreshPayload>>('/auth/refresh', {});
       const token = data.data?.accessToken;
       if (!token) {
         throw new Error('Respuesta de refresh inválida');

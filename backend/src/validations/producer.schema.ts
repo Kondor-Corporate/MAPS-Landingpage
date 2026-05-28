@@ -66,13 +66,16 @@ export const producerIdParamSchema = z.object({
 /** Query opcional para listar productores por cuenta activa/inactiva. */
 export const listProducersQuerySchema = z
   .object({
-    activo: z.preprocess((val) => {
-      const s = Array.isArray(val) ? val[0] : val;
-      if (typeof s !== 'string') return undefined;
-      const t = s.trim();
-      if (t === '') return undefined;
-      return t;
-    }, z.enum(['true', 'false']).optional()),
+    activo: z.preprocess(
+      (val) => {
+        const s = Array.isArray(val) ? val[0] : val;
+        if (typeof s !== 'string') return undefined;
+        const t = s.trim();
+        if (t === '') return undefined;
+        return t;
+      },
+      z.enum(['true', 'false']).optional(),
+    ),
   })
   .transform((q): { activo?: boolean } => {
     if (q.activo === undefined) return {};

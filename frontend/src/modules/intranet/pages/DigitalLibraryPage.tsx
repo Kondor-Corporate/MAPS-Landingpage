@@ -3,8 +3,6 @@ import { LibraryRamosSection } from '@/modules/intranet/components/LibraryRamosS
 import { LibrarySecondarySection } from '@/modules/intranet/components/LibrarySecondarySection';
 
 export function DigitalLibraryPage() {
-  const library = useLibraryRamos();
-
   return (
     <div className="flex flex-col">
       <LibraryHero />

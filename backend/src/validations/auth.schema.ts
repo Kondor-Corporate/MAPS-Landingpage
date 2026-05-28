@@ -8,7 +8,8 @@ export const loginSchema = z.object({
 /**
  * Body de POST /refresh.
  * `refreshToken` es opcional: el camino principal es la cookie httpOnly `maps_refresh`.
- * El body se usa como fallback para clientes sin cookies (apps móviles, Postman, tests).
+ * En **producción** el fallback por body queda desactivado salvo `ALLOW_REFRESH_BODY=true`
+ * (ver `backend/src/config/env.ts`). En desarrollo y tests sigue habilitado por defecto.
  */
 export const refreshBodySchema = z.object({
   refreshToken: z.string().min(1).optional(),

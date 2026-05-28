@@ -3,11 +3,11 @@
 Portal integral para la gestión de productores de seguros de **MAPS Asesores**.  
 Incluye tres zonas diferenciadas:
 
-| Zona | Audiencia | Descripción |
-|---|---|---|
-| **Web Pública** | Visitante anónimo | Landing institucional, mapa de asesores, perfil público del productor |
-| **Intranet** | Productor autenticado | Dashboard, Biblioteca Digital, acceso a SELF, gestión de perfil |
-| **Admin / SuperAdmin** | Administradores | CRUD de productores y administradores, gestión de noticias, filtros avanzados |
+| Zona                   | Audiencia             | Descripción                                                                   |
+| ---------------------- | --------------------- | ----------------------------------------------------------------------------- |
+| **Web Pública**        | Visitante anónimo     | Landing institucional, mapa de asesores, perfil público del productor         |
+| **Intranet**           | Productor autenticado | Dashboard, Biblioteca Digital, acceso a SELF, gestión de perfil               |
+| **Admin / SuperAdmin** | Administradores       | CRUD de productores y administradores, gestión de noticias, filtros avanzados |
 
 > **Fuera de alcance en esta etapa:** Ecommerce y Cotizador (proyectos separados; la arquitectura contempla su integración futura sin rehacer el core).
 
@@ -65,34 +65,34 @@ Documentación relacionada: [TDD MAPS-008](docs/tdd/MAPS-008-tdd-ui-stabilizatio
 
 ### Frontend
 
-| Capa | Tecnología |
-|---|---|
-| Framework | React 18 + Vite |
-| Lenguaje | TypeScript |
-| Estilos | TailwindCSS |
-| Router | React Router v6 |
-| Estado global | Zustand |
-| HTTP client | Axios |
+| Capa          | Tecnología      |
+| ------------- | --------------- |
+| Framework     | React 18 + Vite |
+| Lenguaje      | TypeScript      |
+| Estilos       | TailwindCSS     |
+| Router        | React Router v6 |
+| Estado global | Zustand         |
+| HTTP client   | Axios           |
 
 ### Backend
 
-| Capa | Tecnología |
-|---|---|
-| Runtime | Node.js (LTS) |
-| Framework | Express + TypeScript |
-| ORM | Prisma |
-| Base de datos | PostgreSQL |
-| Validación | Zod (por endpoint) |
-| Auth | JWT + RBAC (roles: `PRODUCTOR` / `ADMIN` / `SUPERADMIN`) |
+| Capa          | Tecnología                                               |
+| ------------- | -------------------------------------------------------- |
+| Runtime       | Node.js (LTS)                                            |
+| Framework     | Express + TypeScript                                     |
+| ORM           | Prisma                                                   |
+| Base de datos | PostgreSQL                                               |
+| Validación    | Zod (por endpoint)                                       |
+| Auth          | JWT + RBAC (roles: `PRODUCTOR` / `ADMIN` / `SUPERADMIN`) |
 
 > **Reglas de acceso por zona:** `PRODUCTOR` → `/intranet/*` (solo su propio perfil). `ADMIN` y `SUPERADMIN` → `/admin/*`. Un admin no accede a `/intranet` salvo que tenga también cuenta de productor separada. La web pública (`/`, `/productor/:slug`) es accesible sin autenticación.
 
 ### Infraestructura local
 
-| Herramienta | Uso |
-|---|---|
-| Docker + Docker Compose | PostgreSQL local solamente |
-| `.env` | Variables de entorno (ver `.env.example`) |
+| Herramienta             | Uso                                       |
+| ----------------------- | ----------------------------------------- |
+| Docker + Docker Compose | PostgreSQL local solamente                |
+| `.env`                  | Variables de entorno (ver `.env.example`) |
 
 > En desarrollo, Docker se usa solo para la base de datos. Backend y frontend corren localmente con `npm run dev`.
 
@@ -102,14 +102,14 @@ Documentación relacionada: [TDD MAPS-008](docs/tdd/MAPS-008-tdd-ui-stabilizatio
 
 Resumen ejecutivo para no confundir qué está cableado contra la API y qué sigue en **demo local / mock**:
 
-| Área | Estado |
-|------|--------|
-| **Login / auth API** | Implementado (`/api/v1/auth`, guards en frontend). |
-| **Admin — productores** | **Integrado con API real** `/api/v1/producers` (MAPS-009). |
-| **Admin — noticias** | **Mock / estado en cliente** (`useNews`, etc.). |
-| **Público — landing y mapa** | Contenidos **locales/mock** según página; no implica backend de catálogo. |
-| **Perfil público `/productor/:slug`** | **No** enlazado a la API admin de esta feature. |
-| **Intranet productor** | Independiente del cierre MAPS-009. |
+| Área                                  | Estado                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| **Login / auth API**                  | Implementado (`/api/v1/auth`, guards en frontend).                        |
+| **Admin — productores**               | **Integrado con API real** `/api/v1/producers` (MAPS-009).                |
+| **Admin — noticias**                  | **Mock / estado en cliente** (`useNews`, etc.).                           |
+| **Público — landing y mapa**          | Contenidos **locales/mock** según página; no implica backend de catálogo. |
+| **Perfil público `/productor/:slug`** | **No** enlazado a la API admin de esta feature.                           |
+| **Intranet productor**                | Independiente del cierre MAPS-009.                                        |
 
 Detalle y pruebas manuales: [`docs/worklog/MAPS-009-admin-api-productores.md`](docs/worklog/MAPS-009-admin-api-productores.md).
 
@@ -119,7 +119,7 @@ Detalle y pruebas manuales: [`docs/worklog/MAPS-009-admin-api-productores.md`](d
 
 - **Node.js** LTS (≥ 20) — [descargar](https://nodejs.org/)
 - **Docker Desktop** — [descargar](https://www.docker.com/products/docker-desktop/)
-- **pnpm** (recomendado) o npm/yarn
+- **npm** (gestor usado en el repo; existen `package-lock.json` en `frontend/` y `backend/`)
 
 ```bash
 # Verificar versiones
@@ -159,7 +159,7 @@ Editá los archivos `.env` con los valores correspondientes.
 docker compose up -d
 ```
 
-Esto levanta un contenedor PostgreSQL en `localhost:5432` con la base oficial de desarrollo `maps_asesores_dev`.
+Esto levanta un contenedor PostgreSQL accesible en **`localhost:5432`** con la base oficial de desarrollo `maps_asesores_dev`.
 Podés verificar estado y logs con:
 
 ```bash
@@ -210,9 +210,11 @@ curl http://localhost:3000/api/v1/health
 # Respuesta esperada: { "status": "ok", "timestamp": "..." }
 ```
 
-### 8. Tests de integración del backend (auth)
+### 8. Tests de integración del backend (auth + productores)
 
 Requisitos: PostgreSQL levantado, migraciones aplicadas y seed ejecutado (`cd backend && npm run db:seed`). El archivo `backend/.env` debe incluir `DATABASE_URL`, `JWT_SECRET`, `REFRESH_SECRET` y el resto de variables validadas en `src/config/env.ts`.
+
+**Nota:** no hay base de datos de test separada en esta fase: la suite usa el `DATABASE_URL` de tu `backend/.env` (desarrollo local). En CI, el workflow define `DATABASE_URL` contra un Postgres efímero del job.
 
 ```bash
 cd backend
@@ -220,21 +222,25 @@ npm test              # una pasada
 npm run test:watch    # modo observación
 ```
 
-Los tests viven en `backend/tests/` y usan **Vitest** + **Supertest** contra la app en memoria (`createApp()`), sin levantar un servidor real.
+Los tests viven en `backend/tests/` y usan **Vitest** + **Supertest** contra la app en memoria (`createApp()`), sin levantar un servidor real. Incluyen **auth**, **productores (admin)** y **middlewares** `authorize` / `validate`.
+
+#### CI en GitHub
+
+El archivo [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) ejecuta `npm ci`, `typecheck`, `lint`, `build` y `npm test` en backend (tras `prisma migrate deploy` y seed sobre Postgres del servicio del workflow) y las mismas comprobaciones de calidad en frontend, **sin deploy**.
 
 #### Qué hace cada test (`tests/auth.integration.test.ts`)
 
-| Test | Qué comprueba |
-|------|----------------|
-| **POST /login — credenciales válidas** | Respuesta `200` con `accessToken` y `refreshToken` en formato JWT, usuario `admin` con rol `ADMIN`, y que la respuesta **no** expone `passwordHash`. |
-| **POST /login — contraseña incorrecta** | `401` con mensaje genérico `Credenciales inválidas` (no filtra si el usuario existe). |
-| **POST /login — usuario inexistente** | Mismo `401` y mismo mensaje que con contraseña mala (anti-enumeración de usuarios). |
-| **POST /login — body inválido** | `400` cuando faltan campos requeridos (validación Zod). |
-| **POST /refresh — token válido** | Tras un login correcto, el refresh devuelve `200` y un **nuevo** `accessToken`; no devuelve otro refresh en el payload. |
-| **POST /refresh — token inválido** | `401` si el string no es un JWT válido firmado como refresh. |
-| **POST /refresh — access como refresh** | `401` si se envía el **access token** en el cuerpo donde debe ir el refresh (secret y tipo distintos). |
-| **POST /logout — revoca sesión** | Con `Authorization: Bearer` + `refreshToken` en el body, `200`; un segundo `POST /refresh` con el mismo refresh devuelve `401` (sesión revocada en base de datos). |
-| **POST /logout — sin Authorization** | `401` si falta el header `Bearer` (middleware `authenticate`). |
+| Test                                    | Qué comprueba                                                                                                                                                      |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **POST /login — credenciales válidas**  | Respuesta `200` con `accessToken` y `refreshToken` en formato JWT, usuario `admin` con rol `ADMIN`, y que la respuesta **no** expone `passwordHash`.               |
+| **POST /login — contraseña incorrecta** | `401` con mensaje genérico `Credenciales inválidas` (no filtra si el usuario existe).                                                                              |
+| **POST /login — usuario inexistente**   | Mismo `401` y mismo mensaje que con contraseña mala (anti-enumeración de usuarios).                                                                                |
+| **POST /login — body inválido**         | `400` cuando faltan campos requeridos (validación Zod).                                                                                                            |
+| **POST /refresh — token válido**        | Tras un login correcto, el refresh devuelve `200` y un **nuevo** `accessToken`; no devuelve otro refresh en el payload.                                            |
+| **POST /refresh — token inválido**      | `401` si el string no es un JWT válido firmado como refresh.                                                                                                       |
+| **POST /refresh — access como refresh** | `401` si se envía el **access token** en el cuerpo donde debe ir el refresh (secret y tipo distintos).                                                             |
+| **POST /logout — revoca sesión**        | Con `Authorization: Bearer` + `refreshToken` en el body, `200`; un segundo `POST /refresh` con el mismo refresh devuelve `401` (sesión revocada en base de datos). |
+| **POST /logout — sin Authorization**    | `401` si falta el header `Bearer` (middleware `authenticate`).                                                                                                     |
 
 En entorno de test (`NODE_ENV=test`) el rate limit del login está relajado para no interferir con la suite.
 
@@ -258,7 +264,7 @@ El backend local usa `localhost` en `DATABASE_URL` porque corre fuera de Docker:
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maps_asesores_dev"
 ```
 
-Si en el futuro el backend corre dentro de Docker, el host de la URL debería ser el nombre del servicio (`db`) en lugar de `localhost`.
+Si en el futuro el backend corre dentro de Docker en la misma red Compose que `db`, usá host **`db`** y puerto **5432** en `DATABASE_URL`. Si otro Postgres local ocupa el `5432`, cambiá el mapeo en `docker-compose.yml` a `5433:5432` y actualizá la URL con `localhost:5433`.
 
 Comandos útiles:
 
@@ -286,7 +292,7 @@ pgAdmin es opcional y funciona solo como cliente visual. Para conectarlo:
 
 Troubleshooting:
 
-- Si `5432` está ocupado, probablemente hay otro PostgreSQL local corriendo. Detenelo o cambiá el puerto host del compose y actualizá `DATABASE_URL`.
+- Si `5432` está ocupado por un Postgres nativo, desinstalalo o cambiá el mapeo en `docker-compose.yml` a `5433:5432` y actualizá `DATABASE_URL` con `localhost:5433`.
 - `docker compose down -v` borra los datos persistidos en `pgdata`; usalo solo cuando quieras resetear la DB.
 - Si existe una DB antigua con datos usando rol `PRODUCER`, revisar la migración hacia `PRODUCTOR` antes de migrar sobre datos reales.
 - pgAdmin no es necesario para que el backend funcione; Prisma usa directamente `DATABASE_URL`.
@@ -298,6 +304,7 @@ Troubleshooting:
 ```
 maps-asesores/
 ├── frontend/
+│   ├── eslint.config.js
 │   └── src/
 │       ├── shared/          ← componentes, layouts, hooks, types, utils compartidos
 │       ├── modules/
@@ -307,6 +314,7 @@ maps-asesores/
 │       └── router/          ← React Router + guards de rol
 │
 ├── backend/
+│   ├── eslint.config.js
 │   ├── tests/               ← Vitest + Supertest (p. ej. auth.integration.test.ts)
 │   └── src/
 │       ├── api/v1/routes/   ← definición de endpoints
@@ -321,6 +329,8 @@ maps-asesores/
 │       └── migrations/
 │
 ├── docker-compose.yml
+├── .prettierrc.json
+├── .prettierignore
 ├── backend/.env.example
 ├── frontend/.env.example
 ├── .gitignore
@@ -328,6 +338,22 @@ maps-asesores/
 ```
 
 > Ver la propuesta completa en la documentación de arquitectura del equipo.
+
+---
+
+## Calidad de código (MAPS-010A)
+
+Herramientas mínimas en **`frontend/`** y **`backend/`**:
+
+| Comando                | Descripción                  |
+| ---------------------- | ---------------------------- |
+| `npm run typecheck`    | `tsc --noEmit`               |
+| `npm run lint`         | ESLint                       |
+| `npm run lint:fix`     | ESLint con `--fix`           |
+| `npm run format`       | Prettier — escribe archivos  |
+| `npm run format:check` | Prettier — solo verificación |
+
+Ejecutarlos dentro de cada carp (`cd frontend` o `cd backend`). La migración a **pnpm** u otro gestor queda fuera de MAPS-010.
 
 ---
 
@@ -349,13 +375,13 @@ fix/*         ← correcciones puntuales
 
 ### Nombrado de archivos
 
-| Tipo | Convención | Ejemplo |
-|---|---|---|
-| Componentes React | PascalCase | `ProducerTable.tsx` |
-| Hooks | camelCase con `use` | `useProducerFilters.ts` |
-| Servicios/Controllers | camelCase + sufijo | `producers.service.ts` |
-| Schemas Zod | camelCase + `.schema` | `producer.schema.ts` |
-| Variables de entorno | SCREAMING_SNAKE_CASE | `DATABASE_URL` |
+| Tipo                  | Convención            | Ejemplo                 |
+| --------------------- | --------------------- | ----------------------- |
+| Componentes React     | PascalCase            | `ProducerTable.tsx`     |
+| Hooks                 | camelCase con `use`   | `useProducerFilters.ts` |
+| Servicios/Controllers | camelCase + sufijo    | `producers.service.ts`  |
+| Schemas Zod           | camelCase + `.schema` | `producer.schema.ts`    |
+| Variables de entorno  | SCREAMING_SNAKE_CASE  | `DATABASE_URL`          |
 
 ### API
 
@@ -378,6 +404,8 @@ fix/*         ← correcciones puntuales
 NODE_ENV=development
 PORT=3000
 FRONTEND_ORIGIN=http://localhost:5173
+# Opcional: TRUST_PROXY=false | true | 1 (saltos); ver backend/.env.example
+# Opcional: ALLOW_REFRESH_BODY (producción: solo cookie salvo true explícito)
 
 # Base de datos local via Docker Compose
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maps_asesores_dev"

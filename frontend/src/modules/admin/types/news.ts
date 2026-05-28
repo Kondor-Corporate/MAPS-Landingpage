@@ -2,12 +2,7 @@ export type NewsAudiencia = 'PRODUCTORES' | 'PUBLICO';
 
 export type NewsEstado = 'BORRADOR' | 'PUBLICADO';
 
-export type NewsCategoria =
-  | 'NOVEDAD'
-  | 'EVENTO'
-  | 'CIRCULAR'
-  | 'PRODUCTO'
-  | 'COMUNICADO';
+export type NewsCategoria = 'NOVEDAD' | 'EVENTO' | 'CIRCULAR' | 'PRODUCTO' | 'COMUNICADO';
 
 export type News = {
   id: string;

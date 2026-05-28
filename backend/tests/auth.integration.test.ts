@@ -94,10 +94,7 @@ describe('auth API (integración)', () => {
     const cookieHeader = cookieArr.find((c) => c.startsWith(`${REFRESH_COOKIE_NAME}=`))!;
     const refreshToken = cookieHeader.split('=')[1].split(';')[0];
 
-    const res = await request(app)
-      .post(`${BASE}/refresh`)
-      .send({ refreshToken })
-      .expect(200);
+    const res = await request(app).post(`${BASE}/refresh`).send({ refreshToken }).expect(200);
 
     expect(res.body.data).toHaveProperty('accessToken');
   });

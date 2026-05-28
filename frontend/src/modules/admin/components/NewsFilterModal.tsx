@@ -17,13 +17,7 @@ type Props = {
   onReset: () => void;
 };
 
-export function NewsFilterModal({
-  isOpen,
-  initialFilters,
-  onClose,
-  onApply,
-  onReset,
-}: Props) {
+export function NewsFilterModal({ isOpen, initialFilters, onClose, onApply, onReset }: Props) {
   const [draft, setDraft] = useState<NewsFilters>(initialFilters);
 
   useEffect(() => {
@@ -43,7 +37,9 @@ export function NewsFilterModal({
           </span>
           <div className="flex flex-col">
             <h3 className="text-base font-semibold text-maps-heading">Filtrar noticias</h3>
-            <p className="text-xs text-maps-muted">Refiná el listado por audiencia, estado o fecha.</p>
+            <p className="text-xs text-maps-muted">
+              Refiná el listado por audiencia, estado o fecha.
+            </p>
           </div>
         </header>
 

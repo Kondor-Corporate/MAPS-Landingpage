@@ -123,8 +123,7 @@ export function ProducerFormModal({
     }
   }
 
-  const titleNombre =
-    mode === 'edit' && producer ? producerNombreCompleto(producer) : null;
+  const titleNombre = mode === 'edit' && producer ? producerNombreCompleto(producer) : null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-2xl">
@@ -263,9 +262,7 @@ function Field({
     <label className="flex flex-col gap-1.5 text-sm">
       <span className="text-xs font-semibold uppercase tracking-wider text-maps-muted">
         {label}
-        {hint ? (
-          <span className="ml-1 normal-case font-normal text-maps-muted">{hint}</span>
-        ) : null}
+        {hint ? <span className="ml-1 normal-case font-normal text-maps-muted">{hint}</span> : null}
         {required ? <span className="ml-0.5 text-rose-500">*</span> : null}
       </span>
       {children}

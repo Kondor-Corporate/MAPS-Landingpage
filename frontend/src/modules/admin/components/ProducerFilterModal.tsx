@@ -70,11 +70,7 @@ export function ProducerFilterModal({
           ) : null}
 
           <Field label="Sucursal">
-            <select
-              value="TODOS"
-              disabled
-              className={selectClassesDisabled}
-            >
+            <select value="TODOS" disabled className={selectClassesDisabled}>
               <option value="TODOS">Todas (sin datos en API)</option>
             </select>
             <p className="mt-1 text-xs text-maps-muted">
@@ -104,9 +100,7 @@ export function ProducerFilterModal({
           <Field label="Actividad (aprox.)">
             <select
               value={draft.ultimaActividad}
-              onChange={(e) =>
-                update('ultimaActividad', e.target.value as UltimaActividadRange)
-              }
+              onChange={(e) => update('ultimaActividad', e.target.value as UltimaActividadRange)}
               className={selectClasses}
             >
               {Object.entries(RANGE_LABELS).map(([value, label]) => (

@@ -20,14 +20,14 @@ Esta etapa habilita el **flujo de identidad** del portal: un productor o adminis
 
 ## Stack tecnológico (esta etapa)
 
-| Capa | Tecnologías |
-|------|-------------|
-| **Frontend** | React 18, TypeScript, Vite 5, Tailwind CSS 3, React Router v6, Zustand, Axios |
-| **Backend** | Node.js, Express 4, TypeScript |
-| **Datos** | PostgreSQL, Prisma ORM |
-| **Seguridad / validación** | `bcryptjs` (hash de contraseñas), `jsonwebtoken` (JWT), Zod (esquemas de entrada), `cookie-parser` (cookies httpOnly para refresh) |
-| **CORS** | `cors` con `credentials: true` y origen definido en `FRONTEND_ORIGIN` |
-| **Tests de integración** | Vitest, Supertest (`createApp()` sin servidor HTTP separado) |
+| Capa                       | Tecnologías                                                                                                                        |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Frontend**               | React 18, TypeScript, Vite 5, Tailwind CSS 3, React Router v6, Zustand, Axios                                                      |
+| **Backend**                | Node.js, Express 4, TypeScript                                                                                                     |
+| **Datos**                  | PostgreSQL, Prisma ORM                                                                                                             |
+| **Seguridad / validación** | `bcryptjs` (hash de contraseñas), `jsonwebtoken` (JWT), Zod (esquemas de entrada), `cookie-parser` (cookies httpOnly para refresh), `helmet` (cabeceras HTTP), límites de body en Express |
+| **CORS**                   | `cors` con `credentials: true` y origen definido en `FRONTEND_ORIGIN`                                                              |
+| **Tests de integración**   | Vitest, Supertest (`createApp()` sin servidor HTTP separado)                                                                       |
 
 > El frontend usa **Axios** con `withCredentials: true` para todas las peticiones. El access token se guarda en memoria via **Zustand** (no en `localStorage` ni `sessionStorage`). El refresh token viaja solo por la cookie httpOnly `maps_refresh`.
 
@@ -39,11 +39,11 @@ Esta etapa habilita el **flujo de identidad** del portal: un productor o adminis
 
 Definidas en [`backend/src/api/v1/routes/auth.routes.ts`](../backend/src/api/v1/routes/auth.routes.ts) y montadas en **`/api/v1/auth`**:
 
-| Método | Ruta | Middlewares / comportamiento |
-|--------|------|------------------------------|
-| `POST` | `/login` | Rate limit (10 intentos / 15 min en producción; relajado en `NODE_ENV=test`) → `authController.login` |
-| `POST` | `/refresh` | `authController.refresh` (refresh por cookie httpOnly y/o body opcional) |
-| `POST` | `/logout` | `authenticate` → `authController.logout` |
+| Método | Ruta       | Middlewares / comportamiento                                                                          |
+| ------ | ---------- | ----------------------------------------------------------------------------------------------------- |
+| `POST` | `/login`   | Rate limit (10 intentos / 15 min en producción; relajado en desarrollo y `NODE_ENV=test`) → `authController.login` |
+| `POST` | `/refresh` | `authController.refresh` (cookie httpOnly `maps_refresh`; en **producción** el body `refreshToken` solo si `ALLOW_REFRESH_BODY=true`) |
+| `POST` | `/logout`  | `authenticate` → `authController.logout`                                                              |
 
 ### Login (`authController.login`)
 
@@ -78,18 +78,17 @@ Definidas en [`backend/src/api/v1/routes/auth.routes.ts`](../backend/src/api/v1/
 
 ### Implementación en código
 
-| Pieza | Ubicación | Notas |
-|-------|-----------|--------|
-| Layout dividido | [`frontend/src/shared/layouts/AuthLayout.tsx`](../frontend/src/shared/layouts/AuthLayout.tsx) | **Mobile-first:** en viewport pequeño el bloque de marca va arriba y el formulario abajo; desde **`lg:`** (1024px) se muestra reparto ~50/50 en fila. |
-| Página de login | [`frontend/src/modules/auth/pages/LoginPage.tsx`](../frontend/src/modules/auth/pages/LoginPage.tsx) | Validación local, toggle de contraseña, **`POST`** a `VITE_API_BASE_URL/auth/login` via **Axios** con `withCredentials: true`. El `accessToken` queda en el store de **Zustand** (memoria); el refresh en cookie httpOnly. |
-| Punto de entrada | [`frontend/src/main.tsx`](../frontend/src/main.tsx) | Monta **`<RouterProvider router={appRouter} />`** dentro de **`<AuthInitializer>`**. |
-| Router | [`frontend/src/router/index.tsx`](../frontend/src/router/index.tsx) | `createBrowserRouter` con rutas públicas, intranet (`PRODUCTOR`), admin (`ADMIN`/`SUPERADMIN`) y fallback `*→/`. |
-| Guards | [`PublicRoutes`](../frontend/src/router/PublicRoutes.tsx), [`ProtectedRoutes`](../frontend/src/router/ProtectedRoutes.tsx), [`RoleGuard`](../frontend/src/router/RoleGuard.tsx) | Guards reales con lógica completa. Esperan `isInitialized` antes de redirigir. |
-| Auth store | [`frontend/src/store/authStore.ts`](../frontend/src/store/authStore.ts) | Zustand con `persist` (solo `user`); `accessToken` en memoria; `isInitialized` / `isAuthenticated`. |
-| HTTP client | [`frontend/src/lib/axios.ts`](../frontend/src/lib/axios.ts) | Interceptor de `Authorization`, refresh automático ante `401` con flag `_retry` (sin bucle). |
-| Logout | [`frontend/src/modules/auth/hooks/useLogout.ts`](../frontend/src/modules/auth/hooks/useLogout.ts) | Llama `POST /auth/logout`, limpia store y redirige a `/login`. |
-| Estilos / tokens | [`frontend/tailwind.config.ts`](../frontend/tailwind.config.ts), [`frontend/index.html`](../frontend/index.html) | Paleta `maps.*`, fuente **Manrope** vía Google Fonts. |
-
+| Pieza            | Ubicación                                                                                                                                                                       | Notas                                                                                                                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Layout dividido  | [`frontend/src/shared/layouts/AuthLayout.tsx`](../frontend/src/shared/layouts/AuthLayout.tsx)                                                                                   | **Mobile-first:** en viewport pequeño el bloque de marca va arriba y el formulario abajo; desde **`lg:`** (1024px) se muestra reparto ~50/50 en fila.                                                                      |
+| Página de login  | [`frontend/src/modules/auth/pages/LoginPage.tsx`](../frontend/src/modules/auth/pages/LoginPage.tsx)                                                                             | Validación local, toggle de contraseña, **`POST`** a `VITE_API_BASE_URL/auth/login` via **Axios** con `withCredentials: true`. El `accessToken` queda en el store de **Zustand** (memoria); el refresh en cookie httpOnly. |
+| Punto de entrada | [`frontend/src/main.tsx`](../frontend/src/main.tsx)                                                                                                                             | Monta **`<RouterProvider router={appRouter} />`** dentro de **`<AuthInitializer>`**.                                                                                                                                       |
+| Router           | [`frontend/src/router/index.tsx`](../frontend/src/router/index.tsx)                                                                                                             | `createBrowserRouter` con rutas públicas, intranet (`PRODUCTOR`), admin (`ADMIN`/`SUPERADMIN`) y fallback `*→/`.                                                                                                           |
+| Guards           | [`PublicRoutes`](../frontend/src/router/PublicRoutes.tsx), [`ProtectedRoutes`](../frontend/src/router/ProtectedRoutes.tsx), [`RoleGuard`](../frontend/src/router/RoleGuard.tsx) | Guards reales con lógica completa. Esperan `isInitialized` antes de redirigir.                                                                                                                                             |
+| Auth store       | [`frontend/src/store/authStore.ts`](../frontend/src/store/authStore.ts)                                                                                                         | Zustand con `persist` (solo `user`); `accessToken` en memoria; `isInitialized` / `isAuthenticated`.                                                                                                                        |
+| HTTP client      | [`frontend/src/lib/axios.ts`](../frontend/src/lib/axios.ts)                                                                                                                     | Interceptor de `Authorization`, refresh automático ante `401` con flag `_retry` (sin bucle).                                                                                                                               |
+| Logout           | [`frontend/src/modules/auth/hooks/useLogout.ts`](../frontend/src/modules/auth/hooks/useLogout.ts)                                                                               | Llama `POST /auth/logout`, limpia store y redirige a `/login`.                                                                                                                                                             |
+| Estilos / tokens | [`frontend/tailwind.config.ts`](../frontend/tailwind.config.ts), [`frontend/index.html`](../frontend/index.html)                                                                | Paleta `maps.*`, fuente **Manrope** vía Google Fonts.                                                                                                                                                                      |
 
 ---
 
@@ -98,7 +97,8 @@ Definidas en [`backend/src/api/v1/routes/auth.routes.ts`](../backend/src/api/v1/
 ### 1. Prerrequisitos
 
 - Node.js LTS (≥ 20 recomendado).
-- PostgreSQL accesible. Para desarrollo local, usar Docker Compose desde la raíz del repo.
+- **Gestor de paquetes:** **npm** (el repositorio incluye `package-lock.json` en `frontend/` y `backend/`). Otros gestores no están soportados en MAPS-010.
+- PostgreSQL accesible. Para desarrollo local, usar Docker Compose desde la raíz del repo (mapeo `5432:5432` → `DATABASE_URL` con `localhost:5432`). Si el backend corriera dentro de Docker en la misma red que el servicio `db`, usar host `db` y puerto `5432` en la URL.
 - Archivos **`.env`** en backend y frontend (copiar desde `.env.example`).
 
 **Backend** — variables relevantes validadas en [`loadEnv()`](../backend/src/config/env.ts):
@@ -107,7 +107,9 @@ Definidas en [`backend/src/api/v1/routes/auth.routes.ts`](../backend/src/api/v1/
 - `JWT_SECRET` y `REFRESH_SECRET` (mínimo 32 caracteres cada uno)
 - `JWT_EXPIRES_IN`, `REFRESH_EXPIRES_IN`
 - `FRONTEND_ORIGIN` (debe coincidir con el origen del Vite dev server, p. ej. `http://localhost:5173`)
-- `DEFAULT_PRODUCER_PASSWORD` (MAPS-009: contraseña inicial al crear productores desde admin; ver `backend/.env.example`) Backend y frontend corren localmente con `npm run dev`. La base oficial de desarrollo es `maps_asesores_dev`, expuesta en `localhost:5432` por `docker-compose.yml`.
+- `TRUST_PROXY` (opcional, default `false`): uso detrás de reverse proxy; ver comentarios en `backend/.env.example`.
+- `ALLOW_REFRESH_BODY` (opcional): en producción por defecto **no** se acepta refresh por body; la SPA usa solo cookie httpOnly.
+- `DEFAULT_PRODUCER_PASSWORD` (MAPS-009: contraseña inicial al crear productores desde admin; ver `backend/.env.example`). Backend y frontend corren localmente con `npm run dev`. La base oficial de desarrollo es `maps_asesores_dev`, expuesta en **`localhost:5432`** por `docker-compose.yml`.
 
 **Frontend** — [`frontend/.env.example`](../frontend/.env.example):
 
@@ -139,10 +141,10 @@ Para resetear completamente la base local de Docker, usar `docker compose down -
 
 El seed ([`backend/prisma/seed.ts`](../backend/prisma/seed.ts)) crea usuarios de prueba, entre otros:
 
-| `usuario`   | `password`   | `rol`        |
-|-------------|--------------|--------------|
-| `admin`     | `Admin1234!` | `ADMIN`      |
-| `superadmin`| `Super1234!` | `SUPERADMIN` |
+| `usuario`    | `password`   | `rol`        |
+| ------------ | ------------ | ------------ |
+| `admin`      | `Admin1234!` | `ADMIN`      |
+| `superadmin` | `Super1234!` | `SUPERADMIN` |
 
 ### 3. Levantar servicios
 
@@ -254,11 +256,11 @@ MAPS-Landingpage/
 
 El sistema usa tres roles definidos en el enum Prisma `Rol`:
 
-| Rol | Zona de acceso | Restricción |
-|-----|----------------|-------------|
-| `PRODUCTOR` | `/intranet/*` | Ve y gestiona únicamente su propio perfil |
-| `ADMIN` | `/admin/*` | Puede ver y gestionar todos los productores |
-| `SUPERADMIN` | `/admin/*` | Ídem ADMIN + gestión de administradores y configuraciones sensibles |
+| Rol          | Zona de acceso | Restricción                                                         |
+| ------------ | -------------- | ------------------------------------------------------------------- |
+| `PRODUCTOR`  | `/intranet/*`  | Ve y gestiona únicamente su propio perfil                           |
+| `ADMIN`      | `/admin/*`     | Puede ver y gestionar todos los productores                         |
+| `SUPERADMIN` | `/admin/*`     | Ídem ADMIN + gestión de administradores y configuraciones sensibles |
 
 **Regla importante:** un ADMIN no accede a `/intranet` por defecto. Si una misma persona física es admin y también productor, se gestiona como dos usuarios separados con roles diferenciados, no como un único usuario con roles combinados. La web pública (`/` y `/productor/:slug`) es accesible para cualquier usuario, autenticado o no.
 
@@ -268,26 +270,26 @@ El sistema usa tres roles definidos en el enum Prisma `Rol`:
 
 El sistema de routing y autenticación del cliente está **completamente implementado**:
 
-| Ruta | Acceso | Guard |
-|------|--------|-------|
-| `/` | Público | — |
-| `/productor/:slug` | Público | — |
-| `/login` | Solo invitados | `PublicRoutes` (redirige si hay sesión) |
-| `/intranet/*` | Autenticado | `ProtectedRoutes` → `RoleGuard(['PRODUCTOR'])` |
-| `/admin/*` | Autenticado | `ProtectedRoutes` → `RoleGuard(['ADMIN','SUPERADMIN'])` |
-| `/unauthorized` | Público | — |
-| `*` | — | Redirige a `/` |
+| Ruta               | Acceso         | Guard                                                   |
+| ------------------ | -------------- | ------------------------------------------------------- |
+| `/`                | Público        | —                                                       |
+| `/productor/:slug` | Público        | —                                                       |
+| `/login`           | Solo invitados | `PublicRoutes` (redirige si hay sesión)                 |
+| `/intranet/*`      | Autenticado    | `ProtectedRoutes` → `RoleGuard(['PRODUCTOR'])`          |
+| `/admin/*`         | Autenticado    | `ProtectedRoutes` → `RoleGuard(['ADMIN','SUPERADMIN'])` |
+| `/unauthorized`    | Público        | —                                                       |
+| `*`                | —              | Redirige a `/`                                          |
 
 ---
 
 ## Estado real (alto nivel, MAPS-009)
 
-| Módulo | Estado |
-|--------|--------|
-| Admin — **productores** | Integrado con **API real** `/api/v1/producers` (ver work-log MAPS-009). |
-| Admin — **noticias** | **Mock** en cliente; sin API de negocio. |
-| Público — **landing / mapa** | **Locales / mock** según implementación actual. |
-| **Perfil público** `/productor/:slug` | No sustituido por API de lectura en MAPS-009. |
+| Módulo                                | Estado                                                                  |
+| ------------------------------------- | ----------------------------------------------------------------------- |
+| Admin — **productores**               | Integrado con **API real** `/api/v1/producers` (ver work-log MAPS-009). |
+| Admin — **noticias**                  | **Mock** en cliente; sin API de negocio.                                |
+| Público — **landing / mapa**          | **Locales / mock** según implementación actual.                         |
+| **Perfil público** `/productor/:slug` | No sustituido por API de lectura en MAPS-009.                           |
 
 ---
 
@@ -299,25 +301,25 @@ El sistema de routing y autenticación del cliente está **completamente impleme
 
 ### 2. Páginas de negocio (stubs pendientes)
 
-| Módulo | Archivo | Siguiente paso |
-|--------|---------|----------------|
-| Dashboard intranet | [`intranet/pages/DashboardPage.tsx`](../frontend/src/modules/intranet/pages/DashboardPage.tsx) | Contenido real |
-| Dashboard admin | [`admin/pages/DashboardPage.tsx`](../frontend/src/modules/admin/pages/DashboardPage.tsx) | Contenido real |
-| CRUD productores | [`admin/pages/ProducersPage.tsx`](../frontend/src/modules/admin/pages/ProducersPage.tsx) | **MAPS-009** — integrado con `/api/v1/producers` |
-| Noticias | [`admin/pages/NewsManagementPage.tsx`](../frontend/src/modules/admin/pages/NewsManagementPage.tsx) | **Mock** — conectar API futura `/news` |
-| Biblioteca | [`intranet/pages/DigitalLibraryPage.tsx`](../frontend/src/modules/intranet/pages/DigitalLibraryPage.tsx) | Conectar endpoints `/library` |
-| Landing + mapa | [`public-web/pages/HomePage.tsx`](../frontend/src/modules/public-web/pages/HomePage.tsx) | Contenidos **locales/mock**; catálogo backend pendiente |
+| Módulo             | Archivo                                                                                                  | Siguiente paso                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Dashboard intranet | [`intranet/pages/DashboardPage.tsx`](../frontend/src/modules/intranet/pages/DashboardPage.tsx)           | Contenido real                                          |
+| Dashboard admin    | [`admin/pages/DashboardPage.tsx`](../frontend/src/modules/admin/pages/DashboardPage.tsx)                 | Contenido real                                          |
+| CRUD productores   | [`admin/pages/ProducersPage.tsx`](../frontend/src/modules/admin/pages/ProducersPage.tsx)                 | **MAPS-009** — integrado con `/api/v1/producers`        |
+| Noticias           | [`admin/pages/NewsManagementPage.tsx`](../frontend/src/modules/admin/pages/NewsManagementPage.tsx)       | **Mock** — conectar API futura `/news`                  |
+| Biblioteca         | [`intranet/pages/DigitalLibraryPage.tsx`](../frontend/src/modules/intranet/pages/DigitalLibraryPage.tsx) | Conectar endpoints `/library`                           |
+| Landing + mapa     | [`public-web/pages/HomePage.tsx`](../frontend/src/modules/public-web/pages/HomePage.tsx)                 | Contenidos **locales/mock**; catálogo backend pendiente |
 
 ### 3. Otros pendientes
 
-| Acción | Detalle |
-|--------|---------|
-| Seed PRODUCTOR | Agregar usuario productor en [`backend/prisma/seed.ts`](../backend/prisma/seed.ts) para pruebas con ese rol |
-| Assets locales | Logo en `AuthLayout` usa URL temporal de Figma; copiar a `frontend/public/` |
-| Tests E2E | Valorar Playwright: flujo login → zona protegida → logout por rol |
-| CORS en producción | Verificar `FRONTEND_ORIGIN` y `secure: true` en cookies por entorno |
-| Docs MAPS-009 | [`tdd/MAPS-009-tdd-admin-api-productores.md`](./tdd/MAPS-009-tdd-admin-api-productores.md) y [`worklog/MAPS-009-admin-api-productores.md`](./worklog/MAPS-009-admin-api-productores.md) |
+| Acción             | Detalle                                                                                                                                                                                 |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Seed PRODUCTOR     | Agregar usuario productor en [`backend/prisma/seed.ts`](../backend/prisma/seed.ts) para pruebas con ese rol                                                                             |
+| Assets locales     | Logo en `AuthLayout` usa URL temporal de Figma; copiar a `frontend/public/`                                                                                                             |
+| Tests E2E          | Valorar Playwright: flujo login → zona protegida → logout por rol                                                                                                                       |
+| CORS en producción | Verificar `FRONTEND_ORIGIN` y `secure: true` en cookies por entorno                                                                                                                     |
+| Docs MAPS-009      | [`tdd/MAPS-009-tdd-admin-api-productores.md`](./tdd/MAPS-009-tdd-admin-api-productores.md) y [`worklog/MAPS-009-admin-api-productores.md`](./worklog/MAPS-009-admin-api-productores.md) |
 
 ---
 
-*Documento técnico principalmente MAPS-003 y MAPS-004 (auth/routing); ver también estado real MAPS-009 arriba. Para arquitectura global y convenciones del equipo, ver el [README raíz](../README.md).*
+_Documento técnico principalmente MAPS-003 y MAPS-004 (auth/routing); ver también estado real MAPS-009 arriba. Para arquitectura global y convenciones del equipo, ver el [README raíz](../README.md)._

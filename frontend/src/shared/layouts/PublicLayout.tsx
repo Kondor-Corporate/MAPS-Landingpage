@@ -125,17 +125,27 @@ export function PublicLayout({ children }: PublicLayoutProps) {
             <button
               type="button"
               onClick={() => setIsMenuOpen((prev) => !prev)}
-              className="flex h-10 w-10 items-center justify-center rounded-lg text-maps-heading hover:bg-maps-surface transition-colors lg:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-maps-heading transition-colors hover:bg-maps-surface lg:hidden"
               aria-label={isMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
               aria-expanded={isMenuOpen}
             >
               {isMenuOpen ? (
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-                  <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path
+                    d="M15 5L5 15M5 5L15 15"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
                 </svg>
               ) : (
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-                  <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path
+                    d="M3 6h14M3 10h14M3 14h14"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
                 </svg>
               )}
             </button>
@@ -183,8 +193,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 </span>
               </div>
               <p className="max-w-[300px] text-sm leading-[22px] text-maps-muted">
-                Modernización, gestión operativa y cobertura nacional al
-                alcance de un clic.
+                Modernización, gestión operativa y cobertura nacional al alcance de un clic.
               </p>
             </div>
 

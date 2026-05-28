@@ -20,6 +20,7 @@ export function HeroSection() {
       />
       <div aria-hidden className="absolute inset-0 bg-hero-gradient" />
 
+
       <div className="relative z-10 mx-auto w-full max-w-[1236px] px-6 py-10 sm:px-10 lg:px-16">
         <div className="flex max-w-[640px] flex-col gap-6">
           <span className="inline-flex w-fit items-center gap-2 rounded-full border border-maps-brand/30 bg-maps-brand/20 px-3 py-[5px] backdrop-blur-sm">
@@ -31,14 +32,12 @@ export function HeroSection() {
 
           <h1 className="text-4xl sm:text-5xl lg:text-[60px] font-extrabold leading-tight lg:leading-[66px] tracking-[-1.5px] lg:tracking-[-1.98px] text-white">
             Seguros con Respaldo
-            <br />
-            y Confianza
+            <br />y Confianza
           </h1>
 
           <p className="max-w-[540px] text-base sm:text-[18px] leading-[26px] sm:leading-[28px] text-[#e5e7eb]">
-            Conectamos a clientes con los mejores asesores de seguros del país.
-            Modernización, gestión operativa y cobertura nacional al alcance de
-            un clic.
+            Conectamos a clientes con los mejores asesores de seguros del país. Modernización,
+            gestión operativa y cobertura nacional al alcance de un clic.
           </p>
 
           <div className="flex flex-wrap gap-4 pt-2">
@@ -68,8 +67,8 @@ export function HeroSection() {
               ))}
             </div>
             <p className="text-sm text-white/60">
-              Más de <span className="font-bold text-white">2,500</span>{' '}
-              personas confían en nosotros
+              Más de <span className="font-bold text-white">2,500</span> personas confían en
+              nosotros
             </p>
           </div>
         </div>

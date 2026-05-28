@@ -17,7 +17,15 @@ const DashboardIcon: ComponentType<IconProps> = (props) => (
     <rect x="2.5" y="2.5" width="6" height="6" rx="1.25" stroke="currentColor" strokeWidth="1.5" />
     <rect x="11.5" y="2.5" width="6" height="6" rx="1.25" stroke="currentColor" strokeWidth="1.5" />
     <rect x="2.5" y="11.5" width="6" height="6" rx="1.25" stroke="currentColor" strokeWidth="1.5" />
-    <rect x="11.5" y="11.5" width="6" height="6" rx="1.25" stroke="currentColor" strokeWidth="1.5" />
+    <rect
+      x="11.5"
+      y="11.5"
+      width="6"
+      height="6"
+      rx="1.25"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    />
   </svg>
 );
 
@@ -43,7 +51,12 @@ const LibraryIcon: ComponentType<IconProps> = (props) => (
       strokeWidth="1.5"
       strokeLinejoin="round"
     />
-    <path d="M5.5 6h2M5.5 9h2M12.5 6h2M12.5 9h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path
+      d="M5.5 6h2M5.5 9h2M12.5 6h2M12.5 9h2"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
@@ -172,7 +185,12 @@ const NewsIcon: ComponentType<IconProps> = (props) => (
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-    <path d="M5.5 7h7M5.5 10h7M5.5 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path
+      d="M5.5 7h7M5.5 10h7M5.5 13h4"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
   </svg>
 );
 

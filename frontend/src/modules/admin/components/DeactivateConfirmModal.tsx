@@ -47,15 +47,13 @@ export function DeactivateConfirmModal({
             <p className="mt-1 text-sm text-maps-body">
               {isDeactivate ? (
                 <>
-                  ¿Seguro querés desactivar a{' '}
-                  <strong className="text-maps-heading">{label}</strong>? Dejará de aparecer en
-                  el listado de activos hasta que se lo reactive.
+                  ¿Seguro querés desactivar a <strong className="text-maps-heading">{label}</strong>
+                  ? Dejará de aparecer en el listado de activos hasta que se lo reactive.
                 </>
               ) : (
                 <>
-                  ¿Seguro querés reactivar a{' '}
-                  <strong className="text-maps-heading">{label}</strong>? Volverá al listado
-                  principal de productores activos.
+                  ¿Seguro querés reactivar a <strong className="text-maps-heading">{label}</strong>?
+                  Volverá al listado principal de productores activos.
                 </>
               )}
             </p>
@@ -88,11 +86,7 @@ export function DeactivateConfirmModal({
                 : 'bg-maps-brand hover:bg-maps-brand-hover',
             ].join(' ')}
           >
-            {isBusy
-              ? 'Procesando…'
-              : isDeactivate
-                ? 'Desactivar'
-                : 'Reactivar'}
+            {isBusy ? 'Procesando…' : isDeactivate ? 'Desactivar' : 'Reactivar'}
           </button>
         </footer>
       </div>

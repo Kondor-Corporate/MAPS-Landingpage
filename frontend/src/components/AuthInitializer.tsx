@@ -16,8 +16,7 @@ export function AuthInitializer({ children }: AuthInitializerProps) {
   useEffect(() => {
     function runBoot() {
       void (async () => {
-        const { user, accessToken, setInitialized, logout } =
-          useAuthStore.getState();
+        const { user, accessToken, setInitialized, logout } = useAuthStore.getState();
 
         try {
           if (user && !accessToken) {

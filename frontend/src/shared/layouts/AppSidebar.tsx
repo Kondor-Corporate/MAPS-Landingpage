@@ -133,12 +133,8 @@ export function AppSidebarPanel({ user, headerTrailing }: AppSidebarPanelProps) 
           M
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-sm font-bold leading-tight text-maps-heading">
-            MAPS Asesores
-          </span>
-          <span className="text-xs leading-tight text-maps-muted">
-            Portal de Productores
-          </span>
+          <span className="text-sm font-bold leading-tight text-maps-heading">MAPS Asesores</span>
+          <span className="text-xs leading-tight text-maps-muted">Portal de Productores</span>
         </div>
         {headerTrailing ? (
           <div className="flex shrink-0 items-center justify-end">{headerTrailing}</div>
@@ -157,9 +153,7 @@ export function AppSidebarPanel({ user, headerTrailing }: AppSidebarPanelProps) 
             {getInitials(user.usuario)}
           </div>
           <div className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-semibold text-maps-heading">
-              {user.usuario}
-            </span>
+            <span className="truncate text-sm font-semibold text-maps-heading">{user.usuario}</span>
             <span className="truncate text-xs text-maps-muted">{roleLabel}</span>
           </div>
         </div>

@@ -9,8 +9,8 @@ export function CtaSection() {
           ¿Listo para asegurar tu futuro?
         </h2>
         <p className="max-w-[672px] text-lg leading-[28px] text-white/85">
-          Conectate con un asesor MAPS y recibí orientación personalizada
-          para proteger lo que más te importa, hoy mismo.
+          Conectate con un asesor MAPS y recibí orientación personalizada para proteger lo que más
+          te importa, hoy mismo.
         </p>
         <a
           href="/#contacto"

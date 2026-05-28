@@ -1,6 +1,7 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { v1Router } from './api/v1/index.js';
@@ -13,10 +14,22 @@ const backendRoot = path.resolve(
   '..',
 );
 
+/** Límite de cuerpo JSON / urlencoded (payloads accidentales o abuso). */
+export const REQUEST_BODY_LIMIT = '1mb';
+
 export function createApp() {
   const env = loadEnv();
 
   const app = express();
+  app.set('trust proxy', env.trustProxy);
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
+
   app.use(
     cors({
       origin: env.FRONTEND_ORIGIN,
@@ -24,7 +37,8 @@ export function createApp() {
     }),
   );
   app.use(cookieParser());
-  app.use(express.json());
+  app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
+  app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
   getCertificacionesUploadDir();
   app.use(
     '/uploads/certificaciones',

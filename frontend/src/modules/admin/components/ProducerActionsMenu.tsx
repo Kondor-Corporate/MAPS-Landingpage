@@ -11,13 +11,7 @@ type Props = {
   onDelete?: (p: Producer) => void;
 };
 
-export function ProducerActionsMenu({
-  producer,
-  onView,
-  onEdit,
-  onToggleEstado,
-  onDelete,
-}: Props) {
+export function ProducerActionsMenu({ producer, onView, onEdit, onToggleEstado, onDelete }: Props) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const name = producerNombreCompleto(producer);

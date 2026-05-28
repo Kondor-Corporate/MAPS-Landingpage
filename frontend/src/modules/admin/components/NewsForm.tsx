@@ -142,10 +142,7 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
 
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-maps-heading">Cuerpo de la noticia</span>
-          <NewsRichTextEditor
-            value={state.cuerpo}
-            onChange={(value) => patch({ cuerpo: value })}
-          />
+          <NewsRichTextEditor value={state.cuerpo} onChange={(value) => patch({ cuerpo: value })} />
           {showErrors && errors.cuerpo ? (
             <span className="text-xs text-rose-600">{errors.cuerpo}</span>
           ) : null}
@@ -154,10 +151,7 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
 
       {/* Columna derecha — Sidebar */}
       <aside className="flex flex-col gap-4">
-        <NewsAudienceCard
-          value={state.audiencia}
-          onChange={(audiencia) => patch({ audiencia })}
-        />
+        <NewsAudienceCard value={state.audiencia} onChange={(audiencia) => patch({ audiencia })} />
         <NewsPublishActionsCard
           mode={mode}
           estado={state.estado}

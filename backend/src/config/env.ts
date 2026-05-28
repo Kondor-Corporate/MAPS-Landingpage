@@ -12,6 +12,20 @@ const envSchema = z.object({
   REFRESH_EXPIRES_IN: z.string().default('30d'),
 
   /**
+   * Detrás de reverse proxy (nginx, load balancer): `false` (default), `true` para confiar en
+   * `X-Forwarded-*` como indica Express, o número entero de saltos (`1`, `2`, …).
+   * En local/dev dejar `false` salvo que sepas lo que hacés.
+   */
+  TRUST_PROXY: z.string().optional().default('false'),
+
+  /**
+   * Permitir `refreshToken` en el body de POST /auth/refresh y logout (además de la cookie).
+   * En producción el default es **desactivado** (solo cookie httpOnly). Activar solo si un
+   * cliente legítimo no puede usar cookies (p. ej. herramientas internas); valor `true` explícito.
+   */
+  ALLOW_REFRESH_BODY: z.enum(['true', 'false']).optional(),
+
+  /**
    * Contraseña inicial asignada a nuevos usuarios PRODUCTOR (alta admin) hasta existir
    * invitación / primer login. Exigir valor fuerte en producción (no commitear en .env real).
    */
@@ -49,9 +63,39 @@ const envSchema = z.object({
   }
 });
 
-export type Env = z.infer<typeof envSchema>;
+type ParsedEnv = z.infer<typeof envSchema>;
+
+export type Env = ParsedEnv & {
+  /** Valor ya normalizado para `app.set('trust proxy', …)`. */
+  trustProxy: boolean | number;
+  /** Si se acepta `body.refreshToken` además de la cookie `maps_refresh`. */
+  allowRefreshBody: boolean;
+};
 
 let cached: Env | null = null;
+
+/** Interpreta `TRUST_PROXY` para Express (`trust proxy`). */
+export function parseTrustProxy(raw: string): boolean | number {
+  const v = raw.trim().toLowerCase();
+  if (v === '' || v === 'false' || v === '0') return false;
+  if (v === 'true') return true;
+  const n = Number.parseInt(v, 10);
+  if (!Number.isNaN(n) && n > 0) return n;
+  return false;
+}
+
+function buildEnv(parsed: ParsedEnv): Env {
+  const allowRefreshBody =
+    parsed.ALLOW_REFRESH_BODY !== undefined
+      ? parsed.ALLOW_REFRESH_BODY === 'true'
+      : parsed.NODE_ENV !== 'production';
+
+  return {
+    ...parsed,
+    trustProxy: parseTrustProxy(parsed.TRUST_PROXY),
+    allowRefreshBody,
+  };
+}
 
 export function loadEnv(): Env {
   if (cached) {
@@ -62,6 +106,6 @@ export function loadEnv(): Env {
     console.error(parsed.error.flatten().fieldErrors);
     throw new Error('Invalid environment variables');
   }
-  cached = parsed.data;
+  cached = buildEnv(parsed.data);
   return cached;
 }

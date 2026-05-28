@@ -41,11 +41,8 @@ export const useNews = create<NewsState>((set) => ({
   setEstado: (id, estado) =>
     set((state) => ({
       news: state.news.map((n) =>
-        n.id === id
-          ? { ...n, estado, ultimaModificacion: new Date().toISOString() }
-          : n,
+        n.id === id ? { ...n, estado, ultimaModificacion: new Date().toISOString() } : n,
       ),
     })),
-  removeNews: (id) =>
-    set((state) => ({ news: state.news.filter((n) => n.id !== id) })),
+  removeNews: (id) => set((state) => ({ news: state.news.filter((n) => n.id !== id) })),
 }));

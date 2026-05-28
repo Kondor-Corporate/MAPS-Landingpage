@@ -66,7 +66,9 @@ export const authService = {
 
     const decoded = jwt.decode(refreshToken) as jwt.JwtPayload;
     const expiresAt =
-      decoded.exp !== undefined ? new Date(decoded.exp * 1000) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      decoded.exp !== undefined
+        ? new Date(decoded.exp * 1000)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     await prisma.sesionToken.create({
       data: {

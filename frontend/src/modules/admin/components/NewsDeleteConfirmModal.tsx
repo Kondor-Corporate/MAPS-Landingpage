@@ -22,8 +22,8 @@ export function NewsDeleteConfirmModal({ isOpen, news, onClose, onConfirm }: Pro
           <div className="flex flex-col gap-1">
             <h3 className="text-base font-semibold text-maps-heading">Eliminar noticia</h3>
             <p className="text-sm text-maps-body">
-              Vas a eliminar <span className="font-semibold">"{news.titulo}"</span>. Esta acción
-              no se puede deshacer.
+              Vas a eliminar <span className="font-semibold">"{news.titulo}"</span>. Esta acción no
+              se puede deshacer.
             </p>
           </div>
         </div>
