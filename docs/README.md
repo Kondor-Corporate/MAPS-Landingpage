@@ -13,7 +13,18 @@ La documentacion se separa en:
 ## Para empezar
 
 - [`../README.md`](../README.md): vision general del proyecto, stack, setup y comandos principales.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md): ramas, commits, PRs, verificaciones y definition of done.
 - [`CONVENTIONS.md`](./CONVENTIONS.md): convenciones para TDDs, work-logs y organizacion documental.
+
+---
+
+## Referencia tecnica
+
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md): arquitectura viva frontend/backend/DB/Docker.
+- [`TESTING.md`](./TESTING.md): estrategia de pruebas, comandos locales y CI.
+- [`MIGRATIONS.md`](./MIGRATIONS.md): Prisma, migraciones, seed y reset de base local.
+- [`CHANGELOG.md`](./CHANGELOG.md): cambios relevantes por version/entrega.
+- [`inventario-proyecto.md`](./inventario-proyecto.md): snapshot orientativo de estructura y dependencias.
 
 ---
 
@@ -29,18 +40,6 @@ Documentos de modulo pendientes de consolidar:
 - Noticias.
 - Administradores.
 - Web publica y mapa.
-
----
-
-## Referencia tecnica pendiente
-
-Estos documentos se incorporaran como parte de la reorganizacion documental:
-
-- `CONTRIBUTING.md`: ramas, commits, PRs, definition of done.
-- `CHANGELOG.md`: cambios relevantes por version/entrega.
-- `ARCHITECTURE.md`: arquitectura actual frontend/backend/DB/Docker.
-- `TESTING.md`: estrategia de pruebas y comandos.
-- `MIGRATIONS.md`: flujo Prisma, migraciones, seed y troubleshooting.
 
 ---
 
