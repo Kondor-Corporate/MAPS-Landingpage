@@ -244,6 +244,11 @@ Arquitectura completa: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 - [`docs/MIGRATIONS.md`](./docs/MIGRATIONS.md): Prisma, migraciones y seed.
 - [`docs/CHANGELOG.md`](./docs/CHANGELOG.md): cambios relevantes.
 - [`docs/modules/auth.md`](./docs/modules/auth.md): auth, routing y roles.
+- [`docs/modules/producers.md`](./docs/modules/producers.md): productores, perfiles, mapa y certificaciones.
+- [`docs/modules/library.md`](./docs/modules/library.md): biblioteca digital.
+- [`docs/modules/public-web.md`](./docs/modules/public-web.md): landing, mapa publico y perfil publico.
+- [`docs/modules/news.md`](./docs/modules/news.md): noticias y pendientes de API.
+- [`docs/modules/admins.md`](./docs/modules/admins.md): administradores y pendientes de API.
 
 ---
 

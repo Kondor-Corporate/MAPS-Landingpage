@@ -207,13 +207,12 @@ Las migraciones deben versionarse en Git. Para el flujo detallado, ver `docs/MIG
 
 | Modulo | Estado actual resumido |
 |--------|------------------------|
-| Auth/routing | Implementado |
-| Productores admin | CRUD API real |
-| Perfil productor | API propia, perfil por slug y certificaciones |
-| Biblioteca | API real de ramos e integracion frontend |
-| Web publica/mapa | Mapa y perfil publico conectados a productores |
-| Noticias | UI/mock frontend; API pendiente |
-| Admins | UI/ruta existente; API pendiente |
+| [Auth/routing](./modules/auth.md) | Implementado |
+| [Productores](./modules/producers.md) | CRUD admin, perfil productor, mapa publico y certificaciones |
+| [Biblioteca](./modules/library.md) | API real de ramos e integracion frontend |
+| [Web publica/mapa](./modules/public-web.md) | Landing, mapa y perfil publico conectados a productores |
+| [Noticias](./modules/news.md) | UI/mock frontend; API pendiente |
+| [Admins](./modules/admins.md) | UI/ruta existente; API pendiente |
 
 Los detalles de cada modulo deben vivir en `docs/modules/*.md`.
 
