@@ -32,11 +32,10 @@ La documentacion se separa en:
 
 - [`modules/auth.md`](./modules/auth.md): autenticacion, sesion, routing y roles.
 - [`modules/library.md`](./modules/library.md): Biblioteca Digital, ramos, API e integracion admin/productor.
+- [`modules/producers.md`](./modules/producers.md): productores, perfiles, mapa publico y certificaciones.
 
 Documentos de modulo pendientes de consolidar:
 
-- Productores admin.
-- Perfil productor.
 - Noticias.
 - Administradores.
 - Web publica y mapa.
