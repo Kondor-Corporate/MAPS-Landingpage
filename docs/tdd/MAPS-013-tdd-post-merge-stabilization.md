@@ -2,7 +2,7 @@
 
 Documento de diseño técnico para la fase de estabilización post-merge de los tickets MAPS-010, MAPS-011 y MAPS-012 dentro del proyecto MAPS Asesores.
 
-**Estado:** En progreso — Fase A implementada (2026-05-29)  
+**Estado:** En progreso — Fases A, B y C implementadas (2026-05-29)  
 **Autor:** (equipo)  
 **Revisores:** —  
 **Creado:** 2026-05-28  
@@ -282,23 +282,30 @@ Todos los cambios son de configuración; riesgo de regresión nulo.
 - [x] Documentación de decisión técnica incorporada en §5.2 (este documento).
 - [x] Verificación `npm run build` / `lint` / `typecheck` en backend y frontend ejecutada con resultado verde.
 
-### Fase B — Proxy de geocoding backend (½ día)
+### Fase B — Proxy de geocoding backend (½ día) ✅ Implementada — 2026-05-29
 
-- [ ] Crear `backend/src/api/v1/routes/geocode.routes.ts`:
-  - `GET /` — sin authenticate; valida `q` (string ≥ 3 chars) con Zod; llama `geocodeAddress(q)`.
-  - Responde `{ data: { latitud, longitud } }` o `{ data: null }` con 200.
-- [ ] Crear `backend/src/controllers/geocode.controller.ts` o controlador inline si es suficientemente simple.
-- [ ] Montar en `backend/src/api/v1/index.ts`: `v1Router.use('/geocode', geocodeRouter)`.
-- [ ] Verificar typecheck y lint backend.
+- [x] Crear `backend/src/validations/geocode.schema.ts`: Zod schema con `q` requerido, trim, min 3, max 200. Validación 422 automática vía middleware `validate`.
+- [x] Crear `backend/src/controllers/geocode.controller.ts`: `getGeocode` — delega en `geocodeAddress(q)` de `backend/src/lib/geocode.ts`. Devuelve `{ data: { latitud, longitud } | null, message, error: null }`.
+- [x] Crear `backend/src/api/v1/routes/geocode.routes.ts`: `GET /` — sin authenticate; usa `validate({ query: geocodeQuerySchema })`. Nota de rate limiting pendiente para pre go-live.
+- [x] Montar en `backend/src/api/v1/index.ts`: `v1Router.use('/geocode', geocodeRouter)`.
+- [x] Crear `backend/tests/geocode.integration.test.ts`: G-01 (sin q→422), G-02 (q corta→422), G-02b (solo espacios→422), G-03 (resultado→200), G-04 (sin resultado→200 data null), G-05 (sin token→200).
+- [x] Verificar typecheck, lint y build backend.
 
-### Fase C — Proxy de geocoding frontend (½ día)
+**Decisiones aplicadas:**
+- Endpoint público (sin `authenticate`) porque el mapa de asesores es accesible sin login.
+- No se duplica lógica: la única llamada HTTP a Nominatim vive en `backend/src/lib/geocode.ts`.
+- Rate limiting específico pendiente para fase pre go-live (nginx/LB); documentado en la ruta con comentario.
+- `geocodeAddress` retorna null para queries < 5 chars (validación interna de la lib); la validación Zod corta a < 3 chars con 422 previo.
 
-- [ ] Reescribir `frontend/src/shared/lib/geocode.ts`:
-  - Eliminar `fetch` directo a Nominatim.
-  - Usar `axiosInstance.get<{ data: { latitud: number; longitud: number } | null }>('/geocode', { params: { q: query } })`.
-  - Mapear `{ latitud, longitud }` → `{ latitude, longitude }` (mantener tipo `GeocodeCoords`).
-- [ ] Verificar que `FindAdvisorMap.tsx` no requiere cambios (la interfaz de `geocodeQuery` se mantiene).
-- [ ] Verificar typecheck y lint frontend.
+### Fase C — Proxy de geocoding frontend (½ día) ✅ Implementada — 2026-05-29
+
+- [x] Reescribir `frontend/src/shared/lib/geocode.ts`:
+  - Eliminada llamada directa a `nominatim.openstreetmap.org`.
+  - Usa `api.get('/geocode', { params: { q: query } })` (cliente Axios existente en `@/lib/axios`).
+  - Mapea `{ latitud, longitud }` del backend → `{ latitude, longitude }` del frontend.
+  - Mantiene tipo `GeocodeCoords` y firma pública `geocodeQuery(query)` sin cambios.
+- [x] `FindAdvisorMap.tsx` no requiere modificaciones: la interfaz `geocodeQuery` → `GeocodeCoords | null` es idéntica.
+- [x] Verificar typecheck, lint y build frontend.
 
 ### Fase D — Tests de integración Biblioteca Digital (1 día)
 
@@ -384,11 +391,11 @@ Todos los cambios son de configuración; riesgo de regresión nulo.
 
 ## 12. Criterios de aceptación
 
-### CA-01 — Proxy geocoding
-- [ ] `GET /api/v1/geocode?q=La+Plata` devuelve `200` con `data: { latitud: number, longitud: number }` o `data: null`.
-- [ ] `GET /api/v1/geocode` sin `q` devuelve `422`.
-- [ ] `frontend/src/shared/lib/geocode.ts` no contiene referencias a `nominatim.openstreetmap.org`.
-- [ ] El mapa de asesores (`FindAdvisorMap`) sigue funcionando: al buscar una ciudad centra el mapa.
+### CA-01 — Proxy geocoding ✅ Fases B y C completadas
+- [x] `GET /api/v1/geocode?q=La+Plata` devuelve `200` con `data: { latitud: number, longitud: number }` o `data: null`.
+- [x] `GET /api/v1/geocode` sin `q` devuelve `422`.
+- [x] `frontend/src/shared/lib/geocode.ts` no contiene referencias a `nominatim.openstreetmap.org`.
+- [ ] El mapa de asesores (`FindAdvisorMap`) sigue funcionando: al buscar una ciudad centra el mapa (verificación manual en navegador).
 
 ### CA-02 — Variables de entorno ✅ Fase A completada
 - [x] `backend/.env.example` contiene `STORAGE_PROVIDER`, `API_PUBLIC_URL` y `NOMINATIM_USER_AGENT` con comentarios claros.
