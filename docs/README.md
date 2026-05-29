@@ -35,10 +35,7 @@ La documentacion se separa en:
 - [`modules/producers.md`](./modules/producers.md): productores, perfiles, mapa publico y certificaciones.
 - [`modules/news.md`](./modules/news.md): noticias, estado mock actual y pendientes de API.
 - [`modules/admins.md`](./modules/admins.md): administradores, permisos y pendientes de API.
-
-Documentos de modulo pendientes de consolidar:
-
-- Web publica y mapa.
+- [`modules/public-web.md`](./modules/public-web.md): landing, mapa publico y perfil publico.
 
 ---
 
