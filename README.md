@@ -151,7 +151,15 @@ cp frontend/.env.example frontend/.env
 ```
 
 Editá los archivos `.env` con los valores correspondientes.  
-**Nunca commitees archivos `.env` con credenciales reales.**
+**Nunca commitees archivos `.env` con credenciales reales.** El `.env` real no se versiona; solo se versiona `.env.example`.
+
+Variables que **deben estar presentes** en `backend/.env` para desarrollo local (incluidas en `.env.example`):
+
+| Variable | Valor local recomendado | Propósito |
+|----------|------------------------|-----------|
+| `STORAGE_PROVIDER` | `local` | Guarda PDFs de certificaciones en `backend/uploads/certificaciones/` |
+| `API_PUBLIC_URL` | `http://localhost:3000` | Base para construir URLs públicas de descarga de archivos |
+| `NOMINATIM_USER_AGENT` | `maps-landingpage-dev/1.0 (contact@kondor.local)` | Identifica la app ante la API de geocoding de OpenStreetMap (ToS requerido) |
 
 ### 3. Levantar la base de datos (Docker)
 
@@ -397,7 +405,11 @@ fix/*         ← correcciones puntuales
 
 ## Variables de entorno — referencia
 
+> **El archivo `.env` real no se versiona.** Solo existe `backend/.env.example` y `frontend/.env.example` como plantillas. Al hacer setup local, copiar las plantillas (`cp backend/.env.example backend/.env`) y completar los valores reales. Nunca commitear archivos `.env` con credenciales.
+
 ### `backend/.env.example`
+
+Fuente de verdad de todas las variables del backend. Copiar a `backend/.env` antes de correr el proyecto.
 
 ```env
 # Runtime
@@ -418,6 +430,22 @@ REFRESH_EXPIRES_IN=30d
 
 # Contraseña inicial al dar de alta un productor desde el admin (MAPS-009). En producción usar valor largo y política de rotación.
 DEFAULT_PRODUCER_PASSWORD=Dev_DefaultProducer_12chars
+
+# Storage de certificaciones (PDF)
+# local  → guarda archivos en backend/uploads/certificaciones/ (desarrollo y CI)
+# s3     → bucket S3-compatible (producción)
+STORAGE_PROVIDER=local
+
+# URL pública base del backend; se usa para construir las URLs de descarga de certificaciones.
+# En desarrollo: http://localhost:3000
+# En producción: https://tu-dominio.com
+# Sin esta variable, las URLs de descarga devuelven "undefined/uploads/..."
+API_PUBLIC_URL=http://localhost:3000
+
+# User-Agent enviado a Nominatim (geocoding server-side) en nombre de la aplicación.
+# Requerido por los ToS de OpenStreetMap. El backend (backend/src/lib/geocode.ts) la consume
+# para todas las llamadas al endpoint de geocoding; el browser nunca llama a Nominatim directamente.
+NOMINATIM_USER_AGENT=maps-landingpage-dev/1.0 (contact@kondor.local)
 ```
 
 ### `frontend/.env.example`
