@@ -8,7 +8,7 @@
 | Estado  | Aprobado                                     |
 | Fecha   | 2026-05-29                                   |
 | Autor   | Santiago Talavera                            |
-| Alcance | Dockerizar backend, frontend y compose local |
+| Alcance | Dockerizar backend, frontend y compose local de desarrollo |
 
 
 ---
@@ -30,7 +30,7 @@ Incluido:
 - `frontend/.dockerignore`.
 - `docker-compose.yml` con servicios `db`, `backend` y `frontend`.
 - Healthchecks para los tres servicios.
-- Variables de entorno por defecto para desarrollo Docker.
+- Variables de entorno por defecto para desarrollo Docker, definidas desde Compose.
 
 Fuera de alcance:
 
@@ -47,13 +47,15 @@ Fuera de alcance:
 
 ### 1. Backend Node en multi-stage
 
-Se usa `node:20-alpine` para alinear con el requisito Node >= 20. La imagen instala dependencias, genera Prisma Client, compila TypeScript y ejecuta `node dist/server.js` en runtime.
+Se usa `node:20-bookworm-slim` para alinear con el requisito Node >= 20 y evitar incompatibilidades Prisma/OpenSSL observadas con Alpine. La imagen instala dependencias, genera Prisma Client, compila TypeScript y ejecuta `node dist/server.js` en runtime.
 
 Motivo: mantener el flujo actual del paquete (`npm ci`, `prisma generate`, `npm run build`, `npm start`) sin introducir PM2 ni otro supervisor.
 
-### 2. Runtime backend no-root
+### 2. Runtime backend no-root y ambiente definido por Compose
 
 El contenedor crea `appuser`/`appgroup` y ejecuta el proceso sin root. Se crea `uploads/certificaciones` con permisos para ese usuario, porque el storage local de certificaciones escribe en disco.
+
+El Dockerfile no fija `NODE_ENV`; el ambiente lo define `docker-compose.yml`. Para este flujo, el default del compose es `development`, porque el objetivo es seguir desarrollando y poder correr comandos auxiliares como seed dentro del contenedor.
 
 ### 3. Prisma migrate queda como operacion explicita
 
@@ -73,9 +75,9 @@ Motivo: la SPA no necesita Node en runtime y Nginx cubre fallback a `index.html`
 
 Riesgo: para ambientes con dominio real, el frontend debe reconstruirse con el `VITE_API_BASE_URL` correcto o evolucionar a proxy/runtime config.
 
-### 6. Compose con defaults locales
+### 6. Compose con defaults locales de desarrollo
 
-El compose usa interpolacion con defaults (`${VAR:-valor}`), por lo que puede levantar sin `.env` raiz. En ambientes reales se deben sobreescribir secretos y origenes.
+El compose usa interpolacion con defaults (`${VAR:-valor}`), por lo que puede levantar sin `.env` raiz. El default de `NODE_ENV` es `development`. En ambientes reales se deben sobreescribir secretos, origenes y ambiente.
 
 ### 7. Healthchecks
 
@@ -133,4 +135,3 @@ Validacion en navegador:
 - `VITE_API_BASE_URL` queda fijado al momento del build.
 - Las credenciales incluidas como defaults son solo para desarrollo; no son aptas para produccion.
 - No se agrego HTTPS ni proxy de borde.
-
