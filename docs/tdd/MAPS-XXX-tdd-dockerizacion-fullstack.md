@@ -25,7 +25,7 @@ Incluido:
 
 - `backend/Dockerfile` multi-stage para build TypeScript y runtime Node.
 - `backend/.dockerignore`.
-- `frontend/Dockerfile` multi-stage para build Vite y runtime Nginx no-root.
+- `frontend/Dockerfile` multi-stage con target de desarrollo Vite y runtime Nginx no-root para uso futuro.
 - `frontend/nginx.conf` con fallback SPA.
 - `frontend/.dockerignore`.
 - `docker-compose.yml` con servicios `db`, `backend` y `frontend`.
@@ -63,17 +63,17 @@ El backend no ejecuta `prisma migrate deploy` automaticamente en el `CMD`.
 
 Motivo: evitar mutaciones de base de datos implicitas al arrancar cada replica o restart. Para desarrollo local, las migraciones se pueden correr manualmente dentro del contenedor o desde la maquina host. Si mas adelante se necesita, conviene agregar un servicio one-shot `migrate`.
 
-### 4. Frontend como artefacto estatico
+### 4. Frontend en modo desarrollo
 
-Vite compila a `dist/` y se sirve con `nginxinc/nginx-unprivileged`, escuchando en el puerto interno `8080`.
+El compose usa el target `dev` del Dockerfile de frontend y ejecuta Vite con `--host 0.0.0.0`, escuchando en el puerto interno `5173`.
 
-Motivo: la SPA no necesita Node en runtime y Nginx cubre fallback a `index.html` para React Router.
+Motivo: el objetivo actual es seguir desarrollando dentro de Docker, con cambios de codigo reflejados sin rebuild completo. El Dockerfile conserva los stages `build` y `runner` con Nginx para una futura variante estatica.
 
 ### 5. API base del frontend en build time
 
-`VITE_API_BASE_URL` se pasa como `ARG` al build del frontend. El valor por defecto apunta a `http://localhost:3000/api/v1`, que es accesible desde el navegador del desarrollador cuando `backend` publica el puerto `3000`.
+En el target `dev`, `VITE_API_BASE_URL` lo define Compose como variable de entorno. El valor por defecto apunta a `http://localhost:3000/api/v1`, que es accesible desde el navegador del desarrollador cuando `backend` publica el puerto `3000`.
 
-Riesgo: para ambientes con dominio real, el frontend debe reconstruirse con el `VITE_API_BASE_URL` correcto o evolucionar a proxy/runtime config.
+Riesgo: para los targets estaticos `build`/`runner`, `VITE_API_BASE_URL` sigue siendo un valor de build time. Para ambientes con dominio real, el frontend debe reconstruirse con el valor correcto o evolucionar a proxy/runtime config.
 
 ### 6. Compose con defaults locales de desarrollo
 
@@ -117,12 +117,12 @@ Checks funcionales:
 
 ```bash
 curl http://localhost:3000/api/v1/health
-curl http://localhost:8080
+curl http://localhost:5173
 ```
 
 Validacion en navegador:
 
-- Abrir `http://localhost:8080`.
+- Abrir `http://localhost:5173`.
 - Confirmar que la landing carga.
 - Confirmar que las rutas SPA funcionan al refrescar.
 - Confirmar que llamadas publicas al backend usan `http://localhost:3000/api/v1`.

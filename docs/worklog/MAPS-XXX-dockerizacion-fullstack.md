@@ -8,7 +8,7 @@ Work-log de cierre para la dockerizacion de backend, frontend y compose local de
 
 Pasar de un compose limitado a PostgreSQL a una configuracion de desarrollo que pueda construir y ejecutar los tres servicios principales del sistema:
 
-- Frontend React/Vite servido como SPA estatica.
+- Frontend React/Vite corriendo en modo desarrollo dentro de Docker.
 - Backend Express/Prisma en Node.
 - PostgreSQL 16 con volumen persistente.
 
@@ -47,13 +47,11 @@ Archivos:
 
 Detalle:
 
-- Build Vite en stage Node.
-- `VITE_API_BASE_URL` configurable via build arg.
-- Runtime con `nginxinc/nginx-unprivileged:1.27-alpine`.
-- Puerto interno `8080`.
-- Fallback SPA con `try_files ... /index.html`.
-- Cache para assets estaticos versionados.
-- Healthcheck HTTP contra `/`.
+- Target `dev` con Vite escuchando en `0.0.0.0:5173`.
+- `VITE_API_BASE_URL` configurable via Compose en desarrollo.
+- Volumen del codigo frontend para evitar rebuild por cada cambio.
+- Volumen separado para `node_modules`.
+- Stages `build` y `runner` conservados para servir `dist/` con `nginxinc/nginx-unprivileged` en una variante futura.
 
 ### Compose
 
@@ -81,6 +79,7 @@ Detalle:
 - No se agrego Portainer.
 - No se automatizo `prisma migrate deploy` en el arranque del backend.
 - No se agrego reverse proxy unico para `/api`; el frontend dockerizado usa por defecto `http://localhost:3000/api/v1`.
+- Frontend usa Vite dev server por defecto en Compose, no Nginx.
 - El compose queda orientado a desarrollo, no a produccion.
 - No se modificaron contratos de API ni codigo funcional de producto.
 
@@ -97,12 +96,12 @@ docker compose ps
 docker compose exec backend npx prisma migrate deploy
 docker compose exec backend npm run db:seed
 curl http://localhost:3000/api/v1/health
-curl http://localhost:8080
+curl http://localhost:5173
 ```
 
 Tambien conviene probar en navegador:
 
-- `http://localhost:8080`
+- `http://localhost:5173`
 - refresh directo en rutas React Router.
 - login con credenciales de seed luego de migrar y seedear.
 

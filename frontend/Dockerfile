@@ -1,12 +1,22 @@
-FROM node:20-alpine AS build
+FROM node:20-alpine AS deps
 
 WORKDIR /app
 
-ARG VITE_API_BASE_URL=http://localhost:3000/api/v1
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-
 COPY package.json package-lock.json ./
 RUN npm ci
+
+FROM deps AS dev
+
+ENV VITE_API_BASE_URL=http://localhost:3000/api/v1
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+FROM deps AS build
+
+ARG VITE_API_BASE_URL=http://localhost:3000/api/v1
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 COPY index.html ./
 COPY tsconfig.json tsconfig.node.json vite.config.ts tailwind.config.ts postcss.config.js ./
