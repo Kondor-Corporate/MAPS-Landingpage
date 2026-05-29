@@ -17,10 +17,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/) y versionado s
 - Indice general de documentacion en `docs/README.md`.
 - Guia de contribucion en `docs/CONTRIBUTING.md`.
 - Template de Pull Request en `.github/pull_request_template.md`.
+- Arquitectura viva en `docs/ARCHITECTURE.md`.
+- Estrategia de testing en `docs/TESTING.md`.
+- Guia de migraciones y seed en `docs/MIGRATIONS.md`.
+- Snapshot actualizado del repositorio en `docs/inventario-proyecto.md`.
+- Documentacion viva de modulos en `docs/modules/`: productores, biblioteca, web publica, noticias y administradores.
 
 ### Changed
 
 - Convenciones documentales actualizadas con fuentes de verdad y relacion entre README, modulos, TDDs y work-logs.
+- README raiz actualizado como onboarding actual del proyecto.
+- Work-log MAPS-011 de Biblioteca Digital aclarado como historico y supersedido por MAPS-012 para API/persistencia.
 
 ### Fixed
 
