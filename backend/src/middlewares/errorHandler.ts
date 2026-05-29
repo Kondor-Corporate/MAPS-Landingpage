@@ -1,10 +1,8 @@
 import { Prisma } from '@prisma/client';
 import type { ErrorRequestHandler } from 'express';
-import {
-  JsonWebTokenError,
-  NotBeforeError,
-  TokenExpiredError,
-} from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
+
+const { JsonWebTokenError, NotBeforeError, TokenExpiredError } = jwt;
 import { ZodError } from 'zod';
 import { AppError } from '../lib/errors.js';
 
