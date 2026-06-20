@@ -1,20 +1,121 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api/v1}
+    container_name: maps-asesores-frontend
+    ports:
+      - '${FRONTEND_PORT:-5173}:5173'
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api/v1}
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - maps-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
+        reservations:
+          cpus: '0.10'
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  backend:
+    build:
+      context: ./backend
+    container_name: maps-asesores-backend
+    ports:
+      - '${BACKEND_PORT:-3000}:3000'
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/maps_asesores_dev}
+      JWT_SECRET: ${JWT_SECRET:-dev_access_secret_change_me_32_chars_minimum}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      REFRESH_SECRET: ${REFRESH_SECRET:-dev_refresh_secret_change_me_32_chars_minimum}
+      REFRESH_EXPIRES_IN: ${REFRESH_EXPIRES_IN:-30d}
+      DEFAULT_PRODUCER_PASSWORD: ${DEFAULT_PRODUCER_PASSWORD:-Dev_DefaultProducer_12chars}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:3000}
+      NOMINATIM_USER_AGENT: ${NOMINATIM_USER_AGENT:-maps-landingpage-docker/1.0 (contact@kondor.local)}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - maps-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 384M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
   db:
     image: postgres:16-alpine
     container_name: maps-asesores-db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: maps_asesores_dev
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-maps_asesores_dev}
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d maps_asesores_dev']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-maps_asesores_dev}']
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - maps-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+networks:
+  maps-net:
+    driver: bridge
 
 volumes:
   pgdata:
+  backend_uploads:
+  frontend_node_modules:
