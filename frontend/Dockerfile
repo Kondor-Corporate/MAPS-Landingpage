@@ -11,6 +11,9 @@ ENV VITE_API_BASE_URL=http://localhost:3000/api/v1
 
 EXPOSE 5173
 
+HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:5173').then((response) => { if (!response.ok) process.exit(1) }).catch(() => process.exit(1))"
+
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 FROM deps AS build
