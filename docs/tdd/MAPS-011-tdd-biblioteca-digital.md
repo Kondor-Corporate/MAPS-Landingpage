@@ -1,4 +1,4 @@
-# MAPS-010 — TDD: Biblioteca Digital — Vista Productores + Gestión Admin
+# MAPS-011 — TDD: Biblioteca Digital — Vista Productores + Gestión Admin
 
 Documento de diseño técnico para la Biblioteca Digital dentro del proyecto MAPS Asesores.
 
