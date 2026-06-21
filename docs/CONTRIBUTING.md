@@ -8,6 +8,8 @@ Para convenciones especificas de documentacion tecnica, TDDs y work-logs, ver [`
 
 ## Estrategia de ramas
 
+![Estrategia de ramas](./assets/branchStrategy.png)
+
 Ramas principales:
 
 | Rama | Uso |
