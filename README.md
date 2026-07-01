@@ -1,155 +1,102 @@
-# MAPS Asesores — Portal Web + Intranet + Admin
+# MAPS Asesores
 
-Portal integral para la gestión de productores de seguros de **MAPS Asesores**.  
-Incluye tres zonas diferenciadas:
+Portal web, intranet y panel administrativo para la gestion de productores de seguros de MAPS Asesores.
 
-| Zona                   | Audiencia             | Descripción                                                                   |
-| ---------------------- | --------------------- | ----------------------------------------------------------------------------- |
-| **Web Pública**        | Visitante anónimo     | Landing institucional, mapa de asesores, perfil público del productor         |
-| **Intranet**           | Productor autenticado | Dashboard, Biblioteca Digital, acceso a SELF, gestión de perfil               |
-| **Admin / SuperAdmin** | Administradores       | CRUD de productores y administradores, gestión de noticias, filtros avanzados |
+El sistema se organiza en tres zonas:
 
-> **Fuera de alcance en esta etapa:** Ecommerce y Cotizador (proyectos separados; la arquitectura contempla su integración futura sin rehacer el core).
+| Zona | Audiencia | Descripcion |
+|------|-----------|-------------|
+| Web publica | Visitantes anonimos | Landing institucional, mapa de asesores y perfil publico de productor |
+| Intranet | Productores autenticados | Dashboard, biblioteca digital y gestion de perfil propio |
+| Admin / SuperAdmin | Administradores | Gestion de productores, biblioteca y secciones administrativas |
 
-> **Nota (MAPS-008):** La tabla resume zonas y propósito del producto; el **grado real de integración con API** por módulo está detallado en [Estado real del sistema](#estado-real-del-sistema). No asumir que las pantallas admin de productores o noticias persisten en servidor hasta que exista el ticket de integración correspondiente.
-
----
-
-## Estado real del sistema
-
-Última revisión documental: **MAPS-008** (2026-05). Esta sección complementa la tabla de zonas arriba: distingue lo **integrado o alineado con backend/infra**, lo que es **UI con mocks o datos locales**, y lo **pendiente**, para evitar interpretar demos como producción integrada.
-
-### Integrado o alineado con backend e infraestructura
-
-| Pieza | Notas |
-|-------|--------|
-| **Autenticación** | Login, refresh, logout, JWT y roles contra la API (`/api/v1/auth`). Detalle en [`docs/README.md`](docs/README.md). |
-| **Routing y guards** | Rutas públicas, intranet (`PRODUCTOR`) y admin (`ADMIN` / `SUPERADMIN`) con guards de rol. |
-| **Base de datos local** | Docker Compose (PostgreSQL), migraciones Prisma, seed (p. ej. usuarios admin/superadmin). |
-| **Layouts base** | `PublicLayout`, `AuthLayout`, `AppLayout` (shell autenticado). |
-| **Navegación móvil (intranet/admin)** | Menú tipo drawer bajo el breakpoint `lg` en `AppLayout`; mismos ítems de sidebar por rol. |
-
-### UI implementada con mocks o datos locales (no implica API de negocio lista)
-
-| Pieza | Notas |
-|-------|--------|
-| **Perfil público `/productor/:slug`** | Consume `GET /producers/by-slug/:slug` (público). |
-| **Admin — productores** | CRUD vía API REST (`/producers`); alta con **dirección** geocodificada a coordenadas. |
-| **Admin — noticias** | Gestión con **mocks** en cliente. |
-| **Noticias en landing y dashboards** | Grillas y modales con **contenido mock** (p. ej. `mockNews`). |
-| **Mapa en landing (`FindAdvisorMap`)** | MapLibre alimentado por `GET /producers/map` (productores activos con coords); **lazy-load del chunk** pendiente como mejora de performance. |
-| **Biblioteca digital (contenido)** | Rutas de app existen; contenido **no** sustentado en API de biblioteca aún. |
-| **SELF y enlaces externos tipo Drive** | Hasta tener URLs reales, `dashboardLinks` puede usar **`null`** y la UI muestra **«Próximamente»** en CTAs/sidebar donde aplique. |
-
-### Pendiente explícito
-
-- Integración **API** para **noticias**.
-- **URLs reales** portal SELF y biblioteca (Drive u otra).
-- **Lazy-load** de MapLibre (o issue con métrica objetivo).
-- **Tests E2E** (p. ej. Playwright).
-
-### API pública de productores (mapa y perfiles)
-
-| Método | Ruta | Auth | Uso |
-|--------|------|------|-----|
-| `GET` | `/api/v1/producers/map` | No | Marcadores para el mapa de la landing (slug, nombre, coords, sin email/id) |
-| `GET` | `/api/v1/producers/by-slug/:slug` | No | Perfil público del productor |
-
-Al crear un productor desde admin, el campo **Dirección** se geocodifica vía Nominatim y persiste `latitud`/`longitud` en PostgreSQL.
-
-Documentación relacionada: [TDD MAPS-008](docs/tdd/MAPS-008-tdd-ui-stabilization.md), [worklog MAPS-008](docs/worklog/MAPS-008-ui-stabilization.md).
+Fuera de alcance actual: ecommerce y cotizador.
 
 ---
 
-## Stack Tecnológico
+## Estado actual
+
+| Modulo | Estado | Backend/API |
+|--------|--------|-------------|
+| Auth y routing | Implementado | `/api/v1/auth` |
+| Productores admin | Implementado | `/api/v1/producers` |
+| Perfil productor | Implementado | `/api/v1/producers/me`, `/api/v1/producers/by-slug/:slug` |
+| Mapa publico | Implementado | `/api/v1/producers/map` |
+| Biblioteca digital | Implementado para ramos | `/api/v1/library/ramos` |
+| Noticias | UI/mock frontend | API pendiente |
+| Admins | UI/ruta existente | API pendiente |
+| E2E browser | Pendiente | N/A |
+
+Los documentos historicos en `docs/tdd/` y `docs/worklog/` explican como se llego a este estado, pero no reemplazan esta tabla ni la documentacion viva en `docs/`.
+
+---
+
+## Stack
 
 ### Frontend
 
-| Capa          | Tecnología      |
-| ------------- | --------------- |
-| Framework     | React 18 + Vite |
-| Lenguaje      | TypeScript      |
-| Estilos       | TailwindCSS     |
-| Router        | React Router v6 |
-| Estado global | Zustand         |
-| HTTP client   | Axios           |
+- React 18.
+- Vite.
+- TypeScript.
+- Tailwind CSS.
+- React Router.
+- Zustand.
+- Axios.
+- MapLibre/react-map-gl.
 
 ### Backend
 
-| Capa          | Tecnología                                               |
-| ------------- | -------------------------------------------------------- |
-| Runtime       | Node.js (LTS)                                            |
-| Framework     | Express + TypeScript                                     |
-| ORM           | Prisma                                                   |
-| Base de datos | PostgreSQL                                               |
-| Validación    | Zod (por endpoint)                                       |
-| Auth          | JWT + RBAC (roles: `PRODUCTOR` / `ADMIN` / `SUPERADMIN`) |
+- Node.js 20+.
+- Express.
+- TypeScript.
+- Prisma.
+- PostgreSQL.
+- Zod.
+- JWT + refresh token en cookie httpOnly.
+- Vitest + Supertest.
 
-> **Reglas de acceso por zona:** `PRODUCTOR` → `/intranet/*` (solo su propio perfil). `ADMIN` y `SUPERADMIN` → `/admin/*`. Un admin no accede a `/intranet` salvo que tenga también cuenta de productor separada. La web pública (`/`, `/productor/:slug`) es accesible sin autenticación.
+### Infra local
 
-### Infraestructura local
-
-| Herramienta             | Uso                                       |
-| ----------------------- | ----------------------------------------- |
-| Docker + Docker Compose | PostgreSQL local solamente                |
-| `.env`                  | Variables de entorno (ver `.env.example`) |
-
-> En desarrollo, Docker se usa solo para la base de datos. Backend y frontend corren localmente con `npm run dev`.
-
----
-
-## Estado real del sistema
-
-Resumen ejecutivo para no confundir qué está cableado contra la API y qué sigue en **demo local / mock**:
-
-| Área                                  | Estado                                                                    |
-| ------------------------------------- | ------------------------------------------------------------------------- |
-| **Login / auth API**                  | Implementado (`/api/v1/auth`, guards en frontend).                        |
-| **Admin — productores**               | **Integrado con API real** `/api/v1/producers` (MAPS-009).                |
-| **Admin — noticias**                  | **Mock / estado en cliente** (`useNews`, etc.).                           |
-| **Público — landing y mapa**          | Contenidos **locales/mock** según página; no implica backend de catálogo. |
-| **Perfil público `/productor/:slug`** | **No** enlazado a la API admin de esta feature.                           |
-| **Intranet productor**                | Independiente del cierre MAPS-009.                                        |
-
-Detalle y pruebas manuales: [`docs/worklog/MAPS-009-admin-api-productores.md`](docs/worklog/MAPS-009-admin-api-productores.md).
+- Docker Compose.
+- PostgreSQL 16.
+- Backend Node en contenedor.
+- Frontend Vite dev server en contenedor.
 
 ---
 
 ## Requisitos
 
-- **Node.js** LTS (≥ 20) — [descargar](https://nodejs.org/)
-- **Docker Desktop** — [descargar](https://www.docker.com/products/docker-desktop/)
-- **npm** (gestor usado en el repo; existen `package-lock.json` en `frontend/` y `backend/`)
+- Docker Desktop.
+- Node.js 20+ si vas a correr comandos fuera de Docker.
+- npm.
+
+Verificar:
 
 ```bash
-# Verificar versiones
-node -v    # >= 20.x
+node -v
 npm -v
 docker -v
+docker compose version
 ```
 
 ---
 
-## Setup local (paso a paso)
+## Setup recomendado: Docker desarrollo
 
-### 1. Clonar el repositorio
-
-```bash
-git clone <URL_DEL_REPO>
-cd maps-asesores
-git checkout development
-```
-
-### 2. Configurar variables de entorno
+Desde la raiz del repo:
 
 ```bash
-# Backend
-cp backend/.env.example backend/.env
-
-# Frontend
-cp frontend/.env.example frontend/.env
+docker compose up -d --build
 ```
 
+Aplicar migraciones y seed:
+
+```bash
+docker compose exec backend npx prisma migrate deploy
+docker compose exec backend npm run db:seed
+```
+
+<<<<<<< HEAD
 Editá los archivos `.env` con los valores correspondientes.  
 **Nunca commitees archivos `.env` con credenciales reales.** El `.env` real no se versiona; solo se versiona `.env.example`.
 
@@ -160,115 +107,193 @@ Variables que **deben estar presentes** en `backend/.env` para desarrollo local 
 | `STORAGE_PROVIDER` | `local` | Guarda PDFs de certificaciones en `backend/uploads/certificaciones/` |
 | `API_PUBLIC_URL` | `http://localhost:3000` | Base para construir URLs públicas de descarga de archivos |
 | `NOMINATIM_USER_AGENT` | `maps-landingpage-dev/1.0 (contact@kondor.local)` | Identifica la app ante la API de geocoding de OpenStreetMap (ToS requerido) |
+=======
+Servicios:
+>>>>>>> e51ccf2d84c255eb32d4631ce9a96533087a1a5d
 
-### 3. Levantar la base de datos (Docker)
+| Servicio | URL |
+|----------|-----|
+| Frontend | `http://localhost:5173` |
+| Backend | `http://localhost:3000` |
+| Health API | `http://localhost:3000/api/v1/health` |
+| PostgreSQL | `localhost:5432` |
 
-```bash
-docker compose up -d
-```
-
-Esto levanta un contenedor PostgreSQL accesible en **`localhost:5432`** con la base oficial de desarrollo `maps_asesores_dev`.
-Podés verificar estado y logs con:
+Comandos utiles:
 
 ```bash
 docker compose ps
+docker compose logs backend
+docker compose logs frontend
 docker compose logs db
+docker compose down
+docker compose down -v
 ```
 
-### 4. Instalar dependencias
-
-```bash
-# Backend
-cd backend
-npm install
-
-# Frontend
-cd ../frontend
-npm install
-```
-
-### 5. Ejecutar migraciones de Prisma
-
-```bash
-cd backend
-npx prisma migrate dev
-npm run db:seed
-```
-
-### 6. Correr el proyecto
-
-En terminales separadas:
-
-```bash
-# Terminal 1 — Backend
-cd backend
-npm run dev
-# Escucha en http://localhost:3000
-
-# Terminal 2 — Frontend
-cd frontend
-npm run dev
-# Escucha en http://localhost:5173
-```
-
-### 7. Verificar que la API responde
-
-```bash
-curl http://localhost:3000/api/v1/health
-# Respuesta esperada: { "status": "ok", "timestamp": "..." }
-```
-
-### 8. Tests de integración del backend (auth + productores)
-
-Requisitos: PostgreSQL levantado, migraciones aplicadas y seed ejecutado (`cd backend && npm run db:seed`). El archivo `backend/.env` debe incluir `DATABASE_URL`, `JWT_SECRET`, `REFRESH_SECRET` y el resto de variables validadas en `src/config/env.ts`.
-
-**Nota:** no hay base de datos de test separada en esta fase: la suite usa el `DATABASE_URL` de tu `backend/.env` (desarrollo local). En CI, el workflow define `DATABASE_URL` contra un Postgres efímero del job.
-
-```bash
-cd backend
-npm test              # una pasada
-npm run test:watch    # modo observación
-```
-
-Los tests viven en `backend/tests/` y usan **Vitest** + **Supertest** contra la app en memoria (`createApp()`), sin levantar un servidor real. Incluyen **auth**, **productores (admin)** y **middlewares** `authorize` / `validate`.
-
-#### CI en GitHub
-
-El archivo [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) ejecuta `npm ci`, `typecheck`, `lint`, `build` y `npm test` en backend (tras `prisma migrate deploy` y seed sobre Postgres del servicio del workflow) y las mismas comprobaciones de calidad en frontend, **sin deploy**.
-
-#### Qué hace cada test (`tests/auth.integration.test.ts`)
-
-| Test                                    | Qué comprueba                                                                                                                                                      |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **POST /login — credenciales válidas**  | Respuesta `200` con `accessToken` y `refreshToken` en formato JWT, usuario `admin` con rol `ADMIN`, y que la respuesta **no** expone `passwordHash`.               |
-| **POST /login — contraseña incorrecta** | `401` con mensaje genérico `Credenciales inválidas` (no filtra si el usuario existe).                                                                              |
-| **POST /login — usuario inexistente**   | Mismo `401` y mismo mensaje que con contraseña mala (anti-enumeración de usuarios).                                                                                |
-| **POST /login — body inválido**         | `400` cuando faltan campos requeridos (validación Zod).                                                                                                            |
-| **POST /refresh — token válido**        | Tras un login correcto, el refresh devuelve `200` y un **nuevo** `accessToken`; no devuelve otro refresh en el payload.                                            |
-| **POST /refresh — token inválido**      | `401` si el string no es un JWT válido firmado como refresh.                                                                                                       |
-| **POST /refresh — access como refresh** | `401` si se envía el **access token** en el cuerpo donde debe ir el refresh (secret y tipo distintos).                                                             |
-| **POST /logout — revoca sesión**        | Con `Authorization: Bearer` + `refreshToken` en el body, `200`; un segundo `POST /refresh` con el mismo refresh devuelve `401` (sesión revocada en base de datos). |
-| **POST /logout — sin Authorization**    | `401` si falta el header `Bearer` (middleware `authenticate`).                                                                                                     |
-
-En entorno de test (`NODE_ENV=test`) el rate limit del login está relajado para no interferir con la suite.
+`docker compose down -v` borra los volumenes, incluyendo datos locales de PostgreSQL.
 
 ---
 
-## Base de datos local con Docker
+## Setup alternativo: host local
 
-El archivo [`docker-compose.yml`](./docker-compose.yml) define solo PostgreSQL para desarrollo:
+Usar este flujo si queres correr backend/frontend directamente en tu maquina y solo usar Docker para PostgreSQL.
 
-- Servicio: `db`
-- Imagen: `postgres:16-alpine`
-- Host/puerto desde el equipo: `localhost:5432`
-- Base oficial de desarrollo: `maps_asesores_dev`
-- Usuario: `postgres`
-- Password: `postgres`
-- Volumen persistente: `pgdata`
+1. Crear variables de entorno:
 
-El backend local usa `localhost` en `DATABASE_URL` porque corre fuera de Docker:
+   ```bash
+   cp backend/.env.example backend/.env
+   cp frontend/.env.example frontend/.env
+   ```
+
+2. Levantar PostgreSQL:
+
+   ```bash
+   docker compose up -d db
+   ```
+
+3. Instalar dependencias:
+
+   ```bash
+   cd backend
+   npm install
+
+   cd ../frontend
+   npm install
+   ```
+
+4. Migrar y seedear desde `backend/`:
+
+   ```bash
+   npx prisma migrate dev
+   npm run db:seed
+   ```
+
+5. Levantar servicios:
+
+   ```bash
+   # terminal 1
+   cd backend
+   npm run dev
+
+   # terminal 2
+   cd frontend
+   npm run dev
+   ```
+
+---
+
+## Usuarios seed
+
+El seed crea usuarios de prueba, entre otros:
+
+| Usuario | Password | Rol |
+|---------|----------|-----|
+| `admin` | `Admin1234!` | `ADMIN` |
+| `superadmin` | `Super1234!` | `SUPERADMIN` |
+| `user` | `User1234!` | `PRODUCTOR` |
+
+El productor demo puede tener perfil y slug segun `backend/prisma/seed.ts`.
+
+---
+
+## Calidad y tests
+
+Backend:
+
+```bash
+cd backend
+npm run typecheck
+npm run lint
+npm run build
+npm test
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm run typecheck
+npm run lint
+npm run build
+```
+
+CI ejecuta estas verificaciones en `.github/workflows/ci.yml` con PostgreSQL efimero.
+
+Detalle: [`docs/TESTING.md`](./docs/TESTING.md).
+
+---
+
+## Estructura
+
+```text
+MAPS-Landingpage/
+  backend/
+    prisma/
+    src/
+    tests/
+    Dockerfile
+  frontend/
+    src/
+    public/
+    Dockerfile
+    nginx.conf
+  docs/
+    modules/
+    tdd/
+    worklog/
+  docker-compose.yml
+```
+
+Arquitectura completa: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+
+---
+
+## Documentacion
+
+- [`docs/README.md`](./docs/README.md): indice de documentacion.
+- [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md): ramas, commits, PRs y definition of done.
+- [`docs/CONVENTIONS.md`](./docs/CONVENTIONS.md): TDDs, work-logs y fuentes de verdad.
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md): arquitectura viva.
+- [`docs/TESTING.md`](./docs/TESTING.md): testing y CI.
+- [`docs/MIGRATIONS.md`](./docs/MIGRATIONS.md): Prisma, migraciones y seed.
+- [`docs/CHANGELOG.md`](./docs/CHANGELOG.md): cambios relevantes.
+- [`docs/modules/auth.md`](./docs/modules/auth.md): auth, routing y roles.
+- [`docs/modules/producers.md`](./docs/modules/producers.md): productores, perfiles, mapa y certificaciones.
+- [`docs/modules/library.md`](./docs/modules/library.md): biblioteca digital.
+- [`docs/modules/public-web.md`](./docs/modules/public-web.md): landing, mapa publico y perfil publico.
+- [`docs/modules/news.md`](./docs/modules/news.md): noticias y pendientes de API.
+- [`docs/modules/admins.md`](./docs/modules/admins.md): administradores y pendientes de API.
+
+---
+
+## Convenciones rapidas
+
+Rama de integracion: `development`.
+
+Formato de commits y PRs:
+
+```bash
+tipo(scope): descripcion
+```
+
+Ejemplos:
+
+```bash
+feat(producers): add certification upload
+fix(auth): handle expired refresh token
+docs(readme): update docker setup
+build(docker): add frontend dev target
+```
+
+Detalle: [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md).
+
+---
+
+## Variables de entorno
+
+Backend local:
 
 ```env
+<<<<<<< HEAD
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maps_asesores_dev"
 ```
 
@@ -413,23 +438,16 @@ Fuente de verdad de todas las variables del backend. Copiar a `backend/.env` ant
 
 ```env
 # Runtime
+=======
+>>>>>>> e51ccf2d84c255eb32d4631ce9a96533087a1a5d
 NODE_ENV=development
 PORT=3000
 FRONTEND_ORIGIN=http://localhost:5173
-# Opcional: TRUST_PROXY=false | true | 1 (saltos); ver backend/.env.example
-# Opcional: ALLOW_REFRESH_BODY (producción: solo cookie salvo true explícito)
-
-# Base de datos local via Docker Compose
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maps_asesores_dev"
-
-# Auth / JWT
 JWT_SECRET=dev_access_secret_change_me_32_chars_minimum
-JWT_EXPIRES_IN=15m
 REFRESH_SECRET=dev_refresh_secret_change_me_32_chars_minimum
-REFRESH_EXPIRES_IN=30d
-
-# Contraseña inicial al dar de alta un productor desde el admin (MAPS-009). En producción usar valor largo y política de rotación.
 DEFAULT_PRODUCER_PASSWORD=Dev_DefaultProducer_12chars
+<<<<<<< HEAD
 
 # Storage de certificaciones (PDF)
 # local  → guarda archivos en backend/uploads/certificaciones/ (desarrollo y CI)
@@ -446,16 +464,25 @@ API_PUBLIC_URL=http://localhost:3000
 # Requerido por los ToS de OpenStreetMap. El backend (backend/src/lib/geocode.ts) la consume
 # para todas las llamadas al endpoint de geocoding; el browser nunca llama a Nominatim directamente.
 NOMINATIM_USER_AGENT=maps-landingpage-dev/1.0 (contact@kondor.local)
+=======
+STORAGE_PROVIDER=local
+API_PUBLIC_URL=http://localhost:3000
+>>>>>>> e51ccf2d84c255eb32d4631ce9a96533087a1a5d
 ```
 
-### `frontend/.env.example`
+Frontend local:
 
 ```env
 VITE_API_BASE_URL=http://localhost:3000/api/v1
 ```
 
+En Docker desarrollo, `docker-compose.yml` define defaults equivalentes. Sobreescribir secretos y origenes via `.env` o variables de entorno cuando corresponda.
+
 ---
 
-## Licencia
+## Notas
 
-Proyecto privado — © 2026 MAPS Asesores / Kondor. Todos los derechos reservados.
+- Las migraciones no se ejecutan automaticamente al arrancar el backend; correrlas explicitamente.
+- El compose actual esta orientado a desarrollo, no produccion.
+- El frontend corre con Vite dev server en Docker; el Dockerfile conserva stages de build/runner para una variante estatica futura.
+- Los TDDs y work-logs son historicos; para estado actual usar este README y `docs/`.

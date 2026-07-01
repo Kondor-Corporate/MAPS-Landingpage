@@ -4,6 +4,47 @@ Esta carpeta contiene la documentación técnica del proyecto MAPS Asesores. Cad
 
 ---
 
+## Fuentes de verdad
+
+Para evitar que documentos historicos se interpreten como estado actual, usar esta jerarquia:
+
+| Necesidad | Fuente principal |
+|-----------|------------------|
+| Onboarding y comandos principales | [`../README.md`](../README.md) |
+| Indice de documentacion | [`README.md`](./README.md) |
+| Estado actual de un modulo | `docs/modules/*.md` |
+| Arquitectura viva | `docs/ARCHITECTURE.md` |
+| Flujo de contribucion, ramas, commits y PRs | `docs/CONTRIBUTING.md` |
+| Testing y comandos de verificacion | `docs/TESTING.md` |
+| Migraciones Prisma y seed | `docs/MIGRATIONS.md` |
+| Cambios relevantes por version/entrega | `docs/CHANGELOG.md` |
+| Decision prospectiva de una feature | `docs/tdd/*.md` |
+| Historial de implementacion de una feature | `docs/worklog/*.md` |
+| Snapshot puntual de estructura/dependencias | documentos con fecha explicita, por ejemplo `inventario-proyecto.md` |
+
+Reglas:
+
+- Los TDDs y work-logs son historicos; no reemplazan al README, arquitectura viva ni documentos de modulo.
+- Si una feature cambia el estado actual del sistema, actualizar el documento vivo correspondiente ademas del work-log.
+- Si un documento snapshot queda viejo, marcar fecha, alcance y advertencia de vigencia.
+- No duplicar contenido largo entre documentos: enlazar la fuente principal.
+
+---
+
+## Documentos de proceso relacionados
+
+Estas convenciones cubren documentacion tecnica. Otros aspectos del trabajo del equipo se documentan en archivos dedicados:
+
+- `CONTRIBUTING.md`: estrategia de ramas, commits, PRs, checklist y definition of done.
+- `CHANGELOG.md`: resumen release-oriented de cambios relevantes.
+- `TESTING.md`: niveles de prueba, comandos locales y CI.
+- `MIGRATIONS.md`: flujo de migraciones y seed.
+- `ARCHITECTURE.md`: organizacion viva del frontend, backend, base de datos y Docker.
+
+Si un cambio afecta alguno de esos temas, actualizar el documento correspondiente en el mismo PR.
+
+---
+
 ## Tipos de documento
 
 ### 1. Work-log — `MAPS-XXX-slug.md`
