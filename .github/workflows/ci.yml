@@ -34,6 +34,9 @@ jobs:
       REFRESH_EXPIRES_IN: 30d
       DEFAULT_PRODUCER_PASSWORD: Ci_DefaultProd_12chars
       FRONTEND_ORIGIN: http://localhost:5173
+      STORAGE_PROVIDER: local
+      API_PUBLIC_URL: http://localhost:3000
+      NOMINATIM_USER_AGENT: MAPS-Asesores-CI/1.0
 
     steps:
       - uses: actions/checkout@v4
