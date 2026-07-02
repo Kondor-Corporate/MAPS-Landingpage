@@ -4,9 +4,16 @@ type Props = {
   audiencia: NewsAudiencia;
 };
 
+const STYLES: Record<NewsAudiencia, string> = {
+  PRODUCTORES: 'bg-blue-50 text-blue-800',
+  PUBLICO: 'bg-violet-50 text-violet-700',
+};
+
 export function NewsAudienceBadge({ audiencia }: Props) {
   return (
-    <span className="inline-flex items-center rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700">
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STYLES[audiencia]}`}
+    >
       {AUDIENCIA_LABEL[audiencia]}
     </span>
   );

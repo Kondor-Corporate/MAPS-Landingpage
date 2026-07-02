@@ -32,3 +32,34 @@ html {
 .maplibregl-popup.maps-popup .maplibregl-popup-tip {
   border-top-color: #ffffff;
 }
+
+@keyframes maps-feedback-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.maps-feedback-toast {
+  animation: maps-feedback-enter 0.22s ease-out;
+}
+
+@keyframes maps-select-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.maps-select-dropdown {
+  animation: maps-select-enter 0.15s ease-out;
+  transform-origin: top center;
+}

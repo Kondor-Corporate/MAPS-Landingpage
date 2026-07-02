@@ -9,6 +9,7 @@ type Props = {
   onView: (n: News) => void;
   onEdit: (n: News) => void;
   onDelete: (n: News) => void;
+  onUnpublish?: (n: News) => void;
   emptyMessage?: string;
 };
 
@@ -48,6 +49,7 @@ export function RecentNewsTable({
   onView,
   onEdit,
   onDelete,
+  onUnpublish,
   emptyMessage = 'No hay noticias que coincidan con los filtros aplicados.',
 }: Props) {
   if (news.length === 0) {
@@ -115,7 +117,13 @@ export function RecentNewsTable({
                   <NewsStatusBadge estado={n.estado} />
                 </td>
                 <td className="whitespace-nowrap px-6 py-3.5 text-right">
-                  <NewsTableActions news={n} onView={onView} onEdit={onEdit} onDelete={onDelete} />
+                  <NewsTableActions
+                    news={n}
+                    onView={onView}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onUnpublish={onUnpublish}
+                  />
                 </td>
               </tr>
             ))}
@@ -141,7 +149,13 @@ export function RecentNewsTable({
                 <NewsAudienceBadge audiencia={n.audiencia} />
                 <NewsStatusBadge estado={n.estado} />
               </div>
-              <NewsTableActions news={n} onView={onView} onEdit={onEdit} onDelete={onDelete} />
+              <NewsTableActions
+                news={n}
+                onView={onView}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onUnpublish={onUnpublish}
+              />
             </div>
           </li>
         ))}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Filter } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
+import { MapsSelect } from '@/shared/components/MapsSelect';
 import {
   CATEGORIA_OPTIONS,
   type NewsAudiencia,
@@ -16,6 +17,13 @@ type Props = {
   onApply: (next: NewsFilters) => void;
   onReset: () => void;
 };
+
+const ESTADO_FILTER_OPTIONS: { value: NewsEstado | 'TODOS'; label: string }[] = [
+  { value: 'TODOS', label: 'Todos' },
+  { value: 'PUBLICADO', label: 'Publicado' },
+  { value: 'BORRADOR', label: 'Borrador' },
+  { value: 'DESPUBLICADA', label: 'Despublicada' },
+];
 
 export function NewsFilterModal({ isOpen, initialFilters, onClose, onApply, onReset }: Props) {
   const [draft, setDraft] = useState<NewsFilters>(initialFilters);
@@ -46,44 +54,36 @@ export function NewsFilterModal({ isOpen, initialFilters, onClose, onApply, onRe
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-maps-heading">Audiencia</span>
-            <select
+            <MapsSelect
               value={draft.audiencia}
-              onChange={(e) => set('audiencia', e.target.value as NewsAudiencia | 'TODOS')}
-              className="rounded-lg border border-maps-border bg-white px-3 py-2 text-sm text-maps-heading focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
-            >
-              <option value="TODOS">Todas</option>
-              <option value="PRODUCTORES">Productores</option>
-              <option value="PUBLICO">Público</option>
-            </select>
+              onChange={(value) => set('audiencia', value as NewsAudiencia | 'TODOS')}
+              options={[
+                { value: 'TODOS', label: 'Todas' },
+                { value: 'PRODUCTORES', label: 'Productores' },
+                { value: 'PUBLICO', label: 'Público' },
+              ]}
+            />
           </label>
 
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-maps-heading">Estado</span>
-            <select
+            <MapsSelect
               value={draft.estado}
-              onChange={(e) => set('estado', e.target.value as NewsEstado | 'TODOS')}
-              className="rounded-lg border border-maps-border bg-white px-3 py-2 text-sm text-maps-heading focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
-            >
-              <option value="TODOS">Todos</option>
-              <option value="PUBLICADO">Publicado</option>
-              <option value="BORRADOR">Borrador</option>
-            </select>
+              onChange={(value) => set('estado', value as NewsEstado | 'TODOS')}
+              options={ESTADO_FILTER_OPTIONS}
+            />
           </label>
 
           <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className="text-xs font-medium text-maps-heading">Categoría</span>
-            <select
+            <MapsSelect
               value={draft.categoria}
-              onChange={(e) => set('categoria', e.target.value as NewsCategoria | 'TODOS')}
-              className="rounded-lg border border-maps-border bg-white px-3 py-2 text-sm text-maps-heading focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
-            >
-              <option value="TODOS">Todas</option>
-              {CATEGORIA_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => set('categoria', value as NewsCategoria | 'TODOS')}
+              options={[
+                { value: 'TODOS', label: 'Todas' },
+                ...CATEGORIA_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label })),
+              ]}
+            />
           </label>
 
           <label className="flex flex-col gap-1.5">
@@ -92,7 +92,7 @@ export function NewsFilterModal({ isOpen, initialFilters, onClose, onApply, onRe
               type="date"
               value={draft.fechaDesde}
               onChange={(e) => set('fechaDesde', e.target.value)}
-              className="rounded-lg border border-maps-border bg-white px-3 py-2 text-sm text-maps-heading focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
+              className="rounded-xl border border-maps-border bg-white px-3 py-2 text-sm text-maps-heading focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
             />
           </label>
 
@@ -102,7 +102,7 @@ export function NewsFilterModal({ isOpen, initialFilters, onClose, onApply, onRe
               type="date"
               value={draft.fechaHasta}
               onChange={(e) => set('fechaHasta', e.target.value)}
-              className="rounded-lg border border-maps-border bg-white px-3 py-2 text-sm text-maps-heading focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
+              className="rounded-xl border border-maps-border bg-white px-3 py-2 text-sm text-maps-heading focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
             />
           </label>
         </div>

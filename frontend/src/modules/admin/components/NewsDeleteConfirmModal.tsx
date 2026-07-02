@@ -5,11 +5,12 @@ import type { News } from '@/modules/admin/types/news';
 type Props = {
   isOpen: boolean;
   news: News | null;
+  isBusy?: boolean;
   onClose: () => void;
   onConfirm: (n: News) => void;
 };
 
-export function NewsDeleteConfirmModal({ isOpen, news, onClose, onConfirm }: Props) {
+export function NewsDeleteConfirmModal({ isOpen, news, isBusy = false, onClose, onConfirm }: Props) {
   if (!news) return null;
 
   return (
@@ -32,19 +33,18 @@ export function NewsDeleteConfirmModal({ isOpen, news, onClose, onConfirm }: Pro
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-maps-border bg-white px-4 py-2 text-sm font-semibold text-maps-body transition hover:bg-maps-surface"
+            disabled={isBusy}
+            className="rounded-lg border border-maps-border bg-white px-4 py-2 text-sm font-semibold text-maps-body transition hover:bg-maps-surface disabled:opacity-60"
           >
             Cancelar
           </button>
           <button
             type="button"
-            onClick={() => {
-              onConfirm(news);
-              onClose();
-            }}
-            className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700"
+            disabled={isBusy}
+            onClick={() => onConfirm(news)}
+            className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-60"
           >
-            Eliminar
+            {isBusy ? 'Eliminando…' : 'Eliminar'}
           </button>
         </div>
       </div>

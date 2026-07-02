@@ -15,6 +15,11 @@ const STYLES: Record<NewsEstado, { bg: string; text: string; dot: string }> = {
     text: 'text-amber-700',
     dot: 'bg-amber-500',
   },
+  DESPUBLICADA: {
+    bg: 'bg-slate-100',
+    text: 'text-slate-600',
+    dot: 'bg-slate-400',
+  },
 };
 
 export function NewsStatusBadge({ estado }: Props) {

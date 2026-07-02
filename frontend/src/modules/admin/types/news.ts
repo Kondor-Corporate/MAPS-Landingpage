@@ -1,6 +1,6 @@
 export type NewsAudiencia = 'PRODUCTORES' | 'PUBLICO';
 
-export type NewsEstado = 'BORRADOR' | 'PUBLICADO';
+export type NewsEstado = 'BORRADOR' | 'PUBLICADO' | 'DESPUBLICADA';
 
 export type NewsCategoria = 'NOVEDAD' | 'EVENTO' | 'CIRCULAR' | 'PRODUCTO' | 'COMUNICADO';
 
@@ -34,6 +34,7 @@ export const AUDIENCIA_LABEL: Record<NewsAudiencia, string> = {
 export const ESTADO_LABEL: Record<NewsEstado, string> = {
   BORRADOR: 'Borrador',
   PUBLICADO: 'Publicado',
+  DESPUBLICADA: 'Despublicada',
 };
 
 export const CATEGORIA_LABEL: Record<NewsCategoria, string> = {
