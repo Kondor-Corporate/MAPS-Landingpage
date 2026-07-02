@@ -24,6 +24,14 @@ enum RamoTipo {
   SECUNDARIO
 }
 
+enum CategoriaNoticia {
+  NOVEDAD
+  EVENTO
+  CIRCULAR
+  PRODUCTO
+  COMUNICADO
+}
+
 model Usuario {
   id           Int      @id @default(autoincrement())
   activo       Boolean  @default(true)
@@ -118,18 +126,19 @@ model RedSocial {
 }
 
 model Noticia {
-  id          Int         @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   titulo      String
-  slug        String      @unique
+  slug        String           @unique
   descripcion String?
   contenido   String
-  imagenUrl   String?     @map("imagen_url")
-  publicada   Boolean     @default(false)
-  publicadaEn DateTime?   @map("publicada_en")
-  visibilidad Visibilidad @default(PUBLICA)
+  categoria   CategoriaNoticia
+  imagenUrl   String?          @map("imagen_url")
+  publicada   Boolean          @default(false)
+  publicadaEn DateTime?        @map("publicada_en")
+  visibilidad Visibilidad      @default(PUBLICA)
   autorId     Int
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   autor Usuario @relation(fields: [autorId], references: [id])
 

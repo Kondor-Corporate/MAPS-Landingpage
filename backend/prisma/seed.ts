@@ -2,7 +2,7 @@ import 'dotenv/config';
 
 import bcrypt from 'bcryptjs';
 
-import { PrismaClient, type RamoTipo, type Rol } from '@prisma/client';
+import { PrismaClient, type CategoriaNoticia, type RamoTipo, type Rol, type Visibilidad } from '@prisma/client';
 
 
 
@@ -510,6 +510,104 @@ const seedRamos: SeedRamo[] = [
 
 
 
+type SeedNoticia = {
+  slug: string;
+  titulo: string;
+  descripcion: string;
+  contenido: string;
+  categoria: CategoriaNoticia;
+  visibilidad: Visibilidad;
+  publicada: boolean;
+  publicadaEn: Date | null;
+  imagenUrl: string | null;
+  autorUsuario: 'admin' | 'superadmin';
+};
+
+const SEED_IMAGEN_PLACEHOLDER = 'https://picsum.photos/seed/maps-noticia/800/450';
+
+const seedNoticias: SeedNoticia[] = [
+  {
+    slug: 'maps-expande-cobertura-sur',
+    titulo: 'MAPS expande cobertura territorial al sur',
+    descripcion: 'Nueva presencia en Patagonia para reforzar la red comercial.',
+    contenido:
+      'Sumamos sucursales en Bariloche y Neuquén para reforzar la red comercial en la Patagonia. Los productores zonales ya están operativos en SELF.',
+    categoria: 'NOVEDAD',
+    visibilidad: 'PUBLICA',
+    publicada: true,
+    publicadaEn: new Date('2026-05-20T10:00:00.000Z'),
+    imagenUrl: `${SEED_IMAGEN_PLACEHOLDER}-sur`,
+    autorUsuario: 'admin',
+  },
+  {
+    slug: 'webinar-ia-suscripcion-riesgos',
+    titulo: 'Webinar — IA aplicada a la suscripción de riesgos',
+    descripcion: 'Capacitación abierta para productores sobre tendencias de IA en suscripción.',
+    contenido:
+      'Webinar abierto sobre tendencias de IA en suscripción y siniestros. Cupo: 200 productores; se transmite también por el canal interno de MAPS Asesores.',
+    categoria: 'EVENTO',
+    visibilidad: 'PUBLICA',
+    publicada: true,
+    publicadaEn: new Date('2026-06-25T14:00:00.000Z'),
+    imagenUrl: `${SEED_IMAGEN_PLACEHOLDER}-webinar`,
+    autorUsuario: 'admin',
+  },
+  {
+    slug: 'convencion-anual-cancun-2024',
+    titulo: 'Convención anual Cancún 2024',
+    descripcion: 'Borrador de comunicación sobre la convención anual de productores.',
+    contenido:
+      'Se confirma la convención anual de productores en Cancún del 4 al 9 de noviembre. Cupos limitados según ranking de producción 2023. Pendiente de aprobación final.',
+    categoria: 'EVENTO',
+    visibilidad: 'PUBLICA',
+    publicada: false,
+    publicadaEn: null,
+    imagenUrl: null,
+    autorUsuario: 'admin',
+  },
+  {
+    slug: 'integracion-self-facturacion',
+    titulo: 'Nueva integración con SELF — facturación automática',
+    descripcion: 'Sincronización automática de pólizas emitidas desde SELF.',
+    contenido:
+      'A partir de esta semana, todas las pólizas emitidas desde SELF se sincronizan automáticamente con el módulo de facturación. Documentación completa en la biblioteca digital.',
+    categoria: 'PRODUCTO',
+    visibilidad: 'INTERNA',
+    publicada: true,
+    publicadaEn: new Date('2026-06-15T09:00:00.000Z'),
+    imagenUrl: `${SEED_IMAGEN_PLACEHOLDER}-self`,
+    autorUsuario: 'admin',
+  },
+  {
+    slug: 'circular-comisiones-17-2024',
+    titulo: 'Circular interna 17/2024 — actualización de comisiones',
+    descripcion: 'Nueva grilla de comisiones para ramos Auto y Hogar.',
+    contenido:
+      'Actualización del esquema de comisiones para los ramos Auto y Hogar. La nueva grilla aplica a producción nueva desde el 1 del próximo mes.',
+    categoria: 'CIRCULAR',
+    visibilidad: 'INTERNA',
+    publicada: true,
+    publicadaEn: new Date('2026-05-10T11:30:00.000Z'),
+    imagenUrl: null,
+    autorUsuario: 'superadmin',
+  },
+  {
+    slug: 'comunicado-horario-atencion',
+    titulo: 'Comunicado oficial — cambios en horario de atención',
+    descripcion: 'Borrador del nuevo horario de la mesa de ayuda.',
+    contenido:
+      'Borrador del nuevo horario de atención de la mesa de ayuda. Pendiente de aprobación por dirección antes de publicar a productores.',
+    categoria: 'COMUNICADO',
+    visibilidad: 'INTERNA',
+    publicada: false,
+    publicadaEn: null,
+    imagenUrl: null,
+    autorUsuario: 'admin',
+  },
+];
+
+
+
 async function main() {
 
   for (const u of seedUsers) {
@@ -737,6 +835,44 @@ async function main() {
   }
 
   console.log(`Ramos listos: ${seedRamos.length}`);
+
+  for (const n of seedNoticias) {
+    const autor = await prisma.usuario.findUnique({
+      where: { usuario: n.autorUsuario },
+    });
+    if (!autor) {
+      throw new Error(`Usuario seed no encontrado para noticia: ${n.autorUsuario}`);
+    }
+
+    await prisma.noticia.upsert({
+      where: { slug: n.slug },
+      create: {
+        slug: n.slug,
+        titulo: n.titulo,
+        descripcion: n.descripcion,
+        contenido: n.contenido,
+        categoria: n.categoria,
+        visibilidad: n.visibilidad,
+        publicada: n.publicada,
+        publicadaEn: n.publicadaEn,
+        imagenUrl: n.imagenUrl,
+        autorId: autor.id,
+      },
+      update: {
+        titulo: n.titulo,
+        descripcion: n.descripcion,
+        contenido: n.contenido,
+        categoria: n.categoria,
+        visibilidad: n.visibilidad,
+        publicada: n.publicada,
+        publicadaEn: n.publicadaEn,
+        imagenUrl: n.imagenUrl,
+        autorId: autor.id,
+      },
+    });
+  }
+
+  console.log(`Noticias listas: ${seedNoticias.length}`);
 
 }
 
