@@ -15,16 +15,28 @@ export function NewsDeleteConfirmModal({ isOpen, news, isBusy = false, onClose, 
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
-      <div className="flex flex-col gap-4 p-6">
+      <div
+        className="flex flex-col gap-5 p-6"
+        role="alertdialog"
+        aria-labelledby="delete-news-title"
+        aria-describedby="delete-news-desc"
+      >
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">
-            <AlertTriangle size={18} strokeWidth={1.75} />
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600 ring-1 ring-rose-100">
+            <AlertTriangle size={20} strokeWidth={1.75} aria-hidden />
           </span>
-          <div className="flex flex-col gap-1">
-            <h3 className="text-base font-semibold text-maps-heading">Eliminar noticia</h3>
-            <p className="text-sm text-maps-body">
-              Vas a eliminar <span className="font-semibold">"{news.titulo}"</span>. Esta acción no
-              se puede deshacer.
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <h3 id="delete-news-title" className="text-base font-semibold text-maps-heading">
+              Eliminar noticia
+            </h3>
+            <p id="delete-news-desc" className="text-sm leading-relaxed text-maps-body">
+              Esta acción no se puede deshacer. Se eliminará permanentemente:
+            </p>
+            <p
+              className="truncate rounded-lg bg-maps-surface px-3 py-2 text-sm font-semibold text-maps-heading"
+              title={news.titulo}
+            >
+              {news.titulo}
             </p>
           </div>
         </div>
@@ -34,6 +46,7 @@ export function NewsDeleteConfirmModal({ isOpen, news, isBusy = false, onClose, 
             type="button"
             onClick={onClose}
             disabled={isBusy}
+            title="Cancelar eliminación"
             className="rounded-lg border border-maps-border bg-white px-4 py-2 text-sm font-semibold text-maps-body transition hover:bg-maps-surface disabled:opacity-60"
           >
             Cancelar
@@ -42,9 +55,10 @@ export function NewsDeleteConfirmModal({ isOpen, news, isBusy = false, onClose, 
             type="button"
             disabled={isBusy}
             onClick={() => onConfirm(news)}
+            title="Confirmar eliminación"
             className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-60"
           >
-            {isBusy ? 'Eliminando…' : 'Eliminar'}
+            {isBusy ? 'Eliminando…' : 'Eliminar noticia'}
           </button>
         </div>
       </div>

@@ -1,46 +1,32 @@
 import { useMemo, useState } from 'react';
 import { FaWhatsapp, FaLinkedinIn, FaLink, FaClock } from 'react-icons/fa';
 import { Modal } from '@/shared/components/Modal';
+import { NewsImage } from '@/shared/components/NewsImage';
 import { estimateReadingMinutes } from '@/shared/lib/mapPublicNews';
 import { useNewsModalStore } from '@/shared/store/newsModalStore';
 import type { NewsItem } from '@/shared/types/news';
 
 function NewsHero({ item }: { item: NewsItem }) {
-  if (item.imageUrl) {
-    return (
-      <div className="relative h-[260px] sm:h-[320px] w-full flex-shrink-0 overflow-hidden">
-        <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
-      </div>
-    );
-  }
-
   return (
-    <div
-      className="relative h-[260px] sm:h-[320px] w-full flex-shrink-0 overflow-hidden"
-      style={{ background: item.imageGradient }}
-    >
+    <div className="relative h-[260px] w-full flex-shrink-0 overflow-hidden sm:h-[320px]">
+      <NewsImage
+        src={item.imageUrl}
+        gradient={item.imageGradient}
+        className="absolute inset-0 h-full w-full"
+        showIcon={false}
+      />
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
     </div>
   );
 }
 
 function RelatedThumb({ item }: { item: NewsItem }) {
-  if (item.imageUrl) {
-    return (
-      <img
-        src={item.imageUrl}
-        alt=""
-        className="h-[52px] w-[52px] flex-shrink-0 rounded-lg object-cover"
-      />
-    );
-  }
-
   return (
-    <div
+    <NewsImage
+      src={item.imageUrl}
+      gradient={item.imageGradient}
       className="h-[52px] w-[52px] flex-shrink-0 rounded-lg transition-transform duration-200 group-hover:scale-[1.04]"
-      style={{ background: item.imageGradient }}
-      aria-hidden
+      iconSize={14}
     />
   );
 }
@@ -51,14 +37,14 @@ export function NewsDetailModal() {
 
   const relatedItems = useMemo(() => {
     if (!selectedNews) return [];
-    return recentNews
-      .filter((item) => item.slug !== selectedNews.slug)
-      .slice(0, 2);
+    return recentNews.filter((item) => item.slug !== selectedNews.slug).slice(0, 2);
   }, [recentNews, selectedNews]);
 
   if (!selectedNews) return null;
 
-  const readingMinutes = estimateReadingMinutes(selectedNews.content ?? selectedNews.description ?? '');
+  const readingMinutes = estimateReadingMinutes(
+    selectedNews.content ?? selectedNews.description ?? '',
+  );
   const body = selectedNews.content?.trim() || selectedNews.description?.trim() || '';
 
   const handleShareClick = (platform: 'whatsapp' | 'linkedin') => {
@@ -82,13 +68,15 @@ export function NewsDetailModal() {
 
   const shareContent = (
     <div className="flex flex-col gap-2">
-      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-maps-muted mb-1">
+      <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-maps-muted">
         Compartir
       </p>
       <button
         type="button"
         onClick={() => handleShareClick('whatsapp')}
-        className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors text-sm font-semibold w-full"
+        title="Compartir por WhatsApp"
+        aria-label="Compartir por WhatsApp"
+        className="flex w-full items-center gap-2.5 rounded-lg bg-emerald-50 px-3.5 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
       >
         <FaWhatsapp size={16} />
         WhatsApp
@@ -96,7 +84,9 @@ export function NewsDetailModal() {
       <button
         type="button"
         onClick={() => handleShareClick('linkedin')}
-        className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 transition-colors text-sm font-semibold w-full"
+        title="Compartir por LinkedIn"
+        aria-label="Compartir por LinkedIn"
+        className="flex w-full items-center gap-2.5 rounded-lg bg-sky-50 px-3.5 py-2.5 text-sm font-semibold text-sky-700 transition-colors hover:bg-sky-100"
       >
         <FaLinkedinIn size={16} />
         LinkedIn
@@ -104,7 +94,9 @@ export function NewsDetailModal() {
       <button
         type="button"
         onClick={handleCopyLink}
-        className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-maps-surface text-maps-muted hover:bg-maps-border/40 transition-colors text-sm font-semibold w-full"
+        title={copied ? 'Enlace copiado' : 'Copiar enlace'}
+        aria-label={copied ? 'Enlace copiado' : 'Copiar enlace'}
+        className="flex w-full items-center gap-2.5 rounded-lg bg-maps-surface px-3.5 py-2.5 text-sm font-semibold text-maps-muted transition-colors hover:bg-maps-border/40"
       >
         <FaLink size={13} />
         {copied ? '¡Enlace copiado!' : 'Copiar enlace'}
@@ -115,7 +107,7 @@ export function NewsDetailModal() {
   const relatedContent =
     relatedItems.length > 0 ? (
       <div className="flex flex-col gap-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-maps-muted mb-1">
+        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-maps-muted">
           Relacionados
         </p>
         {relatedItems.map((article) => (
@@ -123,7 +115,8 @@ export function NewsDetailModal() {
             key={article.slug ?? article.title}
             type="button"
             onClick={() => openModal(article, recentNews)}
-            className="group flex w-full gap-3 rounded-xl p-2 -mx-2 text-left transition-colors hover:bg-maps-surface"
+            title={`Leer: ${article.title}`}
+            className="group -mx-2 flex w-full gap-3 rounded-xl p-2 text-left transition-colors hover:bg-maps-surface"
           >
             <RelatedThumb item={article} />
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -141,12 +134,12 @@ export function NewsDetailModal() {
     ) : null;
 
   return (
-    <Modal isOpen={isOpen} onClose={closeModal} maxWidth="max-w-5xl">
-      <div className="flex flex-col lg:h-full lg:overflow-y-auto">
+    <Modal isOpen={isOpen} onClose={closeModal} maxWidth="max-w-5xl" closeButtonVariant="dark">
+      <div className="flex flex-col">
         <div className="relative flex-shrink-0">
           <NewsHero item={selectedNews} />
-          <div className="absolute bottom-0 inset-x-0 p-6 sm:p-8">
-            <div className="mb-3 flex items-center gap-2">
+          <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center rounded-full bg-maps-brand px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white">
                 {selectedNews.category}
               </span>
@@ -157,7 +150,7 @@ export function NewsDetailModal() {
                 </span>
               ) : null}
             </div>
-            <h1 className="text-[1.5rem] sm:text-[1.85rem] font-bold leading-[1.2] text-white drop-shadow-sm">
+            <h1 className="text-[1.5rem] font-bold leading-[1.2] text-white drop-shadow-sm sm:text-[1.85rem]">
               {selectedNews.title}
             </h1>
           </div>
@@ -187,7 +180,7 @@ export function NewsDetailModal() {
           </div>
 
           {(shareContent || relatedContent) && (
-            <div className="mt-2 space-y-5 border-t border-maps-border px-5 pb-6 pt-5 sm:px-6">
+            <div className="mt-2 space-y-5 border-t border-maps-border px-5 pb-8 pt-5 sm:px-6">
               <div className={`grid gap-6 ${relatedContent ? 'sm:grid-cols-2' : ''}`}>
                 {shareContent}
                 {relatedContent}

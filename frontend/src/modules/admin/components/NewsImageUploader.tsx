@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ImagePlus, X } from 'lucide-react';
 
-// TODO(MAPS-014 Fase F): reemplazar input URL por storage/upload de imágenes de noticias.
+// TODO(MAPS-014): reemplazar imagenUrl manual por flujo de upload/storage cuando se defina provider.
 
 type Props = {
   value: string | null;

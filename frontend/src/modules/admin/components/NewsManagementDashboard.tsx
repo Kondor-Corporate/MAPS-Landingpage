@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { Filter } from 'lucide-react';
 
@@ -102,6 +102,8 @@ export function NewsManagementDashboard() {
 
   const [formResetKey, setFormResetKey] = useState(0);
 
+  const formSectionRef = useRef<HTMLDivElement>(null);
+
 
 
   const [viewing, setViewing] = useState<News | null>(null);
@@ -166,6 +168,15 @@ export function NewsManagementDashboard() {
 
 
 
+  function scrollToForm() {
+    requestAnimationFrame(() => {
+      formSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.setTimeout(() => {
+        document.getElementById('news-titulo')?.focus({ preventScroll: true });
+      }, 350);
+    });
+  }
+
   function handleEdit(n: News) {
 
     setEditing(n);
@@ -175,6 +186,8 @@ export function NewsManagementDashboard() {
     setActiveTab('crear');
 
     setFormError(null);
+
+    scrollToForm();
 
   }
 
@@ -416,6 +429,8 @@ export function NewsManagementDashboard() {
 
       {activeTab === 'crear' ? (
 
+        <div ref={formSectionRef} className="scroll-mt-6">
+
         <NewsForm
 
           key={formKey}
@@ -435,6 +450,8 @@ export function NewsManagementDashboard() {
           onCancelEdit={editing ? handleCancelEdit : undefined}
 
         />
+
+        </div>
 
       ) : null}
 
@@ -504,7 +521,7 @@ export function NewsManagementDashboard() {
 
 
 
-            {filtered.length > pageSize ? (
+            {filtered.length > 0 ? (
 
               <TablePagination
 
@@ -517,6 +534,8 @@ export function NewsManagementDashboard() {
                 totalItems={filtered.length}
 
                 onPageChange={setPage}
+
+                pageSizeSelect="maps"
 
                 onPageSizeChange={(s) => {
 

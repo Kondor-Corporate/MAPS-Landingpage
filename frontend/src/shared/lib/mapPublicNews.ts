@@ -1,6 +1,6 @@
 import type { ApiPublicNews } from '@/shared/services/publicNews.service';
 import type { NewsItem } from '@/shared/types/news';
-import { relativeTimeFromNow } from '@/shared/utils/relativeTime';
+import { formatNewsCardDate, formatNewsFullDate } from '@/shared/utils/newsDate';
 
 const CATEGORIA_LABEL: Record<string, string> = {
   NOVEDAD: 'Novedad',
@@ -24,26 +24,14 @@ const FALLBACK_GRADIENTS = [
   'linear-gradient(135deg, #0089a3 0%, #00a4c0 50%, #67e8f9 100%)',
 ];
 
-function formatPublicNewsDate(iso: string | null): string {
-  if (!iso) return '';
-  const relative = relativeTimeFromNow(iso);
-  if (relative.startsWith('Hoy') || relative === 'Ayer' || relative.includes('/')) {
-    return relative;
-  }
-  return `Hace ${relative}`;
-}
+export const DEFAULT_NEWS_GRADIENT = FALLBACK_GRADIENTS[0];
 
-function formatFullPublicDate(iso: string | null): string {
-  if (!iso) return '';
-  return new Intl.DateTimeFormat('es-AR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(iso));
+export function getNewsGradientByCategory(categoria: string, index = 0): string {
+  return GRADIENT_BY_CATEGORY[categoria] ?? FALLBACK_GRADIENTS[index % FALLBACK_GRADIENTS.length];
 }
 
 function resolveGradient(dto: ApiPublicNews, index: number): string {
-  return GRADIENT_BY_CATEGORY[dto.categoria] ?? FALLBACK_GRADIENTS[index % FALLBACK_GRADIENTS.length];
+  return getNewsGradientByCategory(dto.categoria, index);
 }
 
 export function mapApiPublicNewsToNewsItem(dto: ApiPublicNews, index = 0): NewsItem {
@@ -51,7 +39,7 @@ export function mapApiPublicNewsToNewsItem(dto: ApiPublicNews, index = 0): NewsI
   return {
     slug: dto.slug,
     category: CATEGORIA_LABEL[dto.categoria] ?? dto.categoria,
-    date: formatPublicNewsDate(dto.publicadaEn),
+    date: formatNewsCardDate(dto.publicadaEn),
     title: dto.titulo,
     href: `#noticias-${dto.slug}`,
     imageGradient: resolveGradient(dto, index),
@@ -60,7 +48,7 @@ export function mapApiPublicNewsToNewsItem(dto: ApiPublicNews, index = 0): NewsI
     description: dto.descripcion,
     author: 'Equipo Editorial MAPS',
     publishedAt,
-    publishedAtLabel: formatFullPublicDate(dto.publicadaEn),
+    publishedAtLabel: formatNewsFullDate(dto.publicadaEn),
   };
 }
 

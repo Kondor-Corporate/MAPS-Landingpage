@@ -1,4 +1,6 @@
+import { useLocation } from 'react-router-dom';
 import { RecentNewsCard } from '@/shared/components/RecentNewsCard';
+import { DashboardBackLink } from '@/shared/components/DashboardBackLink';
 import { useIntranetNews } from '@/shared/hooks/useIntranetNews';
 import { useNewsModalStore } from '@/shared/store/newsModalStore';
 import type { NewsItem } from '@/shared/types/news';
@@ -26,6 +28,10 @@ function LoadingCards() {
 }
 
 export function IntranetNewsPage() {
+  const location = useLocation();
+  const isAdminContext = location.pathname.startsWith('/admin');
+  const backHref = isAdminContext ? '/admin/dashboard' : '/intranet/dashboard';
+
   const openModal = useNewsModalStore((state) => state.openModal);
   const { news, loading, error, refetch } = useIntranetNews(LIST_LIMIT);
 
@@ -35,6 +41,8 @@ export function IntranetNewsPage() {
 
   return (
     <div className="flex flex-col gap-8 px-8 py-6">
+      <DashboardBackLink to={backHref} />
+
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-maps-heading">Novedades internas</h1>
         <p className="text-sm text-maps-muted">

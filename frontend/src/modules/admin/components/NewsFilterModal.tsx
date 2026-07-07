@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Filter } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { MapsSelect } from '@/shared/components/MapsSelect';
@@ -25,12 +25,24 @@ const ESTADO_FILTER_OPTIONS: { value: NewsEstado | 'TODOS'; label: string }[] = 
   { value: 'DESPUBLICADA', label: 'Despublicada' },
 ];
 
+function countActiveFilters(filters: NewsFilters): number {
+  let count = 0;
+  if (filters.audiencia !== 'TODOS') count++;
+  if (filters.estado !== 'TODOS') count++;
+  if (filters.categoria !== 'TODOS') count++;
+  if (filters.fechaDesde) count++;
+  if (filters.fechaHasta) count++;
+  return count;
+}
+
 export function NewsFilterModal({ isOpen, initialFilters, onClose, onApply, onReset }: Props) {
   const [draft, setDraft] = useState<NewsFilters>(initialFilters);
 
   useEffect(() => {
     if (isOpen) setDraft(initialFilters);
   }, [isOpen, initialFilters]);
+
+  const draftActiveCount = useMemo(() => countActiveFilters(draft), [draft]);
 
   function set<K extends keyof NewsFilters>(key: K, value: NewsFilters[K]) {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -43,10 +55,17 @@ export function NewsFilterModal({ isOpen, initialFilters, onClose, onApply, onRe
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-maps-brand-soft text-maps-brand">
             <Filter size={16} strokeWidth={1.75} />
           </span>
-          <div className="flex flex-col">
-            <h3 className="text-base font-semibold text-maps-heading">Filtrar noticias</h3>
+          <div className="flex flex-1 flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-semibold text-maps-heading">Filtrar noticias</h3>
+              {draftActiveCount > 0 ? (
+                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-maps-brand px-1.5 text-[11px] font-semibold text-white">
+                  {draftActiveCount}
+                </span>
+              ) : null}
+            </div>
             <p className="text-xs text-maps-muted">
-              Refiná el listado por audiencia, estado o fecha.
+              Refiná el listado por audiencia, estado, categoría o fecha.
             </p>
           </div>
         </header>
@@ -107,14 +126,15 @@ export function NewsFilterModal({ isOpen, initialFilters, onClose, onApply, onRe
           </label>
         </div>
 
-        <footer className="flex justify-between gap-2 border-t border-maps-border pt-4">
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-maps-border pt-4">
           <button
             type="button"
             onClick={() => {
               onReset();
               onClose();
             }}
-            className="text-sm font-medium text-maps-muted hover:text-maps-heading"
+            title="Restablecer todos los filtros"
+            className="text-sm font-medium text-maps-muted transition hover:text-maps-heading"
           >
             Limpiar filtros
           </button>
@@ -134,7 +154,7 @@ export function NewsFilterModal({ isOpen, initialFilters, onClose, onApply, onRe
               }}
               className="rounded-lg bg-maps-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-maps-brand-hover"
             >
-              Aplicar
+              Aplicar filtros
             </button>
           </div>
         </footer>

@@ -17,6 +17,7 @@ type Props = {
   hasError?: boolean;
   'aria-label'?: string;
   className?: string;
+  size?: 'default' | 'compact';
 };
 
 type DropdownCoords = {
@@ -56,6 +57,7 @@ export function MapsSelect({
   hasError = false,
   'aria-label': ariaLabel,
   className = '',
+  size = 'default',
 }: Props) {
   const listboxId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -208,6 +210,8 @@ export function MapsSelect({
         )
       : null;
 
+  const triggerPadding = size === 'compact' ? 'px-2 py-1.5 text-sm' : 'px-3 py-2.5 text-sm';
+
   return (
     <div className={`relative ${className}`}>
       <button
@@ -223,7 +227,8 @@ export function MapsSelect({
         onClick={() => (open ? close() : openDropdown())}
         onKeyDown={handleTriggerKeyDown}
         className={[
-          'flex w-full items-center justify-between gap-2 rounded-xl border bg-white px-3 py-2.5 text-sm transition',
+          'flex w-full items-center justify-between gap-2 rounded-xl border bg-white transition',
+          triggerPadding,
           'focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20',
           'disabled:cursor-not-allowed disabled:opacity-60',
           hasError
