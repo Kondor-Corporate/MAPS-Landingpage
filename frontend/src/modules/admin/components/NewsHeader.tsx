@@ -1,3 +1,4 @@
+/** Encabezado de la página de gestión de Noticias en admin. */
 export function NewsHeader() {
   return (
     <header className="flex flex-col gap-2">

@@ -1,64 +1,72 @@
-import { useRef, useState } from 'react';
+/**
+ * Campo de portada por URL https (MAPS-014).
+ * Valida formato en cliente; el upload real queda pendiente para una fase de storage.
+ */
+import { useEffect, useMemo, useState } from 'react';
 import { ImagePlus, X } from 'lucide-react';
-
-const MAX_BYTES = 2 * 1024 * 1024;
 
 type Props = {
   value: string | null;
-  onChange: (dataUrl: string | null) => void;
+  onChange: (url: string | null) => void;
+  showError?: boolean;
 };
 
-export function NewsImageUploader({ value, onChange }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState<string | null>(null);
+function validateImageUrl(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('data:')) return 'No se permiten data URLs.';
+  if (!trimmed.startsWith('https://')) return 'Debe comenzar con https://';
+  try {
+    new URL(trimmed);
+    return null;
+  } catch {
+    return 'URL inválida.';
+  }
+}
 
-  function handlePick(file: File | null) {
-    setError(null);
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setError('El archivo debe ser una imagen.');
+export function NewsImageUploader({ value, onChange, showError = false }: Props) {
+  const [draft, setDraft] = useState(value ?? '');
+
+  useEffect(() => {
+    setDraft(value ?? '');
+  }, [value]);
+
+  const validationError = useMemo(() => validateImageUrl(draft), [draft]);
+  const displayUrl = value && !validationError ? value : null;
+
+  function commitUrl(next: string) {
+    setDraft(next);
+    const err = validateImageUrl(next);
+    if (err) {
+      onChange(null);
       return;
     }
-    if (file.size > MAX_BYTES) {
-      setError('La imagen no puede superar los 2 MB.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : null;
-      onChange(result);
-    };
-    reader.onerror = () => setError('No se pudo leer la imagen.');
-    reader.readAsDataURL(file);
+    onChange(next.trim() || null);
   }
 
-  if (value) {
+  if (displayUrl) {
     return (
       <div className="flex flex-col gap-2">
         <div className="relative h-24 w-full overflow-hidden rounded-lg border border-maps-border bg-maps-surface">
-          <img src={value} alt="Portada de la noticia" className="h-full w-full object-cover" />
+          <img src={displayUrl} alt="Portada de la noticia" className="h-full w-full object-cover" />
           <button
             type="button"
-            onClick={() => onChange(null)}
+            onClick={() => {
+              setDraft('');
+              onChange(null);
+            }}
             className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-maps-muted shadow-card transition hover:text-rose-600"
             aria-label="Quitar imagen"
           >
             <X size={14} strokeWidth={2} />
           </button>
         </div>
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="text-left text-xs text-maps-brand hover:text-maps-brand-hover"
-        >
-          Reemplazar imagen
-        </button>
         <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => handlePick(e.target.files?.[0] ?? null)}
+          type="url"
+          value={draft}
+          onChange={(e) => commitUrl(e.target.value)}
+          placeholder="https://..."
+          className="rounded-lg border border-maps-border bg-white px-3 py-2 text-xs text-maps-heading placeholder:text-maps-muted-soft focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
         />
       </div>
     );
@@ -66,23 +74,24 @@ export function NewsImageUploader({ value, onChange }: Props) {
 
   return (
     <div className="flex flex-col gap-1">
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="flex h-[42px] w-full items-center justify-center gap-2 rounded-lg border border-dashed border-maps-border bg-white text-sm font-medium text-maps-body transition hover:border-maps-brand hover:text-maps-brand"
-      >
-        <ImagePlus size={16} strokeWidth={1.75} />
-        Subir Imagen
-      </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => handlePick(e.target.files?.[0] ?? null)}
-      />
-      {error ? <span className="text-xs text-rose-600">{error}</span> : null}
-      <span className="text-[11px] text-maps-muted">PNG, JPG o WEBP. Máx. 2 MB.</span>
+      <div className="flex items-center gap-2">
+        <span className="flex h-[42px] shrink-0 items-center justify-center rounded-lg border border-dashed border-maps-border bg-white px-3 text-maps-muted">
+          <ImagePlus size={16} strokeWidth={1.75} />
+        </span>
+        <input
+          type="url"
+          value={draft}
+          onChange={(e) => commitUrl(e.target.value)}
+          placeholder="https://ejemplo.com/imagen.jpg"
+          className="h-[42px] min-w-0 flex-1 rounded-lg border border-dashed border-maps-border bg-white px-3 text-sm text-maps-heading placeholder:text-maps-muted-soft focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
+        />
+      </div>
+      {showError && validationError ? (
+        <span className="text-xs text-rose-600">{validationError}</span>
+      ) : null}
+      <span className="text-[11px] text-maps-muted">URL opcional. Solo https://</span>
     </div>
   );
 }
+
+export { validateImageUrl };

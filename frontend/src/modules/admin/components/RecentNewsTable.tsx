@@ -1,45 +1,32 @@
-import { Image as ImageIcon, Inbox } from 'lucide-react';
+/** Tabla del listado admin con miniatura, badges y acciones por fila. */
+import { Inbox } from 'lucide-react';
+import { NewsImage } from '@/shared/components/NewsImage';
 import { CATEGORIA_LABEL, type News } from '@/modules/admin/types/news';
 import { NewsAudienceBadge } from '@/modules/admin/components/NewsAudienceBadge';
 import { NewsStatusBadge } from '@/modules/admin/components/NewsStatusBadge';
 import { NewsTableActions } from '@/modules/admin/components/NewsTableActions';
+import { formatNewsTableDate } from '@/shared/utils/newsDate';
 
 type Props = {
   news: News[];
   onView: (n: News) => void;
   onEdit: (n: News) => void;
   onDelete: (n: News) => void;
+  onUnpublish?: (n: News) => void;
   emptyMessage?: string;
 };
 
 const COLUMNS = ['Noticia', 'Fecha', 'Audiencia', 'Estado', 'Acciones'];
 
-const DATE_FORMATTER = new Intl.DateTimeFormat('es-AR', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-});
-
-function formatDate(iso: string): string {
-  try {
-    return DATE_FORMATTER.format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-function Thumbnail({ src, alt }: { src: string | null; alt: string }) {
-  if (src) {
-    return (
-      <div className="h-12 w-16 shrink-0 overflow-hidden rounded-md bg-maps-surface">
-        <img src={src} alt={alt} className="h-full w-full object-cover" />
-      </div>
-    );
-  }
+function Thumbnail({ item, index }: { item: News; index: number }) {
   return (
-    <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded-md bg-maps-surface text-maps-muted">
-      <ImageIcon size={18} strokeWidth={1.5} />
-    </div>
+    <NewsImage
+      src={item.imagenPortada}
+      categoryKey={item.categoria}
+      categoryIndex={index}
+      className="h-12 w-16 shrink-0 rounded-md"
+      iconSize={16}
+    />
   );
 }
 
@@ -48,6 +35,7 @@ export function RecentNewsTable({
   onView,
   onEdit,
   onDelete,
+  onUnpublish,
   emptyMessage = 'No hay noticias que coincidan con los filtros aplicados.',
 }: Props) {
   if (news.length === 0) {
@@ -64,7 +52,6 @@ export function RecentNewsTable({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-maps-border bg-white shadow-card">
-      {/* Desktop */}
       <div className="hidden overflow-x-auto lg:block">
         <table className="min-w-full">
           <thead className="bg-maps-surface">
@@ -94,7 +81,7 @@ export function RecentNewsTable({
               >
                 <td className="px-6 py-3.5">
                   <div className="flex items-center gap-3">
-                    <Thumbnail src={n.imagenPortada} alt={n.titulo} />
+                    <Thumbnail item={n} index={idx} />
                     <div className="flex min-w-0 flex-col">
                       <span className="truncate text-sm font-semibold text-maps-heading">
                         {n.titulo}
@@ -106,7 +93,7 @@ export function RecentNewsTable({
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-6 py-3.5 text-sm text-maps-muted">
-                  {formatDate(n.fechaPublicacion)}
+                  {formatNewsTableDate(n.fechaPublicacion)}
                 </td>
                 <td className="whitespace-nowrap px-6 py-3.5">
                   <NewsAudienceBadge audiencia={n.audiencia} />
@@ -115,7 +102,13 @@ export function RecentNewsTable({
                   <NewsStatusBadge estado={n.estado} />
                 </td>
                 <td className="whitespace-nowrap px-6 py-3.5 text-right">
-                  <NewsTableActions news={n} onView={onView} onEdit={onEdit} onDelete={onDelete} />
+                  <NewsTableActions
+                    news={n}
+                    onView={onView}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onUnpublish={onUnpublish}
+                  />
                 </td>
               </tr>
             ))}
@@ -123,16 +116,15 @@ export function RecentNewsTable({
         </table>
       </div>
 
-      {/* Mobile */}
       <ul className="flex flex-col divide-y divide-maps-border lg:hidden">
-        {news.map((n) => (
+        {news.map((n, idx) => (
           <li key={n.id} className="flex flex-col gap-3 p-4">
             <div className="flex items-start gap-3">
-              <Thumbnail src={n.imagenPortada} alt={n.titulo} />
+              <Thumbnail item={n} index={idx} />
               <div className="flex flex-1 flex-col gap-0.5">
                 <span className="text-sm font-semibold text-maps-heading">{n.titulo}</span>
                 <span className="text-xs text-maps-muted">
-                  Categoría {CATEGORIA_LABEL[n.categoria]} · {formatDate(n.fechaPublicacion)}
+                  Categoría {CATEGORIA_LABEL[n.categoria]} · {formatNewsTableDate(n.fechaPublicacion)}
                 </span>
               </div>
             </div>
@@ -141,7 +133,13 @@ export function RecentNewsTable({
                 <NewsAudienceBadge audiencia={n.audiencia} />
                 <NewsStatusBadge estado={n.estado} />
               </div>
-              <NewsTableActions news={n} onView={onView} onEdit={onEdit} onDelete={onDelete} />
+              <NewsTableActions
+                news={n}
+                onView={onView}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onUnpublish={onUnpublish}
+              />
             </div>
           </li>
         ))}

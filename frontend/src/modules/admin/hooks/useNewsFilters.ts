@@ -1,3 +1,7 @@
+/**
+ * Filtros client-side del listado admin de Noticias.
+ * La API filtra por flags básicos; fechas, búsqueda y DESPUBLICADA se resuelven en memoria.
+ */
 import { useMemo, useState } from 'react';
 import type { News, NewsAudiencia, NewsCategoria, NewsEstado } from '@/modules/admin/types/news';
 

@@ -1,3 +1,7 @@
+/**
+ * Datos mock locales del admin de Noticias (MAPS-007).
+ * Ya no alimenta el flujo productivo; la fuente real es la API vía `useAdminNews`.
+ */
 import type { News } from '@/modules/admin/types/news';
 
 function isoDaysAgo(days: number, hours = 0): string {

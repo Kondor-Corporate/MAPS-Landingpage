@@ -1,3 +1,4 @@
+/** Tabs del panel admin: alternar entre formulario de creación y listado. */
 import { FilePlus2, ListChecks } from 'lucide-react';
 
 export type NewsTab = 'crear' | 'listado';

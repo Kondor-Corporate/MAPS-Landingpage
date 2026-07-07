@@ -1,4 +1,8 @@
-import { useMemo, useState } from 'react';
+/**
+ * Formulario de alta/edición de Noticias en el panel admin.
+ * Agrupa campos editoriales, audiencia, portada (URL) y acciones de guardado/publicación.
+ */
+import { useEffect, useMemo, useState } from 'react';
 import {
   CATEGORIA_OPTIONS,
   type NewsAudiencia,
@@ -7,9 +11,13 @@ import {
   type NewsInput,
 } from '@/modules/admin/types/news';
 import { NewsAudienceCard } from '@/modules/admin/components/NewsAudienceCard';
-import { NewsImageUploader } from '@/modules/admin/components/NewsImageUploader';
+import {
+  NewsImageUploader,
+  validateImageUrl,
+} from '@/modules/admin/components/NewsImageUploader';
 import { NewsPublishActionsCard } from '@/modules/admin/components/NewsPublishActionsCard';
 import { NewsRichTextEditor } from '@/modules/admin/components/NewsRichTextEditor';
+import { MapsSelect } from '@/shared/components/MapsSelect';
 
 export type NewsFormState = {
   titulo: string;
@@ -34,12 +42,14 @@ export const EMPTY_FORM: NewsFormState = {
 type Props = {
   mode: 'create' | 'edit';
   state: NewsFormState;
+  isSubmitting?: boolean;
   onChange: (next: NewsFormState) => void;
-  onSubmit: (input: NewsInput) => void;
+  onSubmit: (input: NewsInput) => Promise<void>;
+  onUnpublish?: () => Promise<void>;
   onCancelEdit?: () => void;
 };
 
-type Errors = Partial<Record<'titulo' | 'categoria' | 'cuerpo', string>>;
+type Errors = Partial<Record<'titulo' | 'categoria' | 'cuerpo' | 'imagenPortada', string>>;
 
 function validate(state: NewsFormState): Errors {
   const errors: Errors = {};
@@ -52,13 +62,29 @@ function validate(state: NewsFormState): Errors {
   if (state.cuerpo.trim().length < 20) {
     errors.cuerpo = 'El cuerpo debe tener al menos 20 caracteres.';
   }
+  if (state.imagenPortada) {
+    const imgErr = validateImageUrl(state.imagenPortada);
+    if (imgErr) errors.imagenPortada = imgErr;
+  }
   return errors;
 }
 
-export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Props) {
+export function NewsForm({
+  mode,
+  state,
+  isSubmitting = false,
+  onChange,
+  onSubmit,
+  onUnpublish,
+  onCancelEdit,
+}: Props) {
   const [showErrors, setShowErrors] = useState(false);
 
   const errors = useMemo(() => validate(state), [state]);
+
+  useEffect(() => {
+    setShowErrors(false);
+  }, [mode]);
 
   function patch(partial: Partial<NewsFormState>) {
     onChange({
@@ -68,26 +94,37 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
     });
   }
 
-  function tryCommit(estado: NewsEstado) {
+  async function tryCommit(estado: NewsEstado) {
+    const currentErrors = validate(state);
     setShowErrors(true);
-    if (Object.keys(errors).length > 0) return;
+    if (Object.keys(currentErrors).length > 0) return;
+
     const now = new Date().toISOString();
-    const fechaPublicacion =
-      estado === 'PUBLICADO' && state.estado !== 'PUBLICADO' ? now : undefined;
-    onSubmit({
+    await onSubmit({
       titulo: state.titulo.trim(),
       categoria: state.categoria as NewsCategoria,
       audiencia: state.audiencia,
       cuerpo: state.cuerpo.trim(),
-      imagenPortada: state.imagenPortada,
+      imagenPortada: state.imagenPortada?.trim() || null,
       estado,
-      fechaPublicacion: fechaPublicacion ?? state.ultimaModificacion,
+      fechaPublicacion: now,
     });
+    setShowErrors(false);
   }
+
+  async function tryUnpublish() {
+    if (!onUnpublish) return;
+    await onUnpublish();
+    setShowErrors(false);
+  }
+
+  const categoriaOptions = CATEGORIA_OPTIONS.map((opt) => ({
+    value: opt.value,
+    label: opt.label,
+  }));
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-      {/* Columna izquierda — Contenido */}
       <section className="flex flex-col gap-4 rounded-2xl border border-maps-border bg-white p-6 shadow-card">
         <h2 className="text-base font-semibold text-maps-heading">Contenido de la Noticia</h2>
 
@@ -101,7 +138,8 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
             value={state.titulo}
             onChange={(e) => patch({ titulo: e.target.value })}
             placeholder="Ej: Nueva circular de cumplimiento 2024"
-            className="rounded-lg border border-maps-border bg-white px-3 py-2.5 text-sm text-maps-heading placeholder:text-maps-muted-soft focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
+            disabled={isSubmitting}
+            className="rounded-xl border border-maps-border bg-white px-3 py-2.5 text-sm text-maps-heading placeholder:text-maps-muted-soft focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20 disabled:opacity-60"
           />
           {showErrors && errors.titulo ? (
             <span className="text-xs text-rose-600">{errors.titulo}</span>
@@ -113,19 +151,15 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
             <label htmlFor="news-categoria" className="text-sm font-medium text-maps-heading">
               Categoría
             </label>
-            <select
+            <MapsSelect
               id="news-categoria"
               value={state.categoria}
-              onChange={(e) => patch({ categoria: e.target.value as NewsCategoria | '' })}
-              className="rounded-lg border border-maps-border bg-white px-3 py-2.5 text-sm text-maps-heading focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
-            >
-              <option value="">Seleccionar...</option>
-              {CATEGORIA_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => patch({ categoria: value as NewsCategoria | '' })}
+              options={categoriaOptions}
+              placeholder="Seleccionar..."
+              disabled={isSubmitting}
+              hasError={showErrors && Boolean(errors.categoria)}
+            />
             {showErrors && errors.categoria ? (
               <span className="text-xs text-rose-600">{errors.categoria}</span>
             ) : null}
@@ -135,8 +169,12 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
             <span className="text-sm font-medium text-maps-heading">Imagen de portada</span>
             <NewsImageUploader
               value={state.imagenPortada}
-              onChange={(dataUrl) => patch({ imagenPortada: dataUrl })}
+              onChange={(url) => patch({ imagenPortada: url })}
+              showError={showErrors}
             />
+            {showErrors && errors.imagenPortada ? (
+              <span className="text-xs text-rose-600">{errors.imagenPortada}</span>
+            ) : null}
           </div>
         </div>
 
@@ -149,15 +187,16 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
         </div>
       </section>
 
-      {/* Columna derecha — Sidebar */}
       <aside className="flex flex-col gap-4">
         <NewsAudienceCard value={state.audiencia} onChange={(audiencia) => patch({ audiencia })} />
         <NewsPublishActionsCard
           mode={mode}
           estado={state.estado}
           ultimaModificacion={state.ultimaModificacion}
-          onPublish={() => tryCommit('PUBLICADO')}
-          onSaveDraft={() => tryCommit('BORRADOR')}
+          isSubmitting={isSubmitting}
+          onPublish={() => void tryCommit('PUBLICADO')}
+          onSaveDraft={() => void tryCommit('BORRADOR')}
+          onUnpublish={onUnpublish ? () => void tryUnpublish() : undefined}
           onCancelEdit={onCancelEdit}
         />
       </aside>
