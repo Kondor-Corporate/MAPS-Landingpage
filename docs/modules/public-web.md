@@ -101,18 +101,21 @@ Notas:
 
 Estado actual:
 
-- Landing muestra previews/modales con datos mock/locales.
-- No consume `/api/v1/news`.
-- La API de noticias esta pendiente.
+- Landing muestra previews y modal con datos reales desde `GET /api/v1/news/public`.
+- El mock `mockNews.ts` fue retirado del flujo principal (MAPS-014).
+- Detalle vía modal + `GET /news/public/:slug` (sin ruta SEO `/noticias/:slug`).
 
 Archivos relacionados:
 
 - `frontend/src/modules/public-web/components/NewsPreviewSection.tsx`
 - `frontend/src/modules/public-web/components/NewsDetailModal.tsx`
-- `frontend/src/shared/constants/mockNews.ts`
+- `frontend/src/shared/services/publicNews.service.ts`
+- `frontend/src/shared/hooks/usePublicNews.ts`
+- `frontend/src/shared/lib/mapPublicNews.ts`
+- `frontend/src/shared/components/NewsImage.tsx`
 - `frontend/src/shared/store/newsModalStore.ts`
 
-Detalle: [`news.md`](./news.md).
+Detalle completo del modulo: [`news.md`](./news.md).
 
 ---
 

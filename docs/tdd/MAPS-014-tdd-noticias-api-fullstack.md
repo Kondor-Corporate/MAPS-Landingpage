@@ -2,11 +2,12 @@
 
 Documento de diseño técnico para convertir el módulo Noticias de MOCK a REAL: backend API, admin, web pública e intranet productor.
 
-**Estado:** Borrador
+**Estado:** Implementado
 **Autor:** Tech Lead / Documentation Engineer
 **Revisores:** —
 **Creado:** 2026-07-01
-**Última actualización:** 2026-07-01
+**Última actualización:** 2026-07-06
+**Rama:** `feature/MAPS-014-noticias-api`
 
 > **UI previa:** [`docs/tdd/MAPS-007-tdd-vista-gestion-noticias.md`](./MAPS-007-tdd-vista-gestion-noticias.md) · [`docs/worklog/MAPS-007-vista-gestion-noticias.md`](../worklog/MAPS-007-vista-gestion-noticias.md)
 > **Módulo vivo:** [`docs/modules/news.md`](../modules/news.md)
@@ -774,20 +775,20 @@ Patrón: `producers.integration.test.ts` + `createApp()` + `loginUsuarioPassword
 
 MAPS-014 se considera **aceptado** cuando:
 
-- [ ] Admin crea noticia borrador y persiste tras refresh.
-- [ ] Admin publica noticia (`publicada=true`, `publicadaEn` set).
-- [ ] Admin despublica noticia (`publicada=false`).
-- [ ] Admin elimina noticia (hard delete).
-- [ ] PRODUCTOR no puede crear/editar/eliminar vía API (403).
-- [ ] Anónimo no accede a listado admin (401).
-- [ ] Home muestra **solo** PUBLICA + publicada.
-- [ ] Intranet dashboard muestra **solo** INTERNA + publicada.
-- [ ] Borrador no aparece en Home ni intranet.
-- [ ] Modal público muestra `contenido` real de la noticia seleccionada.
-- [ ] Validaciones Zod rechazan body inválido e imagen data URL.
-- [ ] `news.integration.test.ts` pasa en CI.
-- [ ] Flujos principales admin/Home/intranet **no dependen** de `newsMock.ts` ni `mockNews.ts`.
-- [ ] `docs/modules/news.md` y worklog actualizados.
+- [x] Admin crea noticia borrador y persiste tras refresh.
+- [x] Admin publica noticia (`publicada=true`, `publicadaEn` set).
+- [x] Admin despublica noticia (`publicada=false`).
+- [x] Admin elimina noticia (hard delete).
+- [x] PRODUCTOR no puede crear/editar/eliminar vía API (403).
+- [x] Anónimo no accede a listado admin (401).
+- [x] Home muestra **solo** PUBLICA + publicada.
+- [x] Intranet dashboard muestra **solo** INTERNA + publicada.
+- [x] Borrador no aparece en Home ni intranet.
+- [x] Modal público muestra `contenido` real de la noticia seleccionada.
+- [x] Validaciones Zod rechazan body inválido e imagen data URL.
+- [x] `news.integration.test.ts` pasa en CI.
+- [x] Flujos principales admin/Home/intranet **no dependen** de `newsMock.ts` ni `mockNews.ts`.
+- [x] `docs/modules/news.md` y worklog actualizados.
 
 ---
 
@@ -832,21 +833,103 @@ Solo las que requieren confirmación del equipo antes o durante implementación:
 
 ---
 
+## 19. Resultado implementado (cierre MAPS-014)
+
+### Resultado implementado
+
+El módulo Noticias pasó de **MOCK a REAL** en la rama `feature/MAPS-014-noticias-api`:
+
+- **Backend:** API completa bajo `/api/v1/news` con lectura pública, intranet y CRUD admin; validaciones Zod; RBAC; slug automático con sufijo numérico; 45 tests de integración en verde.
+- **DB:** enum `CategoriaNoticia`, campo `categoria` en `Noticia`, migración `20260701120000_noticia_categoria`, seed demo con 6 noticias (mix PUBLICA/INTERNA, publicadas y borrador).
+- **Admin:** `/admin/noticias` conectado vía `useAdminNews` + `news.service.ts`; publicar/despublicar/eliminar; filtros con estado **DESPUBLICADA** (derivado en cliente); `MapsFeedbackToast`, `MapsSelect`, `NewsImage` con fallback por categoría.
+- **Home pública:** `NewsPreviewSection` consume `GET /news/public`; modal con contenido real; `mockNews.ts` eliminado del flujo.
+- **Intranet:** dashboard y listados en `/intranet/noticias` y `/admin/novedades` vía `GET /news/intranet`; separación estricta de audiencias.
+- **Docs:** `docs/modules/news.md` actualizado; worklog `docs/worklog/MAPS-014-noticias-api-fullstack.md`.
+
+### Fases ejecutadas
+
+| Fase | Entrega | Commit |
+|------|---------|--------|
+| **A** | TDD y contrato | `f324687` — `docs(maps-014): documentacion del TDD de noticias` |
+| **B** | DB / schema / seed | `a5bc28f` — `feat(db): preparar modelo y seed de noticias` |
+| **C** | Backend API | `7361687` — `feat(api): implementar endpoints de noticias` |
+| **D** | Tests backend | `56fea09` — `test(api): agregar integración de noticias` |
+| **E** | Admin frontend | `fa86ac3` — `feat(admin): conectar gestión de noticias a la API` |
+| **E.1** | Estabilización admin | (incluido en E / commits intermedios de la rama) |
+| **F** | Home pública | `db91850` — `feat(public): mostrar noticias reales en home` |
+| **G** | Intranet | `d52c10f` — `feat(intranet): conectar novedades internas` |
+| **H.1** | Pulido UX/UI | `e455c5b` — `fix(news): pulir experiencia visual de novedades` |
+| **H.2** | Cierre documental | pendiente de commit — `docs(maps-014): cerrar documentación de noticias` |
+
+### Decisiones finales
+
+| Tema | Decisión aplicada |
+|------|-------------------|
+| `categoria` | Enum Prisma `CategoriaNoticia` (5 valores) |
+| Slug conflictivo | Sufijo numérico automático (`titulo-2`, …) |
+| DELETE vs despublicar | Ambos: hard delete + `PATCH publicada=false` |
+| Seed demo | Sí — 6 noticias en `backend/prisma/seed.ts` |
+| Imagen | Solo URL `https://` opcional; sin upload/storage |
+| Detalle público | Modal existente + `GET /news/public/:slug`; sin ruta SEO |
+| Estado DESPUBLICADA | Solo en UI admin: `publicada=false` + `publicadaEn` histórico |
+| Servicios frontend | `shared/services/publicNews.service.ts`, `intranetNews.service.ts`; mapper en `shared/lib/mapPublicNews.ts` |
+| Admin dashboard recientes | Listado admin vía API (no mock público) |
+
+### Cambios respecto al TDD original
+
+- **Rutas de listado ampliadas (H.1):** se agregaron `/intranet/noticias` y `/admin/novedades` reutilizando `IntranetNewsPage` — no estaban en el alcance inicial del TDD pero cierran el link "Ver todo en novedades".
+- **Ubicación de servicios públicos:** el TDD proponía `public-web/services/news.service.ts`; la implementación centralizó lectura en `frontend/src/shared/services/` para reutilizar entre Home, intranet y dashboards.
+- **Estado DESPUBLICADA:** no existe en Prisma/API; se infiere en `mapNews.ts` cuando `publicada=false` y hay `publicadaEn`.
+- **`mockNews.ts` eliminado; `newsMock.ts` / `useNews.ts` huérfanos:** retirados del flujo principal pero los archivos legacy aún existen en el repo (deuda de limpieza menor).
+- **Componentes compartidos:** `NewsImage`, `MapsSelect`, `MapsFeedbackToast` extraídos o reutilizados en admin y surfaces públicas durante H.1.
+
+### Pendientes / deudas técnicas
+
+| Deuda | Detalle |
+|-------|---------|
+| Upload / storage | Portadas siguen siendo URL externa; uploader admin orientado a URL |
+| SEO `/noticias/:slug` | Fuera de alcance; modal + fetch por slug |
+| E2E editorial | Sin Playwright; QA manual recomendado |
+| Tests frontend unitarios | Toolchain Vitest frontend incompleto en CI |
+| Paginación server-side admin | Filtros/paginación client-side en v1 |
+| Limpieza legacy | Eliminar `newsMock.ts` y `useNews.ts` si ya no se referencian |
+| `NewsDetailModal` en shared | Mover si se consolida como componente global intranet + público |
+| Knowledge Base Obsidian | Actualizar estado REAL fuera de esta rama (ver §20) |
+
+---
+
+## 20. Actualización Knowledge Base (fuera de repo — solo reporte)
+
+No modificado en esta rama. Al mergear, conviene actualizar en Obsidian:
+
+| Documento KB | Cambio sugerido |
+|--------------|-----------------|
+| `MAPS - Estado Real del Sistema` | Noticias: **MOCK → REAL** (API + persistencia + integración frontend) |
+| `MAPS - Brecha Producto vs Implementacion` | Cerrar brecha crítica de Noticias públicas/internas |
+| `MAPS - Roadmap Actualizado` | MAPS-014 completado; próximas deudas: storage, SEO, E2E |
+| `MAPS - Contexto para Cursor/ChatGPT` | Quitar "noticias mock" de filas PARCIAL |
+
+---
+
 ## Referencias
 
 | Recurso | Ruta |
 |---------|------|
 | Schema Prisma | `backend/prisma/schema.prisma` |
-| Rutas news (stub) | `backend/src/api/v1/routes/news.routes.ts` |
+| Rutas news | `backend/src/api/v1/routes/news.routes.ts` |
+| Service / controller | `backend/src/services/news.service.ts`, `backend/src/controllers/news.controller.ts` |
+| Tests integración | `backend/tests/news.integration.test.ts` |
 | Patrón library API | `docs/tdd/MAPS-012-tdd-biblioteca-digital-api.md` |
 | UI admin MAPS-007 | `docs/tdd/MAPS-007-tdd-vista-gestion-noticias.md` |
+| Worklog MAPS-014 | `docs/worklog/MAPS-014-noticias-api-fullstack.md` |
+| Módulo vivo | `docs/modules/news.md` |
 | Tipos admin | `frontend/src/modules/admin/types/news.ts` |
-| Mock admin | `frontend/src/modules/admin/data/newsMock.ts` |
-| Mock público | `frontend/src/shared/constants/mockNews.ts` |
-| Home | `frontend/src/modules/public-web/pages/HomePage.tsx` |
+| Admin hook/service | `frontend/src/modules/admin/hooks/useAdminNews.ts`, `frontend/src/modules/admin/services/news.service.ts` |
+| Lectura pública/intranet | `frontend/src/shared/services/publicNews.service.ts`, `intranetNews.service.ts` |
+| Home / intranet UI | `frontend/src/modules/public-web/components/NewsPreviewSection.tsx`, `frontend/src/modules/intranet/pages/IntranetNewsPage.tsx` |
 | Notion EP-06 | `MAPS-KnowledgeBase/_imports/Notion/Fase 04 - Backlog y orden.md` |
 | Fase 0 MAPS-014 | `MAPS-KnowledgeBase/01 - Estado Actual/MAPS - Fase 0 Alineacion Pre MAPS-014.md` |
 
 ---
 
-*Documento en estado **Borrador**. No implementar código hasta aprobación en PR a `development`.*
+*Documento en estado **Implementado**. Feature lista para PR a `development`.*

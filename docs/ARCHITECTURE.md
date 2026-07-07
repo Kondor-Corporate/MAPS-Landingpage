@@ -211,7 +211,7 @@ Las migraciones deben versionarse en Git. Para el flujo detallado, ver `docs/MIG
 | [Productores](./modules/producers.md) | CRUD admin, perfil productor, mapa publico y certificaciones |
 | [Biblioteca](./modules/library.md) | API real de ramos e integracion frontend |
 | [Web publica/mapa](./modules/public-web.md) | Landing, mapa y perfil publico conectados a productores |
-| [Noticias](./modules/news.md) | UI/mock frontend; API pendiente |
+| [Noticias](./modules/news.md) | API real; admin, Home, intranet conectados |
 | [Admins](./modules/admins.md) | UI/ruta existente; API pendiente |
 
 Los detalles de cada modulo deben vivir en `docs/modules/*.md`.

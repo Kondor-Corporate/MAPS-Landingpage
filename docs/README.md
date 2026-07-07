@@ -33,7 +33,7 @@ La documentacion se separa en:
 - [`modules/auth.md`](./modules/auth.md): autenticacion, sesion, routing y roles.
 - [`modules/library.md`](./modules/library.md): Biblioteca Digital, ramos, API e integracion admin/productor.
 - [`modules/producers.md`](./modules/producers.md): productores, perfiles, mapa publico y certificaciones.
-- [`modules/news.md`](./modules/news.md): noticias, estado mock actual y pendientes de API.
+- [`modules/news.md`](./modules/news.md): noticias, API e integracion admin/publico/intranet.
 - [`modules/admins.md`](./modules/admins.md): administradores, permisos y pendientes de API.
 - [`modules/public-web.md`](./modules/public-web.md): landing, mapa publico y perfil publico.
 

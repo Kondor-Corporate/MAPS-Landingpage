@@ -23,7 +23,7 @@ Fuera de alcance actual: ecommerce y cotizador.
 | Perfil productor | Implementado | `/api/v1/producers/me`, `/api/v1/producers/by-slug/:slug` |
 | Mapa publico | Implementado | `/api/v1/producers/map` |
 | Biblioteca digital | Implementado para ramos | `/api/v1/library/ramos` |
-| Noticias | UI/mock frontend | API pendiente |
+| Noticias | Implementado | `/api/v1/news` |
 | Admins | UI/ruta existente | API pendiente |
 | E2E browser | Pendiente | N/A |
 
@@ -260,7 +260,7 @@ Arquitectura completa: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 - [`docs/modules/producers.md`](./docs/modules/producers.md): productores, perfiles, mapa y certificaciones.
 - [`docs/modules/library.md`](./docs/modules/library.md): biblioteca digital.
 - [`docs/modules/public-web.md`](./docs/modules/public-web.md): landing, mapa publico y perfil publico.
-- [`docs/modules/news.md`](./docs/modules/news.md): noticias y pendientes de API.
+- [`docs/modules/news.md`](./docs/modules/news.md): noticias, API e integracion admin/publico/intranet.
 - [`docs/modules/admins.md`](./docs/modules/admins.md): administradores y pendientes de API.
 
 ---
