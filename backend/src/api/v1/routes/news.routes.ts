@@ -1,3 +1,8 @@
+/**
+ * Rutas HTTP del módulo Noticias (`/api/v1/news`).
+ * Declara lectura pública, intranet y CRUD admin con validación Zod y RBAC.
+ * Importante: `/public` e `/intranet` deben registrarse antes de `/:id` para evitar colisiones.
+ */
 import { Router } from 'express';
 import { Rol } from '@prisma/client';
 import { newsController } from '../../../controllers/news.controller.js';
@@ -17,6 +22,7 @@ import {
 export const newsRouter = Router();
 
 const adminOnly = [authenticate, authorize(Rol.ADMIN, Rol.SUPERADMIN)] as const;
+/** Lectura de novedades internas: productores y roles administrativos autenticados. */
 const intranetRead = [
   authenticate,
   authorize(Rol.PRODUCTOR, Rol.ADMIN, Rol.SUPERADMIN),

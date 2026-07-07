@@ -1,3 +1,7 @@
+/**
+ * Tests de integración del módulo Noticias (MAPS-014).
+ * Cubre RBAC, CRUD admin, validaciones, slug, lectura pública e intranet contra la app real.
+ */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
@@ -67,6 +71,7 @@ async function createNewsAsAdmin(
 }
 
 function expectPublicDtoShape(item: Record<string, unknown>): void {
+  // El DTO público no debe filtrar metadatos internos hacia surfaces anónimas.
   expect(item).toHaveProperty('slug');
   expect(item).toHaveProperty('titulo');
   expect(item).toHaveProperty('contenido');

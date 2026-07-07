@@ -1,3 +1,7 @@
+/**
+ * Lógica de negocio y acceso Prisma para Noticias.
+ * Centraliza filtros por audiencia, reglas de publicación, DTOs y operaciones CRUD.
+ */
 import { Prisma, type CategoriaNoticia, type Noticia, type Visibilidad } from '@prisma/client';
 import { AppError } from '../lib/errors.js';
 import { ensureUniqueNewsSlug, slugifyTitulo } from '../lib/newsSlug.js';
@@ -55,6 +59,7 @@ export type CreateNewsInput = {
 
 export type UpdateNewsInput = Partial<CreateNewsInput>;
 
+/** DTO admin: expone todos los campos, incluidos borradores y metadatos editoriales. */
 function toNewsAdminDto(row: Noticia): NewsAdminDto {
   return {
     id: row.id,
@@ -73,6 +78,7 @@ function toNewsAdminDto(row: Noticia): NewsAdminDto {
   };
 }
 
+/** DTO de lectura pública/intranet: sin id ni flags internos de publicación. */
 function toNewsPublicDto(row: Noticia): NewsPublicDto {
   return {
     slug: row.slug,
@@ -115,6 +121,7 @@ function resolvePagination(query: ListNewsPagedQuery, defaultLimit: number) {
   };
 }
 
+/** Al publicar, conserva `publicadaEn` existente o la setea por primera vez. */
 function applyPublishRules(
   current: Pick<Noticia, 'publicadaEn'>,
   nextPublicada: boolean,
@@ -247,6 +254,7 @@ export const newsService = {
   async listIntranetNews(query: ListNewsPagedQuery): Promise<NewsPublicDto[]> {
     const { skip, take } = resolvePagination(query, 6);
 
+    // Audiencia interna: distinta del listado público aunque comparte el mismo DTO de lectura.
     const rows = await prisma.noticia.findMany({
       where: {
         publicada: true,

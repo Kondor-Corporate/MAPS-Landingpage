@@ -1,3 +1,7 @@
+/**
+ * Utilidades de slug para Noticias.
+ * Genera identificadores URL-safe desde el título y garantiza unicidad en base de datos.
+ */
 import { AppError } from './errors.js';
 import { prisma } from './prisma.js';
 

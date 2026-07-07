@@ -1,3 +1,7 @@
+/**
+ * Controladores HTTP de Noticias.
+ * Adapta request/response Express al servicio de dominio y normaliza el envelope `{ data, message, error }`.
+ */
 import type { RequestHandler } from 'express';
 import { AppError } from '../lib/errors.js';
 import {

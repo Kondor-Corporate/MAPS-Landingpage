@@ -1,3 +1,7 @@
+/**
+ * Esquemas Zod para el módulo Noticias.
+ * Valida body, params y query de los endpoints `/api/v1/news`.
+ */
 import { z } from 'zod';
 
 const categoriaNoticiaSchema = z.enum([
