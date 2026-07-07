@@ -31,7 +31,13 @@ export function RecentNewsCard({ item, onClick }: RecentNewsCardProps) {
       onClick={() => onClick(item)}
       className="flex flex-col overflow-hidden rounded-2xl bg-white text-left shadow-card transition-transform hover:scale-[1.02] hover:shadow-floating"
     >
-      <div className="h-[195px] w-full" style={{ background: item.imageGradient }} aria-hidden />
+      {item.imageUrl ? (
+        <div className="h-[195px] w-full overflow-hidden bg-maps-surface">
+          <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover" />
+        </div>
+      ) : (
+        <div className="h-[195px] w-full" style={{ background: item.imageGradient }} aria-hidden />
+      )}
       <div className="flex flex-1 flex-col gap-4 p-6">
         <div className="flex items-center gap-3 text-xs">
           <span className="rounded-md bg-maps-brand-soft px-3 py-1 font-semibold text-maps-brand">

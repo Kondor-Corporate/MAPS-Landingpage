@@ -9,6 +9,7 @@ import { ProducersPage } from '@/modules/admin/pages/ProducersPage';
 import { LoginPage } from '@/modules/auth/pages/LoginPage';
 import { DashboardPage as IntranetDashboardPage } from '@/modules/intranet/pages/DashboardPage';
 import { DigitalLibraryPage } from '@/modules/intranet/pages/DigitalLibraryPage';
+import { IntranetNewsPage } from '@/modules/intranet/pages/IntranetNewsPage';
 import { MyProfilePage } from '@/modules/intranet/pages/MyProfilePage';
 import { ProducerProfileViewPage } from '@/modules/intranet/pages/ProducerProfileViewPage';
 import { HomePage } from '@/modules/public-web/pages/HomePage';
@@ -46,6 +47,7 @@ const intranetRolePath = {
           children: [
             { path: 'dashboard', element: <IntranetDashboardPage /> },
             { path: 'biblioteca', element: <DigitalLibraryPage /> },
+            { path: 'noticias', element: <IntranetNewsPage /> },
             { path: 'mi-perfil', element: <MyProfilePage /> },
             { path: 'perfil/:slug', element: <ProducerProfileViewPage /> },
             { index: true, element: <Navigate to="dashboard" replace /> },
@@ -85,6 +87,7 @@ const adminBranch = {
           ),
           children: [
             { path: 'dashboard', element: <AdminDashboardPage /> },
+            { path: 'novedades', element: <IntranetNewsPage /> },
             { path: 'productores', element: <ProducersPage /> },
             { path: 'inactivos', element: <InactiveProducersPage /> },
             { path: 'noticias', element: <NewsManagementPage /> },

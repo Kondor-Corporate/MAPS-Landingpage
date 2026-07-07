@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
+import { NewsDetailModal } from '@/modules/public-web/components/NewsDetailModal';
 import { AppSidebar, AppSidebarPanel } from '@/shared/layouts/AppSidebar';
 import { useAuthStore } from '@/store/authStore';
 
@@ -159,6 +160,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         ) : null}
 
         <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        <NewsDetailModal />
 
         {user && mobileNavOpen ? (
           <>

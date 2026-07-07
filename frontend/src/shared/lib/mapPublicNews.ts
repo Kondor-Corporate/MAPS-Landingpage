@@ -64,6 +64,9 @@ export function mapApiPublicNewsToNewsItem(dto: ApiPublicNews, index = 0): NewsI
   };
 }
 
+/** Mismo DTO de lectura que noticias públicas; visibilidad la filtra el endpoint. */
+export const mapApiIntranetNewsToNewsItem = mapApiPublicNewsToNewsItem;
+
 export function estimateReadingMinutes(content: string): number {
   const words = content.trim().split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.ceil(words / 200));

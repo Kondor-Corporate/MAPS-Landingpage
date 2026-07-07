@@ -1,7 +1,7 @@
 import { AccessCard } from '@/shared/components/AccessCard';
 import { DashboardGreeting } from '@/shared/components/DashboardGreeting';
 import { RecentNewsGrid } from '@/shared/components/RecentNewsGrid';
-import { BIBLIOTECA_ADMIN_PATH, SELF_PORTAL_URL } from '@/shared/constants/dashboardLinks';
+import { BIBLIOTECA_ADMIN_PATH, NOVEDADES_ADMIN_PATH, SELF_PORTAL_URL } from '@/shared/constants/dashboardLinks';
 import { useAuthStore } from '@/store/authStore';
 
 const ShieldIcon = () => (
@@ -69,7 +69,7 @@ export function DashboardPage() {
         />
       </div>
 
-      <RecentNewsGrid />
+      <RecentNewsGrid viewAllHref={NOVEDADES_ADMIN_PATH} />
     </div>
   );
 }
