@@ -1,3 +1,7 @@
+/**
+ * Mapeo de DTOs de lectura (público/intranet) al tipo `NewsItem` de cards y modales.
+ * También define gradientes de fallback cuando no hay `imagenUrl`.
+ */
 import type { ApiPublicNews } from '@/shared/services/publicNews.service';
 import type { NewsItem } from '@/shared/types/news';
 import { formatNewsCardDate, formatNewsFullDate } from '@/shared/utils/newsDate';

@@ -1,3 +1,7 @@
+/**
+ * Hook de gestión admin de Noticias.
+ * Orquesta fetch, mutaciones (crear/editar/publicar/despublicar/eliminar) y estados loading/error.
+ */
 import { useCallback, useEffect, useState } from 'react';
 import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
 import {

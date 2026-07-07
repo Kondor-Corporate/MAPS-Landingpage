@@ -1,3 +1,4 @@
+/** Badge de audiencia destino (público general vs productores). */
 import { AUDIENCIA_LABEL, type NewsAudiencia } from '@/modules/admin/types/news';
 
 type Props = {

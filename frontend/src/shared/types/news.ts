@@ -1,3 +1,7 @@
+/**
+ * Tipo de presentación compartido para cards y modal de Noticias (Home, intranet, dashboards).
+ * Es independiente del modelo admin (`modules/admin/types/news.ts`).
+ */
 export type NewsItem = {
   slug?: string;
   category: string;

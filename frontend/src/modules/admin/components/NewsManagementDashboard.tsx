@@ -1,3 +1,7 @@
+/**
+ * Dashboard principal de gestión de Noticias en `/admin/noticias`.
+ * Combina formulario CRUD, tabla con filtros client-side, modales y feedback al usuario.
+ */
 import { useMemo, useRef, useState } from 'react';
 
 import { Filter } from 'lucide-react';

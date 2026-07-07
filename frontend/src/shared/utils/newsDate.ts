@@ -1,3 +1,7 @@
+/**
+ * Formateo de fechas para Noticias (es-AR).
+ * Cards usan fechas relativas; modales y tablas, formatos absolutos.
+ */
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;

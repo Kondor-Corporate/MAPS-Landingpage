@@ -1,3 +1,7 @@
+/**
+ * Store Zustand legacy de Noticias (MAPS-007, mock en memoria).
+ * Reemplazado por `useAdminNews`; se mantiene solo por compatibilidad histórica.
+ */
 import { create } from 'zustand';
 import { newsMock } from '@/modules/admin/data/newsMock';
 import type { News, NewsEstado, NewsInput } from '@/modules/admin/types/news';

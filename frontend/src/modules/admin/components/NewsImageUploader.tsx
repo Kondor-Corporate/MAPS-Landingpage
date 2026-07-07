@@ -1,7 +1,9 @@
+/**
+ * Campo de portada por URL https (MAPS-014).
+ * Valida formato en cliente; el upload real queda pendiente para una fase de storage.
+ */
 import { useEffect, useMemo, useState } from 'react';
 import { ImagePlus, X } from 'lucide-react';
-
-// TODO(MAPS-014): reemplazar imagenUrl manual por flujo de upload/storage cuando se defina provider.
 
 type Props = {
   value: string | null;

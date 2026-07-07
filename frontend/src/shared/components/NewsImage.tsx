@@ -1,3 +1,7 @@
+/**
+ * Imagen de portada con fallback visual.
+ * Muestra URL remota si carga; ante error o ausencia, usa gradiente por categoría.
+ */
 import { useState } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import { DEFAULT_NEWS_GRADIENT, getNewsGradientByCategory } from '@/shared/lib/mapPublicNews';

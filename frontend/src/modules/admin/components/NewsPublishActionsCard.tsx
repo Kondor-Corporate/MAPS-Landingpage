@@ -1,3 +1,4 @@
+/** Acciones del formulario: guardar borrador, publicar y despublicar según el estado actual. */
 import { EyeOff, Save, Send } from 'lucide-react';
 import { ESTADO_LABEL, type NewsEstado } from '@/modules/admin/types/news';
 import { relativeTimeFromNow } from '@/shared/utils/relativeTime';

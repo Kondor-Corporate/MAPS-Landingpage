@@ -1,3 +1,7 @@
+/**
+ * Cliente HTTP de lectura pública de Noticias.
+ * Consume `GET /news/public` y `GET /news/public/:slug` (sin autenticación).
+ */
 import type { AxiosResponse } from 'axios';
 import { api } from '@/lib/axios';
 

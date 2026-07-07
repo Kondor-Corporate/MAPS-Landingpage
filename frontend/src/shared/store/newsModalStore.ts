@@ -1,3 +1,7 @@
+/**
+ * Estado global del modal de detalle de Noticias.
+ * Compartido entre Home, intranet y listados que abren el mismo `NewsDetailModal`.
+ */
 import { create } from 'zustand';
 import type { NewsItem } from '@/shared/types/news';
 

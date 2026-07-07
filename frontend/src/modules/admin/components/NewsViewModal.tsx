@@ -1,3 +1,4 @@
+/** Modal de vista previa de solo lectura para una noticia del listado admin. */
 import { Calendar, Pencil } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { NewsImage } from '@/shared/components/NewsImage';

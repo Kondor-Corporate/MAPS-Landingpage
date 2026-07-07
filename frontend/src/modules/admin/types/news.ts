@@ -1,3 +1,7 @@
+/**
+ * Tipos y constantes de presentación del admin de Noticias.
+ * Define el shape UI (`News`), enums de dominio y labels para selects/badges.
+ */
 export type NewsAudiencia = 'PRODUCTORES' | 'PUBLICO';
 
 export type NewsEstado = 'BORRADOR' | 'PUBLICADO' | 'DESPUBLICADA';

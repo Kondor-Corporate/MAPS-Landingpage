@@ -1,3 +1,4 @@
+/** Modal de filtros avanzados del listado admin (audiencia, estado, categoría, fechas). */
 import { useEffect, useMemo, useState } from 'react';
 import { Filter } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';

@@ -1,3 +1,7 @@
+/**
+ * Cliente HTTP admin para Noticias (`/api/v1/news`).
+ * Expone CRUD completo para el panel `/admin/noticias`.
+ */
 import type { AxiosResponse } from 'axios';
 import { api } from '@/lib/axios';
 import type {

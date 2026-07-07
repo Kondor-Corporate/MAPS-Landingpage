@@ -1,3 +1,4 @@
+/** Botones de acción por fila: ver, editar, despublicar y eliminar. */
 import { EyeOff, Eye, Pencil, Trash2 } from 'lucide-react';
 import type { News } from '@/modules/admin/types/news';
 

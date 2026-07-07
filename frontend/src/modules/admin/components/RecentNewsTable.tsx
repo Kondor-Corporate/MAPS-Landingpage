@@ -1,3 +1,4 @@
+/** Tabla del listado admin con miniatura, badges y acciones por fila. */
 import { Inbox } from 'lucide-react';
 import { NewsImage } from '@/shared/components/NewsImage';
 import { CATEGORIA_LABEL, type News } from '@/modules/admin/types/news';

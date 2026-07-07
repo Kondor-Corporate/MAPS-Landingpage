@@ -1,3 +1,4 @@
+/** Card reutilizable de noticia para grids de Home, intranet y dashboards. */
 import type { NewsItem } from '@/shared/types/news';
 import { NewsImage } from '@/shared/components/NewsImage';
 

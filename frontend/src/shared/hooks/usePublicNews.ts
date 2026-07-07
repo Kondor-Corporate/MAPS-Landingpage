@@ -1,3 +1,7 @@
+/**
+ * Hook de noticias públicas para Home y surfaces anónimas.
+ * Carga las últimas N noticias `PUBLICA` + publicadas vía API.
+ */
 import { useCallback, useEffect, useState } from 'react';
 import { mapApiPublicNewsToNewsItem } from '@/shared/lib/mapPublicNews';
 import { listPublicNews } from '@/shared/services/publicNews.service';

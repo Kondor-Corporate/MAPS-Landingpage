@@ -1,3 +1,4 @@
+/** Badge visual del estado editorial (borrador, publicado, despublicado). */
 import { ESTADO_LABEL, type NewsEstado } from '@/modules/admin/types/news';
 
 type Props = {

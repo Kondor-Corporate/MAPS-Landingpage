@@ -1,3 +1,4 @@
+/** Selector de audiencia (público vs productores) dentro del formulario admin. */
 import { Users } from 'lucide-react';
 import type { NewsAudiencia } from '@/modules/admin/types/news';
 

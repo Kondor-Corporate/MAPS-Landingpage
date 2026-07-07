@@ -1,3 +1,7 @@
+/**
+ * Modal de detalle de Noticias (Home e intranet).
+ * Renderiza contenido real del item seleccionado y sugerencias relacionadas del mismo listado.
+ */
 import { useMemo, useState } from 'react';
 import { FaWhatsapp, FaLinkedinIn, FaLink, FaClock } from 'react-icons/fa';
 import { Modal } from '@/shared/components/Modal';

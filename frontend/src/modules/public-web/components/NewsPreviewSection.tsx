@@ -1,9 +1,13 @@
+/**
+ * Sección de noticias en la Home pública (`#noticias`).
+ * Muestra previews desde API y abre el modal de detalle al hacer click.
+ */
 import { useNewsModalStore } from '@/shared/store/newsModalStore';
 import { usePublicNews } from '@/shared/hooks/usePublicNews';
 import { NewsImage } from '@/shared/components/NewsImage';
 import type { NewsItem } from '@/shared/types/news';
 
-const PREVIEW_LIMIT = 3;
+const PREVIEW_LIMIT = 3; // Cantidad alineada al diseño de la sección Home.
 
 const ArrowIcon = () => (
   <svg

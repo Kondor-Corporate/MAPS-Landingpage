@@ -1,3 +1,7 @@
+/**
+ * Grilla de novedades recientes para dashboards intranet/admin.
+ * Usa noticias internas publicadas; el enlace "Ver todo" apunta al listado completo.
+ */
 import { Link } from 'react-router-dom';
 import { RecentNewsCard } from '@/shared/components/RecentNewsCard';
 import { NOVEDADES_INTRANET_PATH } from '@/shared/constants/dashboardLinks';
@@ -5,7 +9,7 @@ import { useIntranetNews } from '@/shared/hooks/useIntranetNews';
 import { useNewsModalStore } from '@/shared/store/newsModalStore';
 import type { NewsItem } from '@/shared/types/news';
 
-const PREVIEW_LIMIT = 3;
+const PREVIEW_LIMIT = 3; // Bloque compacto del dashboard; el listado completo vive en otra ruta.
 
 const ArrowIcon = () => (
   <svg

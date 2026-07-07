@@ -1,3 +1,7 @@
+/**
+ * Cliente HTTP de novedades internas para intranet.
+ * Consume `GET /news/intranet` (requiere JWT de productor o admin).
+ */
 import type { AxiosResponse } from 'axios';
 import { api } from '@/lib/axios';
 import type { ApiPublicNews, ListPublicNewsParams } from '@/shared/services/publicNews.service';

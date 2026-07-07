@@ -1,3 +1,7 @@
+/**
+ * Página de listado completo de novedades internas.
+ * Sirve tanto `/intranet/noticias` como `/admin/novedades` según el contexto de ruta.
+ */
 import { useLocation } from 'react-router-dom';
 import { RecentNewsCard } from '@/shared/components/RecentNewsCard';
 import { DashboardBackLink } from '@/shared/components/DashboardBackLink';
@@ -29,6 +33,7 @@ function LoadingCards() {
 
 export function IntranetNewsPage() {
   const location = useLocation();
+  /** Misma UI en intranet y admin; solo cambia el destino del botón volver. */
   const isAdminContext = location.pathname.startsWith('/admin');
   const backHref = isAdminContext ? '/admin/dashboard' : '/intranet/dashboard';
 

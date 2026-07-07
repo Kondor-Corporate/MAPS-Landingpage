@@ -1,3 +1,7 @@
+/**
+ * Editor de texto plano con toolbar decorativa (MAPS-007).
+ * El contenido se persiste como string; rich text real queda fuera de alcance.
+ */
 import { Bold, Italic, Link as LinkIcon, ListOrdered, Image as ImageIcon } from 'lucide-react';
 
 type Props = {

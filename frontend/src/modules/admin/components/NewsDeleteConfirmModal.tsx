@@ -1,3 +1,4 @@
+/** Confirmación antes de eliminar permanentemente una noticia (hard delete). */
 import { AlertTriangle } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import type { News } from '@/modules/admin/types/news';

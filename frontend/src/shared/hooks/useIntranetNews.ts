@@ -1,3 +1,7 @@
+/**
+ * Hook de novedades internas para intranet y dashboards autenticados.
+ * Carga noticias `INTERNA` + publicadas; la separación de audiencia la aplica el backend.
+ */
 import { useCallback, useEffect, useState } from 'react';
 import { mapApiIntranetNewsToNewsItem } from '@/shared/lib/mapPublicNews';
 import { listIntranetNews } from '@/shared/services/intranetNews.service';

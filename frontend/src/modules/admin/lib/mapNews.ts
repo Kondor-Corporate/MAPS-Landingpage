@@ -1,3 +1,7 @@
+/**
+ * Mapeo entre DTOs de la API y el modelo UI del admin de Noticias.
+ * Traduce audiencia/visibilidad, estados editoriales y filtros client-side.
+ */
 import type { NewsFilters } from '@/modules/admin/hooks/useNewsFilters';
 import type { News, NewsAudiencia, NewsCategoria, NewsInput } from '@/modules/admin/types/news';
 
@@ -48,6 +52,7 @@ function visibilidadToAudiencia(visibilidad: ApiNewsVisibilidad): NewsAudiencia 
   return visibilidad === 'PUBLICA' ? 'PUBLICO' : 'PRODUCTORES';
 }
 
+/** Deriva el estado UI a partir de flags persistidos en API (DESPUBLICADA no existe en backend). */
 function resolveUiEstado(publicada: boolean, publicadaEn: string | null): News['estado'] {
   if (publicada) return 'PUBLICADO';
   if (publicadaEn != null) return 'DESPUBLICADA';
