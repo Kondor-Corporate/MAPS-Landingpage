@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { loadEnv } from '../src/config/env.js';
+import { geocodeAddress } from '../src/lib/geocode.js';
 
 vi.mock('../src/lib/geocode.js', () => ({
   geocodeAddress: vi.fn(async (query: string) => {
@@ -69,6 +70,7 @@ describe('producers map API', () => {
       latitud: -34.9214,
       longitud: -57.9545,
       ciudad: 'Calle 7 776, La Plata, Buenos Aires, Argentina',
+      direccion: 'Calle 7 776, La Plata, Buenos Aires, Argentina',
     });
 
     const mapRes = await request(app).get(`${PRODUCERS}/map`).expect(200);
@@ -76,6 +78,84 @@ describe('producers map API', () => {
       (p: { slug: string }) => p.slug === res.body.data.slug,
     );
     expect(created).toBeTruthy();
+    expect(created).not.toHaveProperty('email');
+    expect(created).not.toHaveProperty('id');
+    expect(created).not.toHaveProperty('dni');
+  });
+
+  it('POST /producers — coordenadas manuales tienen prioridad sobre geocoder', async () => {
+    const agent = request.agent(app);
+    const adminToken = await loginAdmin(agent);
+    const unique = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const geocodeMock = vi.mocked(geocodeAddress);
+    geocodeMock.mockClear();
+
+    const res = await agent
+      .post(`${PRODUCERS}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        nombre: 'Manual',
+        apellido: 'Mapa',
+        email: `manual-mapa-${unique}@example.com`,
+        direccion: 'Diagonal 75 172, La Plata, Buenos Aires, Argentina',
+        latitud: -34.91234,
+        longitud: -57.98765,
+      })
+      .expect(201);
+
+    expect(geocodeMock).not.toHaveBeenCalled();
+    expect(res.body.data).toMatchObject({
+      direccion: 'Diagonal 75 172, La Plata, Buenos Aires, Argentina',
+      ciudad: 'Diagonal 75 172, La Plata, Buenos Aires, Argentina',
+      latitud: -34.91234,
+      longitud: -57.98765,
+    });
+
+    const mapRes = await request(app).get(`${PRODUCERS}/map`).expect(200);
+    const created = mapRes.body.data.producers.find(
+      (p: { slug: string }) => p.slug === res.body.data.slug,
+    );
+    expect(created).toMatchObject({
+      direccion: 'Diagonal 75 172, La Plata, Buenos Aires, Argentina',
+      latitud: -34.91234,
+      longitud: -57.98765,
+    });
+  });
+
+  it('PATCH /producers/:id — reemplaza dirección y coordenadas anteriores', async () => {
+    const agent = request.agent(app);
+    const adminToken = await loginAdmin(agent);
+    const unique = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    const created = await agent
+      .post(`${PRODUCERS}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        nombre: 'Update',
+        apellido: 'Mapa',
+        email: `update-mapa-${unique}@example.com`,
+        direccion: 'Calle 7 776, La Plata, Buenos Aires, Argentina',
+        latitud: -34.9214,
+        longitud: -57.9545,
+      })
+      .expect(201);
+
+    const updated = await agent
+      .patch(`${PRODUCERS}/${created.body.data.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        direccion: 'Av. 13 900, La Plata, Buenos Aires, Argentina',
+        latitud: -34.93001,
+        longitud: -57.96002,
+      })
+      .expect(200);
+
+    expect(updated.body.data).toMatchObject({
+      direccion: 'Av. 13 900, La Plata, Buenos Aires, Argentina',
+      ciudad: 'Av. 13 900, La Plata, Buenos Aires, Argentina',
+      latitud: -34.93001,
+      longitud: -57.96002,
+    });
   });
 
   it('POST /producers — dirección inválida → 400', async () => {

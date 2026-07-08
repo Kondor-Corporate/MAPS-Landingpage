@@ -73,6 +73,7 @@ model Productor {
   apellido            String
   bio                 String?
   ciudad              String?
+  direccion           String?
   dni                 String?  @unique
   foto                String?
   latitud             Float?

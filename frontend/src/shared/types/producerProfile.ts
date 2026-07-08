@@ -28,6 +28,7 @@ export type ProfileViewModel = {
   verificado: boolean;
   bio: string | null;
   ciudad: string | null;
+  direccion: string | null;
   idiomas: string[];
   foto: string | null;
   telefono: string | null;

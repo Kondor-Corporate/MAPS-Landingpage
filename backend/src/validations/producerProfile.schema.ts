@@ -25,7 +25,9 @@ const ADMIN_ONLY_PROFILE_FIELDS = [
 export const updateMyProfileSchema = z
   .object({
     bio: z.string().trim().optional(),
-    ciudad: z.string().trim().optional(),
+    ciudad: z.string().trim().optional(),
+
+    direccion: z.string().trim().optional(),
     telefono: z.string().trim().optional(),
     whatsapp: z.string().trim().optional(),
     foto: z.string().trim().url().optional().or(z.literal('')),

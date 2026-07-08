@@ -166,8 +166,12 @@ async function removeCertificacion(productorId: number, certId: number) {
   await prisma.certificacion.delete({ where: { id: cert.id } });
 }
 
-async function resolveCoordinates(ciudad: string): Promise<{ latitud: number; longitud: number }> {
-  const trimmed = ciudad.trim();
+function hasManualCoordinates(input: { latitud?: number; longitud?: number }) {
+  return input.latitud !== undefined && input.longitud !== undefined;
+}
+
+async function resolveCoordinates(direccion: string): Promise<{ latitud: number; longitud: number }> {
+  const trimmed = direccion.trim();
   if (trimmed.length < 5) {
     throw new AppError(400, 'La dirección es demasiado corta');
   }
@@ -176,6 +180,47 @@ async function resolveCoordinates(ciudad: string): Promise<{ latitud: number; lo
     throw new AppError(400, 'No se pudo ubicar la dirección. Verificá el texto e intentá de nuevo.');
   }
   return coords;
+}
+
+async function resolveFinalLocation(input: {
+  ciudad?: string;
+  direccion?: string;
+  latitud?: number;
+  longitud?: number;
+}): Promise<{
+  ciudad?: string;
+  direccion?: string;
+  latitud?: number;
+  longitud?: number;
+}> {
+  const ciudadTrimmed = input.ciudad?.trim();
+  const direccionTrimmed = input.direccion?.trim();
+  const text = direccionTrimmed || ciudadTrimmed;
+
+  if (hasManualCoordinates(input)) {
+    return {
+      ...(text !== undefined ? { ciudad: ciudadTrimmed ?? text } : {}),
+      ...(text !== undefined ? { direccion: text } : {}),
+      latitud: input.latitud,
+      longitud: input.longitud,
+    };
+  }
+
+  if (input.latitud !== undefined || input.longitud !== undefined) {
+    throw new AppError(400, 'Latitud y longitud deben enviarse juntas');
+  }
+
+  if (text !== undefined) {
+    const coords = await resolveCoordinates(text);
+    return {
+      ciudad: ciudadTrimmed ?? text,
+      direccion: text,
+      latitud: coords.latitud,
+      longitud: coords.longitud,
+    };
+  }
+
+  return {};
 }
 
 export const producersService = {
@@ -222,11 +267,11 @@ export const producersService = {
     const slug = await ensureUniqueSlug(slugBase);
     const activo = input.activo ?? true;
 
-    const ciudadTrimmed = input.ciudad?.trim();
-    if (!ciudadTrimmed) {
+    const location = await resolveFinalLocation(input);
+    const direccion = location.direccion?.trim();
+    if (!direccion) {
       throw new AppError(400, 'La dirección es requerida');
     }
-    const coords = await resolveCoordinates(ciudadTrimmed);
 
     try {
       const created = await prisma.$transaction(async (tx) => {
@@ -248,12 +293,13 @@ export const producersService = {
             apellido: input.apellido.trim(),
             telefono: input.telefono?.trim() || null,
             bio: input.bio?.trim() || null,
-            ciudad: ciudadTrimmed,
+            ciudad: location.ciudad || direccion,
+            direccion,
             whatsapp: input.whatsapp?.trim() || null,
             foto: input.foto?.trim() || null,
             idiomas: input.idiomas ?? undefined,
-            latitud: coords.latitud,
-            longitud: coords.longitud,
+            latitud: location.latitud,
+            longitud: location.longitud,
             matricula: input.matricula?.trim() || null,
             verificado: input.verificado ?? false,
             anosExperiencia: input.anosExperiencia,
@@ -297,12 +343,17 @@ export const producersService = {
 
     const dataProductor = buildProductorUpdateFromAdmin(input);
 
-    if (input.ciudad !== undefined) {
-      const ciudadTrimmed = input.ciudad.trim();
-      const coords = await resolveCoordinates(ciudadTrimmed);
-      dataProductor.ciudad = ciudadTrimmed;
-      dataProductor.latitud = coords.latitud;
-      dataProductor.longitud = coords.longitud;
+    if (
+      input.direccion !== undefined ||
+      input.ciudad !== undefined ||
+      input.latitud !== undefined ||
+      input.longitud !== undefined
+    ) {
+      const location = await resolveFinalLocation(input);
+      if (location.ciudad !== undefined) dataProductor.ciudad = location.ciudad;
+      if (location.direccion !== undefined) dataProductor.direccion = location.direccion;
+      if (location.latitud !== undefined) dataProductor.latitud = location.latitud;
+      if (location.longitud !== undefined) dataProductor.longitud = location.longitud;
     }
 
     const emailNorm = input.email !== undefined ? input.email.trim().toLowerCase() : undefined;
@@ -396,6 +447,19 @@ export const producersService = {
 
     const dataProductor = buildProductorUpdateFromMyProfile(input);
 
+    if (
+      input.direccion !== undefined ||
+      input.ciudad !== undefined ||
+      input.latitud !== undefined ||
+      input.longitud !== undefined
+    ) {
+      const location = await resolveFinalLocation(input);
+      if (location.ciudad !== undefined) dataProductor.ciudad = location.ciudad;
+      if (location.direccion !== undefined) dataProductor.direccion = location.direccion;
+      if (location.latitud !== undefined) dataProductor.latitud = location.latitud;
+      if (location.longitud !== undefined) dataProductor.longitud = location.longitud;
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       if (Object.keys(dataProductor).length > 0) {
         await tx.productor.update({
@@ -482,6 +546,7 @@ export const producersService = {
         apellido: true,
         tituloProfesional: true,
         ciudad: true,
+        direccion: true,
         latitud: true,
         longitud: true,
         foto: true,

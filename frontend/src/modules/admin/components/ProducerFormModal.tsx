@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { UserPlus } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
+import { AddressMapPicker } from '@/shared/components/map/AddressMapPicker';
 import { ProducerCertificationsManager } from '@/shared/components/profile/ProducerCertificationsManager';
 import { ProducerProfileAdminFields } from '@/modules/admin/components/ProducerProfileAdminFields';
 import type { Producer, ProducerFormSubmit } from '@/modules/admin/types/producer';
@@ -26,6 +27,9 @@ type FormState = {
   email: string;
   telefono: string;
   ciudad: string;
+  direccion: string;
+  latitud?: number;
+  longitud?: number;
   matricula: string;
   tituloProfesional: string;
   verificado: boolean;
@@ -39,6 +43,9 @@ const EMPTY_FORM: FormState = {
   email: '',
   telefono: '',
   ciudad: '',
+  direccion: '',
+  latitud: undefined,
+  longitud: undefined,
   matricula: '',
   tituloProfesional: '',
   verificado: false,
@@ -53,6 +60,9 @@ function fromProducer(p: Producer): FormState {
     email: p.email,
     telefono: p.telefono ?? '',
     ciudad: p.ciudad ?? '',
+    direccion: p.direccion ?? p.ciudad ?? '',
+    latitud: p.latitud ?? undefined,
+    longitud: p.longitud ?? undefined,
     matricula: p.matricula ?? '',
     tituloProfesional: p.tituloProfesional ?? '',
     verificado: p.verificado,
@@ -61,13 +71,30 @@ function fromProducer(p: Producer): FormState {
   };
 }
 
+function isNonNegativeIntegerString(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed === '' || /^\d+$/.test(trimmed);
+}
+
 function validate(form: FormState, mode: Mode): Partial<Record<keyof FormState, string>> {
   const errors: Partial<Record<keyof FormState, string>> = {};
   if (!form.nombre.trim()) errors.nombre = 'Requerido';
   if (!form.apellido.trim()) errors.apellido = 'Requerido';
   if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) errors.email = 'Email inválido';
-  if (mode === 'create' && form.ciudad.trim().length < 5) {
+  if (mode === 'create' && form.direccion.trim().length < 5) {
     errors.ciudad = 'Dirección requerida (mínimo 5 caracteres)';
+  }
+  if (
+    form.direccion.trim().length >= 5 &&
+    (form.latitud === undefined || form.longitud === undefined)
+  ) {
+    errors.ciudad = 'Confirmá la ubicación en el mapa';
+  }
+  if (!isNonNegativeIntegerString(form.anosExperiencia)) {
+    errors.anosExperiencia = 'Ingrese un numero entero mayor o igual a 0';
+  }
+  if (!isNonNegativeIntegerString(form.clientesActivos)) {
+    errors.clientesActivos = 'Ingrese un numero entero mayor o igual a 0';
   }
   return errors;
 }
@@ -111,7 +138,10 @@ export function ProducerFormModal({
         apellido: form.apellido.trim(),
         email: form.email.trim(),
         telefono: form.telefono.trim(),
-        ciudad: form.ciudad.trim(),
+        ciudad: form.ciudad.trim() || form.direccion.trim(),
+        direccion: form.direccion.trim(),
+        latitud: form.latitud,
+        longitud: form.longitud,
         matricula: form.matricula.trim(),
         tituloProfesional: form.tituloProfesional.trim(),
         verificado: form.verificado,
@@ -186,20 +216,28 @@ export function ProducerFormModal({
                 className={inputClasses}
               />
             </Field>
-            <Field
-              label="Dirección"
-              error={errors.ciudad}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <AddressMapPicker
+              direccion={form.direccion}
+              initialCoords={
+                form.latitud !== undefined && form.longitud !== undefined
+                  ? { latitud: form.latitud, longitud: form.longitud }
+                  : null
+              }
               required={mode === 'create'}
-              hint={mode === 'edit' ? 'Opcional si no cambia' : undefined}
-            >
-              <input
-                type="text"
-                value={form.ciudad}
-                onChange={(e) => handleChange('ciudad', e.target.value)}
-                placeholder="Av. 7 1234, La Plata, Buenos Aires, Argentina"
-                className={inputClasses}
-              />
-            </Field>
+              onChange={(location) =>
+                setForm((prev) => ({
+                  ...prev,
+                  ciudad: location.direccion,
+                  direccion: location.direccion,
+                  latitud: location.latitud,
+                  longitud: location.longitud,
+                }))
+              }
+            />
+            {errors.ciudad ? <span className="text-xs text-rose-600">{errors.ciudad}</span> : null}
           </div>
 
           <ProducerProfileAdminFields
@@ -208,6 +246,10 @@ export function ProducerFormModal({
             verificado={form.verificado}
             anosExperiencia={form.anosExperiencia}
             clientesActivos={form.clientesActivos}
+            errors={{
+              anosExperiencia: errors.anosExperiencia,
+              clientesActivos: errors.clientesActivos,
+            }}
             onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
           />
 

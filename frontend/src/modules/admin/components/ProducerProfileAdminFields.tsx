@@ -4,6 +4,10 @@ type Props = {
   verificado: boolean;
   anosExperiencia: string;
   clientesActivos: string;
+  errors?: Partial<{
+    anosExperiencia: string;
+    clientesActivos: string;
+  }>;
   onChange: (patch: Partial<{
     matricula: string;
     tituloProfesional: string;
@@ -22,6 +26,7 @@ export function ProducerProfileAdminFields({
   verificado,
   anosExperiencia,
   clientesActivos,
+  errors,
   onChange,
 }: Props) {
   return (
@@ -65,6 +70,9 @@ export function ProducerProfileAdminFields({
             onChange={(e) => onChange({ anosExperiencia: e.target.value })}
             className={inputClasses}
           />
+          {errors?.anosExperiencia ? (
+            <span className="text-xs text-rose-600">{errors.anosExperiencia}</span>
+          ) : null}
         </label>
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="text-xs font-semibold uppercase tracking-wider text-maps-muted">
@@ -77,6 +85,9 @@ export function ProducerProfileAdminFields({
             onChange={(e) => onChange({ clientesActivos: e.target.value })}
             className={inputClasses}
           />
+          {errors?.clientesActivos ? (
+            <span className="text-xs text-rose-600">{errors.clientesActivos}</span>
+          ) : null}
         </label>
       </div>
       <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-maps-heading">
