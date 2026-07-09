@@ -15,7 +15,9 @@ export type ProducerProfile = ProfileViewModel & {
 
 export type UpdateMyProfileBody = {
   bio?: string;
-  ciudad?: string;
+  ciudad?: string;
+
+  direccion?: string;
   telefono?: string;
   whatsapp?: string;
   foto?: string;

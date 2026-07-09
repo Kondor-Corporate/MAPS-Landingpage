@@ -31,6 +31,7 @@ export function mapAdminProducerToProducer(row: AdminProducer): Producer {
     clientesActivos: row.clientesActivos,
     bio: nullableString(row.bio),
     ciudad: nullableString(row.ciudad),
+    direccion: nullableString(row.direccion),
     whatsapp: nullableString(row.whatsapp),
     latitud: row.latitud,
     longitud: row.longitud,
@@ -45,12 +46,22 @@ export function producerNumericId(row: Producer): number {
   return Number.parseInt(row.id, 10);
 }
 
+function parseNonNegativeInteger(value: string | undefined): number | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed || !/^\d+$/.test(trimmed)) return undefined;
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
+
 export function producerFormToApiPayload(input: {
   nombre: string;
   apellido: string;
   email: string;
   telefono: string;
   ciudad: string;
+  direccion?: string;
+  latitud?: number;
+  longitud?: number;
   matricula?: string;
   verificado?: boolean;
   tituloProfesional?: string;
@@ -69,6 +80,21 @@ export function producerFormToApiPayload(input: {
     payload.ciudad = ciudadTrimmed;
   }
 
+  const direccionTrimmed = input.direccion?.trim() || ciudadTrimmed;
+  if (direccionTrimmed.length >= 5) {
+    payload.direccion = direccionTrimmed;
+  }
+
+  if (
+    input.latitud !== undefined &&
+    input.longitud !== undefined &&
+    Number.isFinite(input.latitud) &&
+    Number.isFinite(input.longitud)
+  ) {
+    payload.latitud = input.latitud;
+    payload.longitud = input.longitud;
+  }
+
   if (input.matricula !== undefined) {
     payload.matricula = input.matricula.trim();
   }
@@ -78,11 +104,13 @@ export function producerFormToApiPayload(input: {
   if (input.tituloProfesional !== undefined) {
     payload.tituloProfesional = input.tituloProfesional.trim();
   }
-  if (input.anosExperiencia?.trim()) {
-    payload.anosExperiencia = Number.parseInt(input.anosExperiencia, 10);
+  const anosExperiencia = parseNonNegativeInteger(input.anosExperiencia);
+  if (anosExperiencia !== undefined) {
+    payload.anosExperiencia = anosExperiencia;
   }
-  if (input.clientesActivos?.trim()) {
-    payload.clientesActivos = Number.parseInt(input.clientesActivos, 10);
+  const clientesActivos = parseNonNegativeInteger(input.clientesActivos);
+  if (clientesActivos !== undefined) {
+    payload.clientesActivos = clientesActivos;
   }
 
   return payload;

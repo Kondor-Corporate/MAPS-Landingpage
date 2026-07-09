@@ -31,6 +31,7 @@ export type Producer = {
   clientesActivos: number | null;
   bio: string | null;
   ciudad: string | null;
+  direccion: string | null;
   whatsapp: string | null;
   latitud: number | null;
   longitud: number | null;
@@ -50,6 +51,9 @@ export type ProducerFormSubmit = {
   email: string;
   telefono: string;
   ciudad: string;
+  direccion: string;
+  latitud?: number;
+  longitud?: number;
   activo?: boolean;
   matricula?: string;
   verificado?: boolean;

@@ -8,6 +8,7 @@ export type MapProducer = {
   nombreCompleto: string;
   tituloProfesional: string | null;
   ciudad: string | null;
+  direccion: string | null;
   latitud: number;
   longitud: number;
   foto: string | null;

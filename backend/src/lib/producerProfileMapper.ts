@@ -64,6 +64,7 @@ export function toProducerProfileDto(row: ProductorWithRelations) {
     verificado: row.verificado,
     bio: row.bio,
     ciudad: row.ciudad,
+    direccion: row.direccion,
     idiomas: Array.isArray(row.idiomas) ? (row.idiomas as string[]) : [],
     foto: row.foto,
     telefono: row.telefono,
@@ -99,6 +100,7 @@ export type MapProducerRow = Pick<
   | 'apellido'
   | 'tituloProfesional'
   | 'ciudad'
+  | 'direccion'
   | 'latitud'
   | 'longitud'
   | 'foto'
@@ -112,6 +114,7 @@ export type MapProducerDto = {
   nombreCompleto: string;
   tituloProfesional: string | null;
   ciudad: string | null;
+  direccion: string | null;
   latitud: number;
   longitud: number;
   foto: string | null;
@@ -127,6 +130,7 @@ export function toMapProducerDto(row: MapProducerRow): MapProducerDto {
     nombreCompleto: `${row.nombre} ${row.apellido}`.trim(),
     tituloProfesional: row.tituloProfesional,
     ciudad: row.ciudad,
+    direccion: row.direccion,
     latitud: row.latitud!,
     longitud: row.longitud!,
     foto: row.foto,
@@ -145,6 +149,7 @@ export function toAdminProducerDto(row: AdminProducerRow) {
     apellido: row.apellido,
     bio: row.bio,
     ciudad: row.ciudad,
+    direccion: row.direccion,
     dni: row.dni,
     foto: row.foto,
     latitud: row.latitud,
@@ -176,6 +181,7 @@ export function toAdminProducerDto(row: AdminProducerRow) {
 export type UpdateMyProfileInput = {
   bio?: string;
   ciudad?: string;
+  direccion?: string;
   telefono?: string;
   whatsapp?: string;
   foto?: string;
@@ -203,6 +209,9 @@ export function buildProductorUpdateFromMyProfile(
   const data: Prisma.ProductorUpdateInput = {};
   if (input.bio !== undefined) data.bio = input.bio;
   if (input.ciudad !== undefined) data.ciudad = input.ciudad;
+  if (input.direccion !== undefined) {
+    data.direccion = input.direccion.trim() === '' ? null : input.direccion.trim();
+  }
   if (input.telefono !== undefined) {
     data.telefono = input.telefono.trim() === '' ? null : input.telefono.trim();
   }

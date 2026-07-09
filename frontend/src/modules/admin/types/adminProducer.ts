@@ -37,6 +37,7 @@ export type AdminProducer = {
   apellido: string;
   bio: string | null;
   ciudad: string | null;
+  direccion: string | null;
   dni: string | null;
   foto: string | null;
   latitud: number | null;
@@ -70,6 +71,10 @@ export type CreateProducerPayload = {
   apellido: string;
   email: string;
   telefono?: string;
+  ciudad?: string;
+  direccion?: string;
+  latitud?: number;
+  longitud?: number;
   activo?: boolean;
 } & ProducerProfileAdminFields;
 
@@ -78,6 +83,10 @@ export type UpdateProducerPayload = {
   apellido?: string;
   email?: string;
   telefono?: string;
+  ciudad?: string;
+  direccion?: string;
+  latitud?: number;
+  longitud?: number;
 } & ProducerProfileAdminFields;
 
 export type SetProducerActivePayload = {

@@ -168,6 +168,41 @@ describe('producers profile API (MAPS-013)', () => {
 
 
 
+  it('PATCH /producers/me — actualiza dirección y coordenadas manuales', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+    const direccion = 'Diagonal 75 172, La Plata, Buenos Aires, Argentina';
+
+    const res = await agent
+      .patch(`${PRODUCERS}/me`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        direccion,
+        ciudad: direccion,
+        latitud: -34.91234,
+        longitud: -57.98765,
+      })
+      .expect(200);
+
+    expect(res.body.data.profile).toMatchObject({
+      direccion,
+      ciudad: direccion,
+      latitud: -34.91234,
+      longitud: -57.98765,
+    });
+
+    await agent
+      .patch(`${PRODUCERS}/me`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        direccion: 'Calle 7 776, La Plata, Buenos Aires, Argentina',
+        ciudad: 'Calle 7 776, La Plata, Buenos Aires, Argentina',
+        latitud: -34.9214,
+        longitud: -57.9545,
+      })
+      .expect(200);
+  });
+
   it('PATCH /producers/me — campos admin-only rechazados', async () => {
 
     const agent = request.agent(app);

@@ -91,3 +91,4 @@ tmp/
 *.EAP
 *.ldb
 Arquitectura/**/*.bmp
+.tmp
