@@ -15,6 +15,7 @@ Historial relacionado:
 - Admin productores UI mock: `docs/worklog/MAPS-007-seccion-productores-admin.md`.
 - API admin productores: `docs/worklog/MAPS-009-admin-api-productores.md`.
 - Perfil productor y slug: `docs/worklog/MAPS-013-vista-perfil-productor.md`.
+- Credenciales administradas por admin: `docs/worklog/MAPS-016-credenciales-productores.md`.
 
 ---
 
@@ -29,8 +30,11 @@ Historial relacionado:
 | Perfil publico por slug | Implementado |
 | Mapa publico | Implementado |
 | Certificaciones PDF | Implementado con storage local/S3-compatible |
+| Credenciales individuales por productor (alta con password propia) | Implementado (MAPS-016) |
+| Cambio de contraseña self-service (perfil productor) | Implementado (MAPS-016) |
+| Restablecimiento de contraseña por admin | Implementado (MAPS-016) |
 | Paginacion/busqueda server-side | Pendiente |
-| Primer login / invitacion | Pendiente |
+| Primer login por invitación (email) | Pendiente — hoy el admin define la password inicial directamente |
 
 ---
 
@@ -88,6 +92,8 @@ Requiere rol `PRODUCTOR`.
 |--------|------|-------------|
 | `GET` | `/producers/me` | Perfil propio |
 | `PATCH` | `/producers/me` | Edita campos permitidos del perfil propio |
+| `PATCH` | `/producers/me/password` | Cambia la contraseña propia (requiere `currentPassword`) |
+| `POST` | `/producers/me/foto` | Sube/reemplaza la foto de perfil propia (JPG/PNG/WEBP, máx. 5MB) |
 | `POST` | `/producers/me/certificaciones` | Sube certificacion PDF |
 | `DELETE` | `/producers/me/certificaciones/:certId` | Elimina certificacion propia |
 
@@ -99,9 +105,10 @@ Requiere rol `ADMIN` o `SUPERADMIN`.
 |--------|------|-------------|
 | `GET` | `/producers` | Lista productores, con filtro opcional `activo` |
 | `GET` | `/producers/:id` | Detalle admin |
-| `POST` | `/producers` | Crea usuario productor + perfil |
+| `POST` | `/producers` | Crea usuario productor + perfil (requiere `password` inicial) |
 | `PATCH` | `/producers/:id` | Actualiza datos admin/perfil |
 | `PATCH` | `/producers/:id/activo` | Activa/desactiva productor |
+| `PATCH` | `/producers/:id/password` | Restablece la contraseña (no requiere la anterior; solo admin) |
 | `POST` | `/producers/:id/certificaciones` | Sube certificacion como admin |
 | `DELETE` | `/producers/:id/certificaciones/:certId` | Elimina certificacion como admin |
 
@@ -113,6 +120,7 @@ Archivos principales:
 - `backend/src/validations/producer.schema.ts`
 - `backend/src/validations/producerProfile.schema.ts`
 - `backend/src/lib/producerProfileMapper.ts`
+- `backend/src/lib/passwordPolicy.ts` (MAPS-016)
 - `backend/src/lib/storage/`
 - `backend/src/lib/geocode.ts`
 
@@ -138,6 +146,7 @@ Archivos principales:
 - `frontend/src/modules/admin/components/ProducersDashboard.tsx`
 - `frontend/src/modules/admin/components/ProducerFormModal.tsx`
 - `frontend/src/modules/admin/components/ProducerTable.tsx`
+- `frontend/src/modules/admin/components/ProducerResetPasswordModal.tsx` (MAPS-016)
 
 ### Perfil productor intranet
 
@@ -155,6 +164,7 @@ Archivos principales:
 - `frontend/src/modules/intranet/hooks/useProducerProfile.ts`
 - `frontend/src/modules/intranet/services/producerProfile.service.ts`
 - `frontend/src/modules/intranet/components/ProducerProfileForm.tsx`
+- `frontend/src/modules/intranet/components/ChangePasswordForm.tsx` (MAPS-016)
 - `frontend/src/shared/components/profile/`
 
 ### Web publica
@@ -197,14 +207,14 @@ Riesgos:
 
 ---
 
-## Certificaciones y storage
+## Certificaciones, foto de perfil y storage
 
-Las certificaciones son PDFs asociados a productores.
+Las certificaciones son PDFs asociados a productores. La foto de perfil (JPG/PNG/WEBP, máx. 5MB) se sube desde `/intranet/mi-perfil` haciendo click en el avatar propio — reemplaza el antiguo campo de texto "URL foto". Ambos reutilizan el mismo `StorageAdapter` (`backend/src/lib/storage/`).
 
 Storage:
 
-- `local`: disco en `backend/uploads/certificaciones`.
-- `s3`: bucket S3-compatible.
+- `local`: disco en `backend/uploads/certificaciones` y `backend/uploads/fotos`.
+- `s3`: bucket S3-compatible (prefijos `certificaciones/` y `fotos/`).
 
 Variables relacionadas:
 
@@ -228,19 +238,22 @@ Admin:
 
 1. Login como `admin`.
 2. Abrir `/admin/productores`.
-3. Crear productor con direccion valida.
-4. Confirmar que aparece activo.
+3. Crear productor con direccion valida y contraseña inicial propia.
+4. Confirmar que aparece activo y que la columna Usuario muestra el email.
 5. Editar datos.
-6. Desactivar.
-7. Abrir `/admin/inactivos` y reactivar.
+6. Usar "Restablecer contraseña" desde el menu de acciones (sin pedir la anterior).
+7. Desactivar.
+8. Abrir `/admin/inactivos` y reactivar.
 
 Productor:
 
-1. Login como `user`.
+1. Login con el email y la contraseña inicial definida por el admin.
 2. Abrir `/intranet/mi-perfil`.
 3. Confirmar redireccion a `/intranet/perfil/:slug`.
 4. Editar campos permitidos.
 5. Subir/eliminar certificacion PDF.
+6. En la seccion "Seguridad", cambiar la contraseña (pide la actual).
+7. Cerrar sesion y volver a loguear con la contraseña nueva; la anterior debe fallar.
 
 Publico:
 
@@ -253,7 +266,9 @@ Publico:
 ## Pendientes conocidos
 
 - Paginacion y busqueda server-side para listados grandes.
-- Flujo de invitacion o cambio obligatorio de password inicial.
+- Invitacion por email para el primer acceso (hoy el admin comunica la password inicial fuera del sistema).
+- Notificacion por email al productor cuando el admin restablece su contraseña.
+- Auditoria/historial de cambios de contraseña (solo queda `Usuario.updatedAt`).
 - E2E admin/productor/publico.
 - Mejor manejo operacional de geocoding.
 - Upload de foto de perfil.

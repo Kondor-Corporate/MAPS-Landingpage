@@ -5,7 +5,6 @@ import {
   CalendarDays,
   ExternalLink,
   Globe,
-  IdCard,
   Languages,
   Mail,
   MapPin,
@@ -137,7 +136,6 @@ export function ProducerViewModal({ isOpen, onClose, producer, onEdit }: Props) 
               value={fallback(producer.whatsapp)}
               link={waLink}
             />
-            <InfoRow icon={<IdCard size={16} />} label="DNI" value={fallback(producer.dni)} />
             <InfoRow
               icon={<MapPin size={16} />}
               label="Dirección"

@@ -26,10 +26,11 @@ const envSchema = z.object({
   ALLOW_REFRESH_BODY: z.enum(['true', 'false']).optional(),
 
   /**
-   * Contraseña inicial asignada a nuevos usuarios PRODUCTOR (alta admin) hasta existir
-   * invitación / primer login. Exigir valor fuerte en producción (no commitear en .env real).
+   * Contraseña usada únicamente por `prisma/seed.ts` para los productores de ejemplo.
+   * Desde MAPS-016 el alta real de productores exige `password` individual en el body
+   * de `POST /producers`; esta env var ya no participa en `producersService.create`.
    */
-  DEFAULT_PRODUCER_PASSWORD: z.string().min(12),
+  DEFAULT_PRODUCER_PASSWORD: z.string().min(12).optional(),
 
   /** URL pública del API (para URLs de archivos en storage local). */
   API_PUBLIC_URL: z.string().url().optional(),

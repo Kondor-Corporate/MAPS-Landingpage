@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
+import { ChangePasswordForm } from '@/modules/intranet/components/ChangePasswordForm';
 import { ProducerProfileForm } from '@/modules/intranet/components/ProducerProfileForm';
 import { ProfileCertificationsList } from '@/shared/components/profile/ProfileCertificationsList';
 import { ProfileHeaderCard } from '@/shared/components/profile/ProfileHeaderCard';
@@ -38,8 +39,11 @@ function ProducerProfileViewInner({
     updateProfile,
     uploadCertificacion,
     deleteCertificacion,
+    changePassword,
+    uploadFoto,
   } = useProducerProfile();
   const [editOpen, setEditOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   if (isLoading) {
@@ -98,7 +102,16 @@ function ProducerProfileViewInner({
         </a>
       </div>
 
-      <ProfileHeaderCard profile={profile} onEdit={() => setEditOpen(true)} />
+      <ProfileHeaderCard
+        profile={profile}
+        onEdit={() => setEditOpen(true)}
+        onChangePassword={() => setChangePasswordOpen(true)}
+        onUploadFoto={async (file) => {
+          await uploadFoto(file);
+          setToast('Foto de perfil actualizada');
+          setTimeout(() => setToast(null), 3000);
+        }}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="flex flex-col gap-6">
@@ -117,6 +130,16 @@ function ProducerProfileViewInner({
           <ProfileCertificationsList certificaciones={profile.certificaciones} />
         </div>
       </div>
+
+      <ChangePasswordForm
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+        changePassword={changePassword}
+        onSaved={() => {
+          setToast('Contraseña actualizada correctamente');
+          setTimeout(() => setToast(null), 3000);
+        }}
+      />
 
       <ProducerProfileForm
         open={editOpen}

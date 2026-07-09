@@ -1,7 +1,6 @@
 import { Prisma, type Usuario } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
-import { loadEnv } from '../config/env.js';
 import { AppError } from '../lib/errors.js';
 import { geocodeAddress } from '../lib/geocode.js';
 import {
@@ -166,6 +165,36 @@ async function removeCertificacion(productorId: number, certId: number) {
   await prisma.certificacion.delete({ where: { id: cert.id } });
 }
 
+async function replaceFoto(
+  productorId: number,
+  currentFotoUrl: string | null,
+  file: Express.Multer.File,
+): Promise<string> {
+  if (!file.buffer) {
+    throw new AppError(400, 'Imagen requerida');
+  }
+
+  const storage = getStorageAdapter();
+  const uploaded = await storage.uploadFoto({
+    buffer: file.buffer,
+    mimeType: file.mimetype,
+    productorId,
+  });
+
+  await prisma.productor.update({
+    where: { id: productorId },
+    data: { foto: uploaded.url },
+  });
+
+  if (currentFotoUrl) {
+    // La foto anterior puede ser una URL externa no gestionada por nuestro storage;
+    // no bloqueamos el reemplazo si no se puede borrar.
+    await storage.deleteFoto(currentFotoUrl).catch(() => undefined);
+  }
+
+  return uploaded.url;
+}
+
 function hasManualCoordinates(input: { latitud?: number; longitud?: number }) {
   return input.latitud !== undefined && input.longitud !== undefined;
 }
@@ -247,6 +276,7 @@ export const producersService = {
       nombre: string;
       apellido: string;
       email: string;
+      password: string;
       telefono?: string;
       activo?: boolean;
     },
@@ -261,8 +291,7 @@ export const producersService = {
       throw new AppError(409, 'El email ya está registrado');
     }
 
-    const env = loadEnv();
-    const passwordHash = await bcrypt.hash(env.DEFAULT_PRODUCER_PASSWORD, 12);
+    const passwordHash = await bcrypt.hash(input.password, 12);
     const slugBase = slugifyBase(input.nombre.trim(), input.apellido.trim());
     const slug = await ensureUniqueSlug(slugBase);
     const activo = input.activo ?? true;
@@ -431,6 +460,54 @@ export const producersService = {
     return row;
   },
 
+  /** Cambio self-service: el productor autenticado cambia su propia contraseña. */
+  async changeMyPassword(
+    usuarioId: number,
+    input: { currentPassword: string; newPassword: string },
+  ): Promise<void> {
+    const user = await prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: { id: true, passwordHash: true },
+    });
+    if (!user) {
+      throw new AppError(404, 'Usuario no encontrado');
+    }
+
+    const currentOk = await bcrypt.compare(input.currentPassword, user.passwordHash);
+    if (!currentOk) {
+      throw new AppError(401, 'Contraseña actual incorrecta');
+    }
+
+    const passwordHash = await bcrypt.hash(input.newPassword, 12);
+    await prisma.$transaction([
+      prisma.usuario.update({
+        where: { id: usuarioId },
+        data: { passwordHash },
+      }),
+      prisma.sesionToken.deleteMany({ where: { usuarioId } }),
+    ]);
+  },
+
+  /** Restablecimiento admin: no requiere la contraseña actual del productor. */
+  async resetPassword(productorId: number, input: { newPassword: string }): Promise<void> {
+    const current = await prisma.productor.findUnique({
+      where: { id: productorId },
+      select: { usuarioId: true },
+    });
+    if (!current) {
+      throw new AppError(404, 'Productor no encontrado');
+    }
+
+    const passwordHash = await bcrypt.hash(input.newPassword, 12);
+    await prisma.$transaction([
+      prisma.usuario.update({
+        where: { id: current.usuarioId },
+        data: { passwordHash },
+      }),
+      prisma.sesionToken.deleteMany({ where: { usuarioId: current.usuarioId } }),
+    ]);
+  },
+
   async getMe(usuarioId: number) {
     const row = await findProductorByUsuarioId(usuarioId);
     if (!row) {
@@ -497,6 +574,20 @@ export const producersService = {
       throw new AppError(404, 'Perfil de productor no encontrado');
     }
     await removeCertificacion(current.id, certId);
+  },
+
+  async uploadFotoMe(usuarioId: number, file: Express.Multer.File) {
+    const current = await findProductorByUsuarioId(usuarioId);
+    if (!current) {
+      throw new AppError(404, 'Perfil de productor no encontrado');
+    }
+    await replaceFoto(current.id, current.foto, file);
+
+    const updated = await findProductorByUsuarioId(usuarioId);
+    if (!updated) {
+      throw new AppError(404, 'Perfil de productor no encontrado');
+    }
+    return toProducerProfileDto(updated);
   },
 
   async uploadCertificacionAdmin(

@@ -1,8 +1,25 @@
 import { randomBytes } from 'node:crypto';
 import { unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { certificacionPublicUrl, getCertificacionesUploadDir } from '../uploadPaths.js';
-import type { StorageAdapter, UploadCertificacionInput, UploadCertificacionResult } from './types.js';
+import {
+  certificacionPublicUrl,
+  fotoPublicUrl,
+  getCertificacionesUploadDir,
+  getFotosUploadDir,
+} from '../uploadPaths.js';
+import type {
+  StorageAdapter,
+  UploadCertificacionInput,
+  UploadCertificacionResult,
+  UploadFotoInput,
+  UploadFotoResult,
+} from './types.js';
+
+const FOTO_EXTENSION_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
 
 function filenameFromUrl(url: string): string | null {
   try {
@@ -35,6 +52,25 @@ export class LocalStorageAdapter implements StorageAdapter {
       unlinkSync(filePath);
     } catch {
       /* file may already be gone */
+    }
+  }
+
+  async uploadFoto(input: UploadFotoInput): Promise<UploadFotoResult> {
+    const ext = FOTO_EXTENSION_BY_MIME[input.mimeType] ?? 'jpg';
+    const filename = `${input.productorId}-${Date.now()}-${randomBytes(4).toString('hex')}.${ext}`;
+    const dest = path.join(getFotosUploadDir(), filename);
+    writeFileSync(dest, input.buffer);
+    return { url: fotoPublicUrl(filename) };
+  }
+
+  async deleteFoto(url: string): Promise<void> {
+    const filename = filenameFromUrl(url);
+    if (!filename) return;
+    const filePath = path.join(getFotosUploadDir(), filename);
+    try {
+      unlinkSync(filePath);
+    } catch {
+      /* file may already be gone, or was an external URL we don't manage */
     }
   }
 }

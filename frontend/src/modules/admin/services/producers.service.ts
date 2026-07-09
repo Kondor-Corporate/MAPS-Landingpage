@@ -5,6 +5,7 @@ import type {
   AdminProducerCertificacion,
   CreateProducerPayload,
   ListProducersFilters,
+  ResetProducerPasswordPayload,
   SetProducerActivePayload,
   UpdateProducerPayload,
 } from '@/modules/admin/types/adminProducer';
@@ -47,6 +48,13 @@ export async function setProducerActive(
 ): Promise<AdminProducer> {
   const res = await api.patch<ApiSuccess<AdminProducer>>(`/producers/${id}/activo`, payload);
   return unwrap(res);
+}
+
+export async function resetProducerPassword(
+  id: number,
+  payload: ResetProducerPasswordPayload,
+): Promise<void> {
+  await api.patch(`/producers/${id}/password`, payload);
 }
 
 export async function uploadProducerCertificacion(

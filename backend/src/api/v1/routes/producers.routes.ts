@@ -10,6 +10,8 @@ import { authorize } from '../../../middlewares/authorize.js';
 
 import { uploadCertificacionMiddleware } from '../../../middlewares/uploadCertificacion.js';
 
+import { uploadFotoMiddleware } from '../../../middlewares/uploadFoto.js';
+
 import { validate } from '../../../middlewares/validate.js';
 
 import {
@@ -17,6 +19,8 @@ import {
   bySlugParamSchema,
 
   certIdParamSchema,
+
+  changeMyPasswordSchema,
 
   updateMyProfileSchema,
 
@@ -29,6 +33,8 @@ import {
   listProducersQuerySchema,
 
   producerIdParamSchema,
+
+  resetProducerPasswordSchema,
 
   updateProducerSchema,
 
@@ -48,17 +54,19 @@ const productorOnly = [authenticate, authorize(Rol.PRODUCTOR)] as const;
 
 
 
-function uploadCertificacionRoute(
+type MulterMiddleware = (
+  req: import('express').Request,
+  res: import('express').Response,
+  next: (err?: unknown) => void,
+) => void;
 
-  handler: typeof producersController.uploadCertificacionMe,
-
-) {
+function fileUploadRoute(middleware: MulterMiddleware, handler: import('express').RequestHandler) {
 
   return [
 
     (req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) => {
 
-      uploadCertificacionMiddleware(req, res, (err) => {
+      middleware(req, res, (err) => {
 
         if (err) {
 
@@ -78,6 +86,14 @@ function uploadCertificacionRoute(
 
   ] as const;
 
+}
+
+function uploadCertificacionRoute(handler: import('express').RequestHandler) {
+  return fileUploadRoute(uploadCertificacionMiddleware, handler);
+}
+
+function uploadFotoRoute(handler: import('express').RequestHandler) {
+  return fileUploadRoute(uploadFotoMiddleware, handler);
 }
 
 
@@ -100,6 +116,20 @@ producersRouter.patch(
 
 
 
+producersRouter.patch(
+
+  '/me/password',
+
+  ...productorOnly,
+
+  validate({ body: changeMyPasswordSchema }),
+
+  producersController.changeMyPassword,
+
+);
+
+
+
 producersRouter.post(
 
   '/me/certificaciones',
@@ -107,6 +137,18 @@ producersRouter.post(
   ...productorOnly,
 
   ...uploadCertificacionRoute(producersController.uploadCertificacionMe),
+
+);
+
+
+
+producersRouter.post(
+
+  '/me/foto',
+
+  ...productorOnly,
+
+  ...uploadFotoRoute(producersController.uploadFotoMe),
 
 );
 
@@ -221,6 +263,20 @@ producersRouter.patch(
   validate({ params: producerIdParamSchema, body: updateProducerStatusSchema }),
 
   producersController.updateStatus,
+
+);
+
+
+
+producersRouter.patch(
+
+  '/:id/password',
+
+  ...adminOnly,
+
+  validate({ params: producerIdParamSchema, body: resetProducerPasswordSchema }),
+
+  producersController.resetPassword,
 
 );
 

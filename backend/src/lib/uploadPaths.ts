@@ -18,3 +18,17 @@ export function certificacionPublicUrl(filename: string): string {
     `http://localhost:${env.PORT}`;
   return `${base}/uploads/certificaciones/${filename}`;
 }
+
+export function getFotosUploadDir(): string {
+  const dir = path.join(backendRoot, 'uploads', 'fotos');
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+export function fotoPublicUrl(filename: string): string {
+  const env = loadEnv();
+  const base =
+    env.API_PUBLIC_URL?.replace(/\/$/, '') ??
+    `http://localhost:${env.PORT}`;
+  return `${base}/uploads/fotos/${filename}`;
+}

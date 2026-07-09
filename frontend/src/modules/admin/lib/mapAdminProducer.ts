@@ -67,6 +67,8 @@ export function producerFormToApiPayload(input: {
   tituloProfesional?: string;
   anosExperiencia?: string;
   clientesActivos?: string;
+  /** Solo en alta; si viene undefined/vacío no se agrega al payload (edición no toca password). */
+  password?: string;
 }) {
   const payload: Record<string, unknown> = {
     nombre: input.nombre,
@@ -74,6 +76,10 @@ export function producerFormToApiPayload(input: {
     email: input.email,
     telefono: input.telefono.trim() === '' ? '' : input.telefono,
   };
+
+  if (input.password !== undefined && input.password.trim() !== '') {
+    payload.password = input.password;
+  }
 
   const ciudadTrimmed = input.ciudad.trim();
   if (ciudadTrimmed.length >= 5) {

@@ -60,4 +60,6 @@ export type ProducerFormSubmit = {
   tituloProfesional?: string;
   anosExperiencia?: string;
   clientesActivos?: string;
+  /** Solo en alta (`mode==='create'`); nunca se envía al editar. */
+  password?: string;
 };

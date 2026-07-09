@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PRODUCER_SPECIALTY_KEYS } from '../constants/producerSpecialties.js';
+import { passwordSchema } from '../lib/passwordPolicy.js';
 import { redesSocialesSchema } from './producerProfile.schema.js';
 
 const optionalTrimmedString = z.preprocess(
@@ -56,6 +57,11 @@ const producerCoreFields = {
   telefono: optionalTrimmedString,
 };
 
+/** Contraseña inicial definida por el admin en el alta. Requerida solo en `createProducerSchema`. */
+const producerPasswordField = {
+  password: passwordSchema,
+};
+
 const producerExtendedFields = {
   bio: optionalTrimmedString,
   ciudad: optionalTrimmedString,
@@ -81,10 +87,11 @@ function hasDireccion(fields: { ciudad?: string; direccion?: string }) {
   );
 }
 
-/** Alta admin: crea `Usuario` PRODUCTOR + `Productor`. */
+/** Alta admin: crea `Usuario` PRODUCTOR + `Productor`. Requiere password inicial (MAPS-016). */
 export const createProducerSchema = z
   .object({
     ...producerCoreFields,
+    ...producerPasswordField,
     activo: z.boolean().optional(),
     ...producerExtendedFields,
   })
@@ -109,6 +116,18 @@ export const updateProducerSchema = producerPatchFields.refine(
 export const updateProducerStatusSchema = z.object({
   activo: z.boolean(),
 });
+
+/** Restablecimiento admin: no pide la contraseña actual (MAPS-016). */
+export const resetProducerPasswordSchema = z
+  .object({
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1),
+  })
+  .strict()
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: 'La confirmación no coincide',
+    path: ['confirmPassword'],
+  });
 
 /** `id` numerico en path (Express entrega string; coerce a entero). */
 export const producerIdParamSchema = z.object({
