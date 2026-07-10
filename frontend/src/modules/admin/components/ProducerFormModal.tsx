@@ -4,6 +4,8 @@ import { Modal } from '@/shared/components/Modal';
 import { AddressMapPicker } from '@/shared/components/map/AddressMapPicker';
 import { ProducerCertificationsManager } from '@/shared/components/profile/ProducerCertificationsManager';
 import { ProducerProfileAdminFields } from '@/modules/admin/components/ProducerProfileAdminFields';
+import { PasswordField } from '@/shared/components/PasswordField';
+import { passwordPolicyError } from '@/shared/utils/passwordPolicy';
 import type { Producer, ProducerFormSubmit } from '@/modules/admin/types/producer';
 import { producerNombreCompleto } from '@/modules/admin/types/producer';
 
@@ -35,6 +37,8 @@ type FormState = {
   verificado: boolean;
   anosExperiencia: string;
   clientesActivos: string;
+  password: string;
+  confirmPassword: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -51,6 +55,8 @@ const EMPTY_FORM: FormState = {
   verificado: false,
   anosExperiencia: '',
   clientesActivos: '',
+  password: '',
+  confirmPassword: '',
 };
 
 function fromProducer(p: Producer): FormState {
@@ -68,6 +74,8 @@ function fromProducer(p: Producer): FormState {
     verificado: p.verificado,
     anosExperiencia: p.anosExperiencia != null ? String(p.anosExperiencia) : '',
     clientesActivos: p.clientesActivos != null ? String(p.clientesActivos) : '',
+    password: '',
+    confirmPassword: '',
   };
 }
 
@@ -96,6 +104,13 @@ function validate(form: FormState, mode: Mode): Partial<Record<keyof FormState, 
   if (!isNonNegativeIntegerString(form.clientesActivos)) {
     errors.clientesActivos = 'Ingrese un numero entero mayor o igual a 0';
   }
+  if (mode === 'create') {
+    const passwordError = passwordPolicyError(form.password);
+    if (passwordError) errors.password = passwordError;
+    else if (form.password !== form.confirmPassword) {
+      errors.confirmPassword = 'Las contraseñas no coinciden';
+    }
+  }
   return errors;
 }
 
@@ -123,6 +138,29 @@ export function ProducerFormModal({
     }
   }, [isOpen, mode, producer]);
 
+  // Validación de contraseña en tiempo real (solo en alta): feedback a medida que se escribe,
+  // sin esperar al submit. No "regaña" mientras el campo está vacío.
+  useEffect(() => {
+    if (mode !== 'create') return;
+    setErrors((prev) => {
+      const next = { ...prev };
+      const passwordError = form.password ? passwordPolicyError(form.password) : null;
+      if (passwordError) next.password = passwordError;
+      else delete next.password;
+
+      if (form.confirmPassword) {
+        if (!passwordError && form.password !== form.confirmPassword) {
+          next.confirmPassword = 'Las contraseñas no coinciden';
+        } else {
+          delete next.confirmPassword;
+        }
+      } else {
+        delete next.confirmPassword;
+      }
+      return next;
+    });
+  }, [form.password, form.confirmPassword, mode]);
+
   function handleChange<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -147,6 +185,7 @@ export function ProducerFormModal({
         verificado: form.verificado,
         anosExperiencia: form.anosExperiencia.trim(),
         clientesActivos: form.clientesActivos.trim(),
+        ...(mode === 'create' ? { password: form.password } : {}),
       });
     } catch {
       /* error mostrado vía submitError props */
@@ -217,6 +256,27 @@ export function ProducerFormModal({
               />
             </Field>
           </div>
+
+          {mode === 'create' ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <PasswordField
+                label="Contraseña inicial"
+                required
+                autoComplete="new-password"
+                value={form.password}
+                onChange={(v) => handleChange('password', v)}
+                error={errors.password}
+              />
+              <PasswordField
+                label="Confirmar contraseña"
+                required
+                autoComplete="new-password"
+                value={form.confirmPassword}
+                onChange={(v) => handleChange('confirmPassword', v)}
+                error={errors.confirmPassword}
+              />
+            </div>
+          ) : null}
 
           <div className="flex flex-col gap-1.5">
             <AddressMapPicker

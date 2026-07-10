@@ -138,6 +138,8 @@ export const producersController = {
 
         email: string;
 
+        password: string;
+
         telefono?: string;
 
         activo?: boolean;
@@ -265,6 +267,34 @@ export const producersController = {
       );
 
       res.status(201).json({ data: { certificacion: cert }, message: 'OK', error: null });
+
+    } catch (err) {
+
+      next(err);
+
+    }
+
+  }) satisfies RequestHandler,
+
+
+
+  uploadFotoMe: (async (req, res, next) => {
+
+    try {
+
+      const usuarioId = getUserId(req);
+
+      const file = req.file;
+
+      if (!file) {
+
+        throw new AppError(400, 'Imagen requerida');
+
+      }
+
+      const profile = await producersService.uploadFotoMe(usuarioId, file);
+
+      res.json({ data: { profile }, message: 'OK', error: null });
 
     } catch (err) {
 
@@ -421,6 +451,46 @@ export const producersController = {
         error: null,
 
       });
+
+    } catch (err) {
+
+      next(err);
+
+    }
+
+  }) satisfies RequestHandler,
+
+  changeMyPassword: (async (req, res, next) => {
+
+    try {
+
+      const usuarioId = getUserId(req);
+
+      const body = req.body as { currentPassword: string; newPassword: string };
+
+      await producersService.changeMyPassword(usuarioId, body);
+
+      res.json({ data: null, message: 'Contraseña actualizada', error: null });
+
+    } catch (err) {
+
+      next(err);
+
+    }
+
+  }) satisfies RequestHandler,
+
+  resetPassword: (async (req, res, next) => {
+
+    try {
+
+      const id = Number.parseInt(req.params.id, 10);
+
+      const body = req.body as { newPassword: string };
+
+      await producersService.resetPassword(id, body);
+
+      res.json({ data: null, message: 'Contraseña restablecida', error: null });
 
     } catch (err) {
 

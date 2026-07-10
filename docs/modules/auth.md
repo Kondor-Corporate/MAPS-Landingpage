@@ -163,4 +163,4 @@ Frontend:
 
 - E2E browser para flujo login -> zona protegida -> logout.
 - Revisar configuracion final de cookies/CORS para produccion.
-- Evaluar si conviene documentar un flujo de "primer login" para productores creados por admin.
+- Invitacion por email para el primer acceso del productor (ver `docs/modules/producers.md`). El "primer login" en si ya esta cubierto: el admin define la password inicial en el alta (MAPS-016, `docs/worklog/MAPS-016-credenciales-productores.md`).

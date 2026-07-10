@@ -8,10 +8,12 @@ import {
   createProducer,
   deleteProducerCertificacion,
   listProducers,
+  resetProducerPassword,
   setProducerActive,
   updateProducer,
   uploadProducerCertificacion,
 } from '@/modules/admin/services/producers.service';
+import type { ResetProducerPasswordPayload } from '@/modules/admin/types/adminProducer';
 import type { Producer, ProducerFormSubmit } from '@/modules/admin/types/producer';
 
 type Scope = 'active' | 'inactive';
@@ -105,6 +107,11 @@ export function useAdminProducers(scope: Scope) {
     [refetch],
   );
 
+  const resetPassword = useCallback(async (id: string, payload: ResetProducerPasswordPayload) => {
+    const numId = Number.parseInt(id, 10);
+    await resetProducerPassword(numId, payload);
+  }, []);
+
   return {
     data,
     loading,
@@ -116,5 +123,6 @@ export function useAdminProducers(scope: Scope) {
     deleteCertificacion,
     activate,
     deactivate,
+    resetPassword,
   };
 }

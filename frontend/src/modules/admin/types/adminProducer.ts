@@ -70,6 +70,7 @@ export type CreateProducerPayload = {
   nombre: string;
   apellido: string;
   email: string;
+  password: string;
   telefono?: string;
   ciudad?: string;
   direccion?: string;
@@ -77,6 +78,11 @@ export type CreateProducerPayload = {
   longitud?: number;
   activo?: boolean;
 } & ProducerProfileAdminFields;
+
+export type ResetProducerPasswordPayload = {
+  newPassword: string;
+  confirmPassword: string;
+};
 
 export type UpdateProducerPayload = {
   nombre?: string;

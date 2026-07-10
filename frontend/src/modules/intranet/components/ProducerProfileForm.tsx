@@ -25,7 +25,6 @@ type FormState = {
   direccion: string;
   telefono: string;
   whatsapp: string;
-  foto: string;
   idiomasText: string;
   latitud?: number;
   longitud?: number;
@@ -44,7 +43,6 @@ function fromProfile(p: ProducerProfile): FormState {
     direccion: p.direccion ?? p.ciudad ?? '',
     telefono: p.telefono ?? '',
     whatsapp: p.whatsapp ?? '',
-    foto: p.foto ?? '',
     idiomasText: p.idiomas.join(', '),
     latitud: p.latitud ?? undefined,
     longitud: p.longitud ?? undefined,
@@ -111,7 +109,6 @@ export function ProducerProfileForm({
         direccion: form.direccion.trim() || undefined,
         telefono: form.telefono.trim() || undefined,
         whatsapp: form.whatsapp.trim() || undefined,
-        foto: form.foto.trim() || undefined,
         idiomas,
         latitud: form.latitud,
         longitud: form.longitud,
@@ -189,15 +186,6 @@ export function ProducerProfileForm({
               <input
                 value={form.whatsapp}
                 onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-maps-border px-3 py-2 text-sm"
-              />
-            </label>
-
-            <label className="block text-sm font-medium text-maps-heading">
-              URL foto
-              <input
-                value={form.foto}
-                onChange={(e) => setForm((f) => ({ ...f, foto: e.target.value }))}
                 className="mt-1 w-full rounded-lg border border-maps-border px-3 py-2 text-sm"
               />
             </label>

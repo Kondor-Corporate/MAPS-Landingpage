@@ -493,3 +493,93 @@ describe('producers admin profile API (MAPS-013 Fase 2)', () => {
 
 });
 
+describe('POST /producers/me/foto (MAPS-016)', () => {
+  const app = createApp();
+
+  beforeAll(() => {
+    loadEnv();
+  });
+
+  const pngBuffer = Buffer.from('fake-png-bytes');
+
+  it('productor autenticado sube su foto de perfil', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', pngBuffer, { filename: 'avatar.png', contentType: 'image/png' })
+      .expect(200);
+
+    expect(res.body.data.profile.foto).toMatch(/\/uploads\/fotos\//);
+
+    const me = await agent
+      .get(`${PRODUCERS}/me`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(me.body.data.profile.foto).toBe(res.body.data.profile.foto);
+  });
+
+  it('subir una segunda foto reemplaza la anterior', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const first = await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', pngBuffer, { filename: 'avatar1.png', contentType: 'image/png' })
+      .expect(200);
+
+    const second = await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', pngBuffer, { filename: 'avatar2.png', contentType: 'image/png' })
+      .expect(200);
+
+    expect(second.body.data.profile.foto).not.toBe(first.body.data.profile.foto);
+  });
+
+  it('sin archivo → 400', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+  });
+
+  it('mimetype no permitido (PDF) → 400', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.from('%PDF-1.4'), {
+        filename: 'doc.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(400);
+  });
+
+  it('admin no puede usar el endpoint self-service → 403', async () => {
+    const agent = request.agent(app);
+    const token = await loginAdmin(agent);
+
+    await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', pngBuffer, { filename: 'avatar.png', contentType: 'image/png' })
+      .expect(403);
+  });
+
+  it('sin token → 401', async () => {
+    await request(app)
+      .post(`${PRODUCERS}/me/foto`)
+      .attach('file', pngBuffer, { filename: 'avatar.png', contentType: 'image/png' })
+      .expect(401);
+  });
+});
+
