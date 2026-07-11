@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from 'react';
 import type { Rol } from '@/store/authStore';
-import { SELF_PORTAL_URL } from '@/shared/constants/dashboardLinks';
+import { NOVEDADES_INTRANET_PATH, SELF_PORTAL_URL } from '@/shared/constants/dashboardLinks';
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -221,6 +221,7 @@ const accesoSelfItem = accesoSelfSidebarItem();
 const producerItems: SidebarItem[] = [
   { label: 'Dashboard', to: '/intranet/dashboard', icon: DashboardIcon },
   { label: 'Biblioteca Digital', to: '/intranet/biblioteca', icon: LibraryIcon },
+  { label: 'Novedades', to: NOVEDADES_INTRANET_PATH, icon: NewsIcon },
   accesoSelfItem,
   { label: 'Mi Perfil', to: '/intranet/mi-perfil', icon: ProfileIcon },
 ];

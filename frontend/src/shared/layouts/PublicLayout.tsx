@@ -198,11 +198,11 @@ export function PublicLayout({ children }: PublicLayoutProps) {
             </div>
 
             <div className="flex flex-col gap-4">
-              <h3 className="text-lg font-bold text-maps-heading">Contacto</h3>
+              <h3 className="text-lg font-bold text-maps-heading">Enlaces</h3>
               <ul className="flex flex-col gap-3 text-sm text-maps-muted">
                 <li>
                   <a
-                    href="#nosotros"
+                    href="/#nosotros"
                     className="transition-colors hover:text-maps-brand"
                   >
                     Nosotros
@@ -210,37 +210,20 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 </li>
                 <li>
                   <a
-                    href="/#contacto"
+                    href="/#mapa"
                     className="transition-colors hover:text-maps-brand"
                   >
-                    Contacto
+                    Mapa de asesores
                   </a>
                 </li>
               </ul>
             </div>
 
             <div className="flex flex-col gap-4">
-              <h3 className="text-lg font-bold text-maps-heading">
-                Redes Sociales
-              </h3>
-              <ul className="flex flex-col gap-3 text-sm text-maps-muted">
-                <li>
-                  <a
-                    href="#terminos"
-                    className="transition-colors hover:text-maps-brand"
-                  >
-                    Términos y Condiciones
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#privacidad"
-                    className="transition-colors hover:text-maps-brand"
-                  >
-                    Política de Privacidad
-                  </a>
-                </li>
-              </ul>
+              <h3 className="text-lg font-bold text-maps-heading">Legal</h3>
+              <p className="text-sm leading-[22px] text-maps-muted">
+                Términos y condiciones y política de privacidad próximamente.
+              </p>
             </div>
           </div>
 

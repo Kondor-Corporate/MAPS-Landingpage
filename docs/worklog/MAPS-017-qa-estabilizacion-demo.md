@@ -27,8 +27,8 @@ MAPS-017 no agrega features de producto; estabiliza, documenta y valida.
 
 | Fase | Nombre | Estado |
 |------|--------|--------|
-| A | Baseline, README y plan | En progreso |
-| B | Bloqueadores demo landing/navegación | Pendiente |
+| A | Baseline, README y plan | Completada |
+| B | Bloqueadores demo landing/navegación | Completada |
 | C | Docker/dev setup y seed/migrate | Pendiente |
 | D | QA manual integral MAPS-014/015/016 | Pendiente |
 | E | Rate limit geocode y casos borde | Pendiente |
@@ -75,8 +75,8 @@ MAPS-017 no agrega features de producto; estabiliza, documenta y valida.
 | Mapa productores | Real |
 | Perfil/credenciales/foto | Real |
 | Biblioteca ramos | Real |
-| Landing TeamSection | Mock |
-| CTA/contacto | Sin acción real |
+| Landing TeamSection | Real (API mapa) |
+| CTA/contacto | CTA al mapa (#mapa) |
 | SELF | Deshabilitado (`null`) |
 | Admins API | Stub |
 | Frontend tests en CI | No |
@@ -114,14 +114,48 @@ Tests **no** ejecutados en Fase A (según alcance).
 
 ---
 
-## Próximos pasos (Fase B)
+## Fase B — Bloqueadores demo landing/navegación (2026-07-11)
 
-1. Auditar `TeamSection.tsx` y `CtaSection.tsx` en landing.
-2. Revisar sidebar novedades y rutas admin/intranet.
-3. Validar links footer en `PublicLayout.tsx`.
-4. Definir estrategia demo para secciones aún mock.
+### Decisiones
+
+| Área | Decisión |
+|------|----------|
+| TeamSection | **Opción A** — consumir `GET /producers/map` vía `useProducersMap`; hasta 3 productores verificados (o activos); perfil real con `Link` a `/productor/:slug`; empty state honesto con CTA al mapa |
+| CTA / contacto | **Opción C** — sin backend de contacto; CTA `#mapa` con copy “Ver mapa de asesores”; sección `id="contacto"` conservada para anclas existentes |
+| Footer | Eliminar `#terminos` / `#privacidad`; columna Legal con texto “próximamente”; enlaces útiles a `/#nosotros` y `/#mapa` |
+| Sidebar intranet | Agregar **Novedades** → `/intranet/noticias` en `producerItems` |
+| Sidebar admin | Sin cambio — ya tiene **Noticias** (CRUD `/admin/noticias`); novedades internas accesibles desde dashboard (`NOVEDADES_ADMIN_PATH`) |
+| Biblioteca EXAMPLE | Sin tocar seed; helper `isResolvableLibraryUrl` en frontend para no ofrecer links placeholder como clicables |
+
+### Archivos modificados
+
+- `frontend/src/modules/public-web/components/TeamSection.tsx`
+- `frontend/src/modules/public-web/components/CtaSection.tsx`
+- `frontend/src/shared/layouts/PublicLayout.tsx`
+- `frontend/src/shared/constants/sidebarItems.tsx`
+- `frontend/src/shared/utils/libraryLinks.ts` (nuevo)
+- `frontend/src/modules/intranet/components/LibraryRamoCard.tsx`
+- `frontend/src/modules/intranet/components/LibrarySecondarySection.tsx`
+
+### Pendientes post Fase B
+
+- Hero con avatares decorativos y stat “2,500 personas” (no pedido en Fase B; sigue siendo copy marketing no verificable).
+- Seed `PLACEHOLDER_DRIVE` en `backend/prisma/seed.ts` — reemplazar por URLs reales en fase posterior o al configurar Drive productivo.
+- Admin biblioteca sigue mostrando URLs truncadas con `EXAMPLE` en tabla (aceptable para operadores).
+
+### Comandos Fase B (frontend)
+
+| Comando | Resultado |
+|---------|-----------|
+| `npm run typecheck` | OK |
+| `npm run lint` | OK |
+| `npm run build` | OK (warning chunk maplibre > 500 kB) |
+
+Backend no tocado en Fase B.
 
 ---
+
+## Próximos pasos (Fase C)
 
 ## Pendientes fuera de MAPS-017
 

@@ -1,12 +1,13 @@
 import { RamoIcon } from '@/modules/admin/components/RamoIcon';
 import type { Ramo } from '@/modules/admin/types/library';
+import { isResolvableLibraryUrl } from '@/shared/utils/libraryLinks';
 
 type Props = {
   ramo: Ramo;
 };
 
 export function LibraryRamoCard({ ramo }: Props) {
-  const hasLink = ramo.gdriveUrl.trim().length > 0;
+  const hasLink = isResolvableLibraryUrl(ramo.gdriveUrl);
 
   return (
     <article className="flex h-full flex-col rounded-2xl border border-maps-border bg-white p-6 shadow-card">
@@ -32,7 +33,7 @@ export function LibraryRamoCard({ ramo }: Props) {
             aria-disabled="true"
             className="flex h-10 w-full cursor-not-allowed items-center justify-center rounded-lg bg-maps-surface text-sm font-semibold text-maps-muted-soft"
           >
-            Sin link disponible
+            Material en preparación
           </button>
         )}
       </div>
