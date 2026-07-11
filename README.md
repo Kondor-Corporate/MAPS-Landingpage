@@ -83,7 +83,39 @@ docker compose version
 
 ---
 
+## Onboarding post-clone
+
+Flujo minimo recomendado tras clonar el repo (sin levantar servicios todavia):
+
+```bash
+cd backend
+npm install
+npm run prisma:generate
+
+cd ../frontend
+npm install
+```
+
+**Importante:** el backend usa tipos generados por Prisma. Si `npm run typecheck` o `npm run build` fallan con errores de `@prisma/client` o campos del schema inexistentes, correr **`npm run prisma:generate`** en `backend/` antes de reintentar. Esto ocurre tipicamente tras un `git pull` que trae cambios en `schema.prisma` o en un clone fresco donde el client aun no se genero.
+
+No se usa `postinstall` automatico en el repo: CI y Docker ya invocan Prisma de forma explicita; un hook global podria interferir con builds parciales o contenedores sin schema copiado aun.
+
+Variables opcionales para desarrollo local sin Docker Compose completo:
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+
+**Nunca commitees archivos `.env` con credenciales reales.** Solo se versionan las plantillas `.env.example`.
+
+---
+
 ## Setup recomendado: Docker desarrollo
+
+El compose actual es **solo desarrollo**. No incluye TLS, reverse proxy productivo ni migraciones/seed automaticos al arrancar.
+
+### Primera vez o reset completo
 
 Desde la raiz del repo:
 
@@ -91,43 +123,82 @@ Desde la raiz del repo:
 docker compose up -d --build
 ```
 
-Aplicar migraciones y seed:
+Esperar a que `db` y `backend` reporten healthy (`docker compose ps`). Luego **aplicar schema y datos demo** (obligatorio en primera corrida o tras `docker compose down -v`):
 
 ```bash
 docker compose exec backend npx prisma migrate deploy
 docker compose exec backend npm run db:seed
 ```
 
-Editar los archivos `.env` con los valores correspondientes si hace falta.  
-**Nunca commitees archivos `.env` con credenciales reales.** El `.env` real no se versiona; solo se versiona `.env.example`.
+Script helper opcional (mismos pasos):
 
-Servicios:
+```bash
+# Linux / macOS / Git Bash
+./scripts/docker-dev-init.sh
 
-| Servicio | URL |
-|----------|-----|
-| Frontend | `http://localhost:5173` |
-| Backend | `http://localhost:3000` |
+# Windows PowerShell
+.\scripts\docker-dev-init.ps1
+```
+
+Si el backend arranca pero las APIs devuelven errores de tablas inexistentes, la base quedo vacia: faltaron migrate/seed.
+
+### Prisma Client dentro de Docker
+
+El `Dockerfile` del backend ejecuta `npx prisma generate` en el stage de build. Tras cambios en `schema.prisma` en tu rama local, reconstruir:
+
+```bash
+docker compose up -d --build backend
+```
+
+Solo si hace falta regenerar sin rebuild completo:
+
+```bash
+docker compose exec backend npx prisma generate
+```
+
+### URLs y servicios
+
+| Servicio | URL / acceso |
+|----------|----------------|
+| Frontend (Vite dev) | `http://localhost:5173` |
+| Backend API | `http://localhost:3000/api/v1` |
 | Health API | `http://localhost:3000/api/v1/health` |
-| PostgreSQL | `localhost:5432` |
+| PostgreSQL | `localhost:5432` (usuario/clave/DB: ver `docker-compose.yml`) |
+| Uploads certificaciones (local) | Volumen Docker `backend_uploads` → `/app/uploads` en backend |
 
-Comandos utiles:
+Puertos configurables via `.env` en la raiz: `FRONTEND_PORT`, `BACKEND_PORT`, `POSTGRES_PORT`.
+
+### Comandos utiles
 
 ```bash
 docker compose ps
 docker compose logs backend
 docker compose logs frontend
 docker compose logs db
+docker compose exec backend npx prisma migrate deploy
+docker compose exec backend npm run db:seed
 docker compose down
 docker compose down -v
 ```
 
-`docker compose down -v` borra los volumenes, incluyendo datos locales de PostgreSQL.
+`docker compose down -v` borra volumenes (`pgdata`, `backend_uploads`, `frontend_node_modules`), incluyendo datos locales de PostgreSQL y archivos subidos.
+
+### Verificacion rapida post-setup
+
+1. `curl http://localhost:3000/api/v1/health` responde OK.
+2. Frontend carga en `http://localhost:5173` sin error de red hacia la API.
+3. Login admin seed: usuario `admin` / password `Admin1234!`.
+4. Mapa publico (`/#mapa`) muestra productores del seed.
+5. Noticias publicas cargan desde API (no mock).
+6. Intranet productor (`user` / `User1234!`): biblioteca visible; links con URL `EXAMPLE` no son clicables (dato demo — ver nota PLACEHOLDER_DRIVE abajo).
+
+Detalle de pruebas: [`docs/TESTING.md`](./docs/TESTING.md). Migraciones y seed: [`docs/MIGRATIONS.md`](./docs/MIGRATIONS.md).
 
 ---
 
-## Setup alternativo: host local
+## Setup alternativo: host local (sin contenedores backend/frontend)
 
-Usar este flujo si queres correr backend/frontend directamente en tu maquina y solo usar Docker para PostgreSQL.
+Usar este flujo si queres correr backend y frontend en tu maquina y usar Docker solo para PostgreSQL (o una instancia local de Postgres).
 
 1. Crear variables de entorno:
 
@@ -136,17 +207,20 @@ Usar este flujo si queres correr backend/frontend directamente en tu maquina y s
    cp frontend/.env.example frontend/.env
    ```
 
+   En `backend/.env`, `DATABASE_URL` debe apuntar a `localhost:5432` (o el puerto mapeado si colisiona).
+
 2. Levantar PostgreSQL:
 
    ```bash
    docker compose up -d db
    ```
 
-3. Instalar dependencias:
+3. Instalar dependencias y generar Prisma Client:
 
    ```bash
    cd backend
    npm install
+   npm run prisma:generate
 
    cd ../frontend
    npm install
@@ -155,21 +229,26 @@ Usar este flujo si queres correr backend/frontend directamente en tu maquina y s
 4. Migrar y seedear desde `backend/`:
 
    ```bash
-   npx prisma migrate dev
+   cd backend
+   npx prisma migrate deploy
    npm run db:seed
    ```
+
+   En desarrollo activo del schema, `npm run db:migrate` (`prisma migrate dev`) crea migraciones nuevas; para solo aplicar las existentes del repo, usar `migrate deploy`.
 
 5. Levantar servicios:
 
    ```bash
-   # terminal 1
+   # terminal 1 — backend (puerto 3000)
    cd backend
    npm run dev
 
-   # terminal 2
+   # terminal 2 — frontend (puerto 5173)
    cd frontend
    npm run dev
    ```
+
+Frontend local usa `VITE_API_BASE_URL=http://localhost:3000/api/v1` (ver `frontend/.env.example`).
 
 ---
 
@@ -230,6 +309,9 @@ MAPS-Landingpage/
     modules/
     tdd/
     worklog/
+  scripts/
+    docker-dev-init.sh
+    docker-dev-init.ps1
   docker-compose.yml
 ```
 
@@ -279,11 +361,14 @@ Detalle: [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md).
 |----------|-----|
 | `DATABASE_URL` | Conexion PostgreSQL. Host `db` si el backend corre en Docker Compose; `localhost` si corre en el host contra el contenedor `db`. |
 | `JWT_SECRET` | Firma del access token. Minimo 32 caracteres en produccion. |
+| `JWT_EXPIRES_IN` | Duracion del access token (ej. `15m`). |
 | `REFRESH_SECRET` | Firma del refresh token. Minimo 32 caracteres en produccion. |
+| `REFRESH_EXPIRES_IN` | Duracion del refresh token (ej. `30d`). |
 | `STORAGE_PROVIDER` | `local` (disco en `backend/uploads/certificaciones/`) o `s3` (produccion). |
 | `API_PUBLIC_URL` | Base publica del backend para URLs de descarga de certificaciones (ej. `http://localhost:3000`). |
 | `NOMINATIM_USER_AGENT` | Identificacion de la app ante Nominatim (ToS de OpenStreetMap). Usado por geocoding server-side. |
 | `DEFAULT_PRODUCER_PASSWORD` | Solo para `prisma/seed.ts`. El alta real de productores exige `password` individual (MAPS-016). |
+| `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_PUBLIC_BASE_URL` | Solo si `STORAGE_PROVIDER=s3`. Ver `backend/.env.example`. |
 
 Ejemplo minimo (ver `backend/.env.example` para el listado completo):
 
@@ -317,7 +402,13 @@ En Docker desarrollo, `docker-compose.yml` define defaults equivalentes. Sobrees
 
 ## Notas
 
-- Las migraciones no se ejecutan automaticamente al arrancar el backend; correrlas explicitamente.
+- Las migraciones no se ejecutan automaticamente al arrancar el backend; correrlas explicitamente tras `docker compose up`.
+- Tras `docker compose up` sin migrate/seed, la DB puede quedar vacia y las APIs fallaran hasta ejecutar los comandos documentados arriba.
 - El compose actual esta orientado a desarrollo, no produccion.
-- El frontend corre con Vite dev server en Docker; el Dockerfile conserva stages de build/runner para una variante estatica futura.
+- El frontend en Docker usa el target `dev` (Vite con hot reload y volumen montado). El backend en Docker corre la imagen compilada (`node dist/server.js`); cambios en codigo backend requieren `docker compose up -d --build backend`.
+- El Dockerfile del frontend conserva stages `build`/`runner` (nginx puerto 8080) para una variante estatica futura; el compose actual no los usa.
 - Los TDDs y work-logs son historicos; para estado actual usar este README y `docs/`.
+
+### Dato demo: PLACEHOLDER_DRIVE (biblioteca)
+
+El seed define `PLACEHOLDER_DRIVE = https://drive.google.com/drive/folders/EXAMPLE` para algunos ramos de biblioteca. Es **contenido demo pendiente**, no un link productivo. La UI del productor (MAPS-017 Fase B) evita ofrecer URLs con `EXAMPLE` como enlaces clicables. Para una demo con acceso real a documentos, reemplazar esas URLs desde admin biblioteca o actualizar el seed cuando existan carpetas Drive definitivas.

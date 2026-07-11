@@ -29,7 +29,7 @@ MAPS-017 no agrega features de producto; estabiliza, documenta y valida.
 |------|--------|--------|
 | A | Baseline, README y plan | Completada |
 | B | Bloqueadores demo landing/navegación | Completada |
-| C | Docker/dev setup y seed/migrate | Pendiente |
+| C | Docker/dev setup y seed/migrate | Completada |
 | D | QA manual integral MAPS-014/015/016 | Pendiente |
 | E | Rate limit geocode y casos borde | Pendiente |
 | F | Testing frontend / E2E smoke (opcional) | Pendiente |
@@ -155,7 +155,148 @@ Backend no tocado en Fase B.
 
 ---
 
-## Próximos pasos (Fase C)
+## Fase C — Docker/dev setup, Prisma generate y onboarding (2026-07-11)
+
+### Objetivo
+
+Reducir friccion post-clone y post-`docker compose up`: documentar `prisma generate`, flujo migrate/seed, variables de entorno, verificacion manual y auditoria Docker sin rediseñar infraestructura.
+
+### Decisiones
+
+| Tema | Decision |
+|------|----------|
+| `prisma generate` post-clone | **Documentar** paso explicito en README y `docs/MIGRATIONS.md`; usar script existente `npm run prisma:generate`. **No** agregar `postinstall` (CI/Docker ya son explicitos; riesgo en builds parciales). |
+| Migrate/seed automatico en entrypoint | **No automatizar.** Mantener comandos manuales documentados; riesgo de mutaciones implicitas en cada restart. Deuda futura: servicio one-shot o compose profile `setup`. |
+| Scripts helper | Agregar `scripts/docker-dev-init.sh` y `scripts/docker-dev-init.ps1` (compose up + migrate deploy + seed). Opcionales; README los referencia. |
+| PLACEHOLDER_DRIVE | **No tocar seed.** Documentar en README, worklog y `docs/modules/library.md` como dato demo; UI productor ya filtra URLs `EXAMPLE`. |
+| Cambios Docker/compose | **Ninguno.** Auditoria solo documental salvo scripts de onboarding. |
+
+### Archivos modificados
+
+- `README.md` — onboarding post-clone, flujo Docker/local ampliado, verificacion rapida, env vars completas, nota PLACEHOLDER_DRIVE
+- `docs/MIGRATIONS.md` — seccion Prisma Client (`prisma generate`)
+- `docs/TESTING.md` — checklist verificacion manual post-setup
+- `docs/modules/library.md` — PLACEHOLDER_DRIVE en pendientes
+- `scripts/docker-dev-init.sh` (nuevo)
+- `scripts/docker-dev-init.ps1` (nuevo)
+- `docs/worklog/MAPS-017-qa-estabilizacion-demo.md` (este documento)
+
+### Scripts auditados (sin cambios en package.json)
+
+**Backend (`backend/package.json`):**
+
+| Script | Proposito |
+|--------|-----------|
+| `dev` | `tsx watch src/server.ts` |
+| `build` | `tsc` |
+| `start` | `node dist/server.js` |
+| `typecheck` | `tsc --noEmit` |
+| `lint` / `lint:fix` | ESLint |
+| `format` / `format:check` | Prettier |
+| `prisma:generate` | `prisma generate` |
+| `prisma:migrate` / `db:migrate` | `prisma migrate dev` |
+| `db:seed` | `prisma db seed` |
+| `prisma:studio` | Prisma Studio |
+| `test` / `test:watch` | Vitest |
+
+**Frontend (`frontend/package.json`):**
+
+| Script | Proposito |
+|--------|-----------|
+| `dev` | Vite dev server |
+| `build` | `vite build` |
+| `preview` | `vite preview` |
+| `typecheck` | `tsc --noEmit` |
+| `lint` / `lint:fix` | ESLint |
+| `format` / `format:check` | Prettier |
+
+No se agregaron scripts npm nuevos; solo scripts shell/PowerShell en `scripts/`.
+
+### Comandos validados (Fase C)
+
+**Backend** (tras `npm run prisma:generate`):
+
+| Comando | Resultado |
+|---------|-----------|
+| `npm run typecheck` | OK |
+| `npm run lint` | OK |
+| `npm run build` | OK |
+
+**Frontend:**
+
+| Comando | Resultado |
+|---------|-----------|
+| `npm run typecheck` | OK |
+| `npm run lint` | OK |
+| `npm run build` | OK (warning chunk maplibre > 500 kB) |
+
+Tests completos no ejecutados (alcance Fase C).
+
+### Auditoria Docker tecnica
+
+| Aspecto | Estado actual | Riesgo | ¿Corregir ahora? | Recomendacion |
+|---------|---------------|--------|------------------|---------------|
+| Build backend — Prisma generate | Stage `build` ejecuta `npx prisma generate`; runner copia `node_modules/.prisma` | Bajo | No | OK para runtime; rebuild tras cambios de schema |
+| Build backend — schema/migrations | `COPY prisma ./prisma` en build y runner | Bajo | No | Correcto |
+| Build frontend | Multi-stage: `dev` (Vite), `build`, `runner` (nginx:8080) | Bajo | No | Compose usa target `dev` |
+| Compose — red/servicios | `frontend` → `backend` → `db` en `maps-net`; nombres de servicio correctos | Bajo | No | OK |
+| DATABASE_URL en Docker | Default `postgresql://...@db:5432/...` (host `db`, no localhost) | Bajo | No | OK |
+| Healthchecks | `db`: pg_isready; `backend`: curl `/api/v1/health`; `frontend`: fetch :5173 | Medio | No | Utiles para `depends_on`; no garantizan DB migrada |
+| Volumen uploads | `backend_uploads:/app/uploads` persiste certificaciones/fotos | Bajo | No | OK; se pierde con `down -v` |
+| DB vacia tras compose up | **Si** — migrate/seed no automaticos | **Alto** onboarding | No (documentado) | Ejecutar migrate + seed; script helper disponible |
+| Hot reload backend | No — imagen compilada, CMD `node dist/server.js` | Medio dev UX | No | Deuda: target dev con `tsx watch` o volumen codigo |
+| Hot reload frontend | Si — volumen `./frontend:/app` + Vite | Bajo | No | OK |
+| Colision puertos | Defaults 5173, 3000, 5432 configurables via env | Medio | No | Documentar cambio a 5433 si hay Postgres local |
+| Dev vs prod | Un solo compose dev; Dockerfile frontend tiene stage prod no usado | Bajo | No | Deuda: compose prod separado |
+
+### Imagen chica / one-shot / multi-stage — analisis
+
+**Conveniente a futuro (deuda infra):**
+
+- Backend runner con `npm ci --omit=dev` en imagen productiva (hoy incluye devDeps en runner).
+- Multi-stage backend mas estricto: solo `dist`, `.prisma` y deps de produccion.
+- Servicio compose one-shot `migrate` (profile `setup`) que ejecute `migrate deploy` + seed y termine.
+- Target Docker `dev` para backend con hot reload.
+- Compose prod con frontend `runner` (nginx) y variables/TLS propias.
+- CI que construya y cachee imagenes Docker.
+
+**No conviene tocar ahora:**
+
+- Automatizar migrate en CMD/entrypoint del backend (efectos colaterales en restart, entornos mixtos).
+- `postinstall` global con `prisma generate` (CI/Docker ya controlados; clones parciales).
+- Rediseño completo de Dockerfiles o split compose dev/prod (fuera de alcance MAPS-017).
+- Optimizacion agresiva de tamano de imagen sin bug bloqueante demostrado.
+
+**Motivo:** Fase C busca onboarding claro con diff minimo; la infra actual funciona si se documentan migrate/seed y `prisma generate`.
+
+### Flujo Docker documentado (resumen)
+
+```bash
+docker compose up -d --build
+docker compose exec backend npx prisma migrate deploy
+docker compose exec backend npm run db:seed
+# opcional: ./scripts/docker-dev-init.ps1
+```
+
+### Flujo local sin Docker (resumen)
+
+```bash
+cp backend/.env.example backend/.env && cp frontend/.env.example frontend/.env
+docker compose up -d db
+cd backend && npm install && npm run prisma:generate
+cd ../frontend && npm install
+cd ../backend && npx prisma migrate deploy && npm run db:seed
+npm run dev  # backend :3000
+cd ../frontend && npm run dev  # :5173
+```
+
+### PLACEHOLDER_DRIVE
+
+Constante en `backend/prisma/seed.ts` apunta a `https://drive.google.com/drive/folders/EXAMPLE`. Es contenido demo pendiente. La intranet productor usa `isResolvableLibraryUrl` para no mostrar esos enlaces como clicables. Para demo con documentos reales: editar URLs en admin biblioteca o actualizar seed cuando existan carpetas Drive definitivas.
+
+---
+
+## Próximos pasos (Fase D)
 
 ## Pendientes fuera de MAPS-017
 

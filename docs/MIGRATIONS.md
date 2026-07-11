@@ -28,6 +28,39 @@ Regla: las migraciones generadas deben commitearse. Son parte del codigo fuente.
 
 ---
 
+## Prisma Client (`prisma generate`)
+
+El codigo TypeScript del backend importa tipos y queries desde `@prisma/client`, generados a partir de `schema.prisma`. Sin este paso, `npm run typecheck` y `npm run build` pueden fallar aunque el schema este correcto.
+
+### Cuando ejecutarlo
+
+- Tras clonar el repo y `npm install` en `backend/`.
+- Tras `git pull` que incluya cambios en `schema.prisma` o migraciones nuevas.
+- Antes de typecheck/build local si aparecen errores de tipos Prisma desactualizados.
+
+### Comando
+
+Desde `backend/`:
+
+```bash
+npm run prisma:generate
+# equivalente: npx prisma generate
+```
+
+Dentro del contenedor backend (raro salvo rebuild parcial):
+
+```bash
+docker compose exec backend npx prisma generate
+```
+
+### Por que no hay `postinstall` en el repo
+
+CI invoca `prisma migrate deploy` explicitamente. Docker genera el client en el stage de build del `Dockerfile`. Un `postinstall` global podria ejecutarse en contextos sin schema o duplicar trabajo en pipelines; se prefiere documentar el paso y el script `prisma:generate`.
+
+`prisma migrate dev` tambien ejecuta `generate` al final; `migrate deploy` aplica SQL pero **no sustituye** tener el client al dia en el entorno de desarrollo del host.
+
+---
+
 ## Entornos
 
 ### Desarrollo con Docker

@@ -165,7 +165,7 @@ curl http://localhost:3000/api/v1/library/ramos \
 
 ## Pendientes conocidos
 
-- Definir URLs reales de Drive/repositorio documental.
+- Definir URLs reales de Drive/repositorio documental. El seed usa `PLACEHOLDER_DRIVE` (`.../folders/EXAMPLE`) como dato demo; la UI productor no ofrece esos links como clicables (MAPS-017). Para demo real, configurar URLs desde admin biblioteca.
 - Evaluar uso de `Recurso` para multiples links/archivos por ramo.
 - Evaluar busqueda/paginacion server-side si crece el catalogo.
 - Evaluar drag-and-drop de orden.
