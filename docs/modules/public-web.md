@@ -7,7 +7,7 @@ Incluye:
 - Landing institucional.
 - Mapa de asesores/productores.
 - Perfil publico de productor por slug.
-- Preview/modal de noticias con contenido mock actual.
+- Preview/modal de noticias con datos reales desde API (MAPS-014).
 
 ---
 
@@ -18,8 +18,9 @@ Incluye:
 | Landing `/` | Implementada |
 | Mapa publico | Implementado con MapLibre y API de productores |
 | Perfil publico `/productor/:slug` | Implementado con API |
-| Noticias en landing | Mock/local |
-| Formulario/contacto comercial | Pendiente o fuera de alcance actual |
+| Noticias en landing | Implementadas con API real |
+| TeamSection | Mock / datos estaticos |
+| CTA / contacto comercial | Pendiente o sin accion real |
 | SEO/metadatos avanzados | Pendiente |
 
 ---
@@ -143,7 +144,8 @@ Perfil publico:
 
 ## Pendientes conocidos
 
-- API real de noticias publicas.
+- TeamSection con datos reales o CMS.
+- CTA/contacto con accion real (formulario, mailto o integracion).
 - SEO y metadatos por pagina/perfil.
 - Lazy-load del bundle de MapLibre si impacta performance.
 - Definir estrategia final de imagenes publicas.
