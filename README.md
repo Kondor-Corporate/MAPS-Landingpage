@@ -377,7 +377,7 @@ Ejemplo minimo (ver `backend/.env.example` para el listado completo):
 ```env
 NODE_ENV=development
 PORT=3000
-FRONTEND_ORIGIN=http://localhost:5173
+FRONTEND_ORIGIN=http://localhost:5173,http://127.0.0.1:5173
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maps_asesores_dev"
 JWT_SECRET=dev_access_secret_change_me_32_chars_minimum
 REFRESH_SECRET=dev_refresh_secret_change_me_32_chars_minimum
@@ -399,6 +399,8 @@ VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1
 ```
 
 En Docker desarrollo, `docker-compose.yml` define el mismo default. Si tenés un `frontend/.env` local con `localhost`, actualizalo a `127.0.0.1` (no se versiona). En producción, reconstruir el frontend con la URL pública real de la API.
+
+`FRONTEND_ORIGIN` (backend) acepta una o varias URLs separadas por coma para CORS. En `development`/`test`, si solo indicás `http://localhost:5173`, el backend también permite `http://127.0.0.1:5173` (y viceversa) para evitar bloqueos al alternar URLs en Windows.
 
 ---
 

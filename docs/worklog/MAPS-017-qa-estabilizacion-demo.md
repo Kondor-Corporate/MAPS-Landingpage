@@ -30,8 +30,8 @@ MAPS-017 no agrega features de producto; estabiliza, documenta y valida.
 | A | Baseline, README y plan | Completada |
 | B | Bloqueadores demo landing/navegación | Completada |
 | C | Docker/dev setup y seed/migrate | Completada |
-| D | QA manual integral MAPS-014/015/016 | En progreso (bloqueada → D.1 aplicada) |
-| E | Rate limit geocode y casos borde | Pendiente |
+| D | QA manual integral MAPS-014/015/016 | Completada (D.2 con bugs) |
+| E | Fix bugs bloqueantes QA D.2 (CORS, password, healthcheck) | Completada |
 | F | Testing frontend / E2E smoke (opcional) | Pendiente |
 | G | Docs/worklog cierre | Pendiente |
 
@@ -348,7 +348,72 @@ Constante en `backend/prisma/seed.ts` apunta a `https://drive.google.com/drive/f
 
 ---
 
-## Próximos pasos (Fase D — reanudar QA UI)
+## Fase E — Fix bugs bloqueantes QA D.2 (2026-07-13)
+
+**Objetivo:** corregir CORS localhost/127.0.0.1 y logout indebido al fallar cambio de contraseña.
+
+### BUG-001 — CORS
+
+| Campo | Detalle |
+|-------|---------|
+| Causa | `FRONTEND_ORIGIN` era una sola URL; CORS rechazaba `127.0.0.1:5173` si el backend permitía solo `localhost:5173` |
+| Fix | `FRONTEND_ORIGIN` admite lista separada por coma; en dev/test se auto-expande el par localhost ↔ 127.0.0.1; `cors({ origin: frontendOrigins })` |
+| Archivos | `backend/src/config/env.ts`, `backend/src/app.ts`, `backend/.env.example`, `docker-compose.yml`, `README.md` |
+
+### BUG-002 — Cambio contraseña incorrecta
+
+| Campo | Detalle |
+|-------|---------|
+| Causa | Backend devolvía 401 por contraseña actual incorrecta; interceptor axios interpretaba sesión expirada y redirigía a `/login` |
+| Fix | `changeMyPassword` devuelve **400** con mensaje claro; sesión intacta; modal muestra error inline |
+| Archivos | `backend/src/services/producers.service.ts`, `backend/tests/producers.integration.test.ts`, `frontend/src/tests/components/ChangePasswordForm.test.tsx` |
+
+### BUG-003 — Frontend unhealthy (Docker)
+
+| Campo | Detalle |
+|-------|---------|
+| Causa | Healthcheck Vite ocasionalmente superaba timeout de 5s bajo carga (dev server lento) |
+| Fix | `HEALTHCHECK` en `frontend/Dockerfile`: timeout 10s, interval 15s, start-period 30s |
+| Estado | **Corregido** — tras rebuild, `docker compose ps` reporta frontend `(healthy)` |
+
+### Comandos de validación (Fase E)
+
+```bash
+# Backend
+cd backend && npm run typecheck && npm run lint && npm run build && npm test
+# Resultado: OK — 9 archivos, 119 tests passed
+
+# Frontend
+cd frontend && npm run typecheck && npm run lint && npm run build
+# Resultado: OK
+
+# Docker
+docker compose up -d --build backend frontend
+docker compose ps
+# Resultado: backend healthy, db healthy, frontend healthy
+```
+
+### Re-QA mínimo post-fix
+
+| Caso | localhost:5173 | 127.0.0.1:5173 |
+|------|----------------|----------------|
+| Frontend responde HTTP 200 | OK | OK |
+| CORS preflight + credentials | OK (`Access-Control-Allow-Origin` refleja origen) | OK |
+| Noticias públicas (`/news/public`) | OK (200) | OK (200) |
+| Mapa productores (`/producers/map`) | OK (200) | OK (200) |
+| TeamSection (usa `/producers/map`) | OK vía API | OK vía API |
+| Password incorrecta → 400, sesión vigente | OK (`PATCH /me/password` → 400; `GET /me` sigue 200) | N/A (intranet) |
+
+**Nota:** Re-QA UI en browser no pudo ejecutarse (MCP browser no disponible en este entorno). Validación API/CORS/HTTP confirma los fixes; QA visual manual pendiente para el Lead.
+
+---
+
+## Próximos pasos (post Fase E)
+
+- Re-ejecutar QA UI completo (Fase D.2 checklist) en ambas URLs de frontend.
+- Limpieza datos demo (productores/noticias de QA) antes de demo formal.
+
+---
 
 ## Pendientes fuera de MAPS-017
 

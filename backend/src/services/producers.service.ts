@@ -475,7 +475,8 @@ export const producersService = {
 
     const currentOk = await bcrypt.compare(input.currentPassword, user.passwordHash);
     if (!currentOk) {
-      throw new AppError(401, 'Contraseña actual incorrecta');
+      // 400 (no 401): el token sigue siendo válido; el interceptor axios no debe forzar logout.
+      throw new AppError(400, 'Contraseña actual incorrecta');
     }
 
     const passwordHash = await bcrypt.hash(input.newPassword, 12);

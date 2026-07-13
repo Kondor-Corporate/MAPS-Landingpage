@@ -322,7 +322,7 @@ describe('producers API (integración)', () => {
         .expect(401);
     });
 
-    it('contraseña actual incorrecta → 401', async () => {
+    it('contraseña actual incorrecta → 400', async () => {
       const adminToken = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
       const email = uniqueEmail('self-change-wrong-current');
       await createProducer(app, adminToken, { email }).expect(201);
@@ -336,7 +336,7 @@ describe('producers API (integración)', () => {
           newPassword: 'NuevaClave456',
           confirmPassword: 'NuevaClave456',
         })
-        .expect(401);
+        .expect(400);
 
       expect(res.body.message).toBe('Contraseña actual incorrecta');
     });

@@ -71,6 +71,11 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // 401 funcional en login: credenciales incorrectas, no sesión expirada.
+    if (original.url?.includes('/auth/login')) {
+      return Promise.reject(error);
+    }
+
     // Evitar bucle si /auth/refresh reutilizara el mismo client con interceptor.
     if (original.url?.includes('/auth/refresh')) {
       getAuthState().logout();
