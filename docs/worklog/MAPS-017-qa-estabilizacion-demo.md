@@ -30,7 +30,7 @@ MAPS-017 no agrega features de producto; estabiliza, documenta y valida.
 | A | Baseline, README y plan | Completada |
 | B | Bloqueadores demo landing/navegación | Completada |
 | C | Docker/dev setup y seed/migrate | Completada |
-| D | QA manual integral MAPS-014/015/016 | Pendiente |
+| D | QA manual integral MAPS-014/015/016 | En progreso (bloqueada → D.1 aplicada) |
 | E | Rate limit geocode y casos borde | Pendiente |
 | F | Testing frontend / E2E smoke (opcional) | Pendiente |
 | G | Docs/worklog cierre | Pendiente |
@@ -296,7 +296,59 @@ Constante en `backend/prisma/seed.ts` apunta a `https://drive.google.com/drive/f
 
 ---
 
-## Próximos pasos (Fase D)
+## Fase D — QA manual integral (2026-07-11 / 2026-07-12)
+
+### Resultado
+
+**No aprobado** para demo en browser con `VITE_API_BASE_URL=http://localhost:3000/api/v1`.
+
+### Hallazgo B1 (bloqueante demo UI)
+
+| Campo | Detalle |
+|-------|---------|
+| Síntoma | TeamSection, noticias y mapa público quedan en "Cargando…" |
+| Network | XHR a `http://localhost:3000/api/v1/producers/map` y `/news/public` no completan |
+| API directa | `http://127.0.0.1:3000/api/v1` responde OK (health, map, news, auth) |
+| Causa probable | Resolución `localhost` / IPv6 en Windows con navegador del host |
+| No es | CORS, backend caído, ni migrate/seed faltante |
+
+### Fase D.1 — Fix `VITE_API_BASE_URL` (2026-07-12)
+
+**Objetivo:** desbloquear QA UI usando `127.0.0.1` en desarrollo local/Docker.
+
+**Decisión:** el navegador corre en el host; las requests no usan la red Docker interna. `127.0.0.1` evita cuelgues de `localhost` en Windows. Producción sigue configurable vía `VITE_API_BASE_URL` en build.
+
+**Archivos modificados:**
+
+- `frontend/.env.example`
+- `docker-compose.yml` (default `VITE_API_BASE_URL`)
+- `frontend/Dockerfile` (target `dev` solamente; stage `build` mantiene ARG configurable para prod)
+- `frontend/src/lib/axios.ts` (fallback dev)
+- `frontend/src/modules/public-web/services/producersMap.service.ts` (fallback dev)
+- `frontend/src/modules/public-web/services/producerProfile.service.ts` (fallback dev)
+- `README.md`
+- `docs/worklog/MAPS-017-qa-estabilizacion-demo.md`
+
+**No modificado:** `frontend/.env` real (gitignored — actualizar localmente si existe), tests, backend, Prisma.
+
+**Validación tras rebuild (2026-07-12):**
+
+| Verificación | Resultado |
+|--------------|-----------|
+| `docker compose up -d --build frontend` | OK |
+| `VITE_API_BASE_URL` en contenedor | `http://127.0.0.1:3000/api/v1` |
+| XHR `/producers/map` | 200 |
+| XHR `/news/public?limit=3` | 200 |
+| TeamSection | Carga productores reales (Carlos A. Rodríguez, María González) |
+| Noticias públicas | 3 cards visibles |
+| Mapa público | Markers renderizados |
+| Frontend typecheck/lint/build | OK |
+
+**QA UI manual:** desbloqueado para reanudar Fase D (admin, productor, casos borde).
+
+---
+
+## Próximos pasos (Fase D — reanudar QA UI)
 
 ## Pendientes fuera de MAPS-017
 

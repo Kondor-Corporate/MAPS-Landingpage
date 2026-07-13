@@ -160,9 +160,9 @@ docker compose exec backend npx prisma generate
 
 | Servicio | URL / acceso |
 |----------|----------------|
-| Frontend (Vite dev) | `http://localhost:5173` |
-| Backend API | `http://localhost:3000/api/v1` |
-| Health API | `http://localhost:3000/api/v1/health` |
+| Frontend (Vite dev) | `http://127.0.0.1:5173` (o `localhost:5173`) |
+| Backend API | `http://127.0.0.1:3000/api/v1` |
+| Health API | `http://127.0.0.1:3000/api/v1/health` |
 | PostgreSQL | `localhost:5432` (usuario/clave/DB: ver `docker-compose.yml`) |
 | Uploads certificaciones (local) | Volumen Docker `backend_uploads` → `/app/uploads` en backend |
 
@@ -185,8 +185,8 @@ docker compose down -v
 
 ### Verificacion rapida post-setup
 
-1. `curl http://localhost:3000/api/v1/health` responde OK.
-2. Frontend carga en `http://localhost:5173` sin error de red hacia la API.
+1. `curl http://127.0.0.1:3000/api/v1/health` responde OK.
+2. Frontend carga en `http://127.0.0.1:5173` sin error de red hacia la API.
 3. Login admin seed: usuario `admin` / password `Admin1234!`.
 4. Mapa publico (`/#mapa`) muestra productores del seed.
 5. Noticias publicas cargan desde API (no mock).
@@ -248,7 +248,9 @@ Usar este flujo si queres correr backend y frontend en tu maquina y usar Docker 
    npm run dev
    ```
 
-Frontend local usa `VITE_API_BASE_URL=http://localhost:3000/api/v1` (ver `frontend/.env.example`).
+Frontend local usa `VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1` (ver `frontend/.env.example`).
+
+> **Navegador vs Docker:** el frontend en Compose corre en un contenedor, pero las llamadas HTTP las hace el **navegador de tu máquina**. Por eso `VITE_API_BASE_URL` debe apuntar al backend publicado en el host (`127.0.0.1:3000`), no al nombre de servicio `backend`. En Windows, `127.0.0.1` suele ser más confiable que `localhost` (evita cuelgues por resolución IPv6).
 
 ---
 
@@ -393,10 +395,10 @@ Notas de `DATABASE_URL`:
 ### Frontend (`frontend/.env`)
 
 ```env
-VITE_API_BASE_URL=http://localhost:3000/api/v1
+VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1
 ```
 
-En Docker desarrollo, `docker-compose.yml` define defaults equivalentes. Sobreescribir secretos y origenes via `.env` o variables de entorno cuando corresponda.
+En Docker desarrollo, `docker-compose.yml` define el mismo default. Si tenés un `frontend/.env` local con `localhost`, actualizalo a `127.0.0.1` (no se versiona). En producción, reconstruir el frontend con la URL pública real de la API.
 
 ---
 

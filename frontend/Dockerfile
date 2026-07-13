@@ -7,7 +7,7 @@ RUN npm ci
 
 FROM deps AS dev
 
-ENV VITE_API_BASE_URL=http://localhost:3000/api/v1
+ENV VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1
 
 EXPOSE 5173
 

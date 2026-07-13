@@ -1,7 +1,8 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { getAuthState, useAuthStore } from '@/store/authStore';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
+/** Fallback dev local: 127.0.0.1 evita cuelgues de localhost/IPv6 en Windows. */
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:3000/api/v1';
 
 type ApiSuccess<T> = { data: T; message: string; error: null };
 type RefreshPayload = { accessToken: string };
