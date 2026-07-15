@@ -24,9 +24,17 @@ const ArrowIcon = () => (
 type RecentNewsCardProps = {
   item: NewsItem;
   onClick: (item: NewsItem) => void;
+  /** `compact` reduce imagen/padding para dashboards; listados usan `default`. */
+  variant?: 'default' | 'compact';
 };
 
-export function RecentNewsCard({ item, onClick }: RecentNewsCardProps) {
+export function RecentNewsCard({
+  item,
+  onClick,
+  variant = 'default',
+}: RecentNewsCardProps) {
+  const isCompact = variant === 'compact';
+
   return (
     <button
       type="button"
@@ -36,17 +44,31 @@ export function RecentNewsCard({ item, onClick }: RecentNewsCardProps) {
       <NewsImage
         src={item.imageUrl}
         gradient={item.imageGradient}
-        className="h-[195px] w-full shrink-0"
-        iconSize={22}
+        className={
+          isCompact ? 'h-[150px] w-full shrink-0' : 'h-[195px] w-full shrink-0'
+        }
+        iconSize={isCompact ? 20 : 22}
       />
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <div
+        className={
+          isCompact
+            ? 'flex min-h-0 flex-1 flex-col gap-3 p-5'
+            : 'flex flex-1 flex-col gap-4 p-6'
+        }
+      >
         <div className="flex items-center gap-3 text-xs">
           <span className="rounded-md bg-maps-brand-soft px-3 py-1 font-semibold text-maps-brand">
             {item.category}
           </span>
           <span className="text-maps-muted-soft">{item.date}</span>
         </div>
-        <h3 className="line-clamp-2 text-xl font-bold leading-[25px] text-maps-heading">
+        <h3
+          className={
+            isCompact
+              ? 'line-clamp-2 text-lg font-bold leading-snug text-maps-heading'
+              : 'line-clamp-2 text-xl font-bold leading-[25px] text-maps-heading'
+          }
+        >
           {item.title}
         </h3>
         <span className="mt-auto inline-flex items-center gap-2 text-sm font-bold text-maps-brand">

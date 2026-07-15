@@ -34,6 +34,8 @@ MAPS-017 no agrega features de producto; estabiliza, documenta y valida.
 | E | Fix bugs bloqueantes QA D.2 (CORS, password, healthcheck) | Completada |
 | F.0 | Diagnóstico de fixes finales post-QA funcional (clasificación, sin código) | Completada |
 | F.1 | Fixes finales seguros (F.1A) + diagnóstico reload/mapa (F.1B) | Completada |
+| F.2 | Host canónico local y revalidación de refresh cookie | Completada |
+| F.3 | Ajuste final cards novedades/comunicados en dashboard | Completada |
 | F | Testing frontend / E2E smoke (opcional) | Pendiente |
 | G | Docs/worklog cierre | Pendiente |
 
@@ -511,11 +513,105 @@ Backend no tocado en F.1 (los diagnósticos F.1B no requirieron cambios de códi
 
 ---
 
-## Próximos pasos (post Fase F.1)
+## Fase F.2 — Host canónico local y refresh cookie (2026-07-15)
 
-- Decidir Opción A vs B para el mismatch de cookie SameSite (`localhost` vs `127.0.0.1`) antes de tocar `axios.ts`/env.
+**Decisión:** la URL canónica para desarrollo y demo local es `http://127.0.0.1:5173`, con API en `http://127.0.0.1:3000/api/v1`.
+
+### Configuración verificada
+
+- Rama inicial: `feature/MAPS-017-qa-estabilizacion`; working tree limpio.
+- Frontend Compose: `VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1`.
+- Backend Compose: `FRONTEND_ORIGIN=http://localhost:5173,http://127.0.0.1:5173`.
+- Health backend: `GET http://127.0.0.1:3000/api/v1/health` → `200`, `status: ok`.
+- Frontend Compose accesible por ambos nombres (`127.0.0.1:5173` y `localhost:5173` → `200`), pero ambos hosts no son equivalentes para cookies.
+
+### Revalidación en `127.0.0.1`
+
+Cada caso se probó mediante navegación completa a la ruta (equivalente a reload), no solo navegación SPA.
+
+| Rol | Ruta | `POST /auth/refresh` | Resultado |
+|-----|------|----------------------|-----------|
+| Productor | `/intranet/dashboard` | `200` | Sesión conservada; sin redirect |
+| Productor | `/intranet/noticias` | `200` | Sesión conservada; contenido `200` |
+| Productor | `/intranet/perfil/carlos-rodriguez` | `200` | Sesión conservada; `GET /producers/me` → `200` |
+| Admin | `/admin/dashboard` | `200` | Sesión conservada; sin redirect |
+| Admin | `/admin/productores` | `200` | Sesión conservada; listado → `200` |
+| Admin | `/admin/noticias` | `200` | Sesión conservada; noticias → `200` |
+| SuperAdmin | `/admin/dashboard` | `200` | Sesión conservada; sin redirect |
+| SuperAdmin | `/admin/admins` | `200` | Sesión conservada; stub esperado “Sección en construcción” |
+
+El cliente de refresh envía body vacío (`{}`). Por lo tanto, el `200` del endpoint confirma que el backend recibió y validó la cookie HttpOnly `maps_refresh`; no pudo obtener el token desde body/localStorage. No hubo redirecciones a `/login` ni errores funcionales de consola en los casos `127`.
+
+### Comparativo en `localhost`
+
+- Login productor desde `http://localhost:5173` funciona y la navegación SPA llega a `/intranet/dashboard`.
+- Al recargar la misma ruta, aparece “Cargando sesión…” y la app redirige a `/login`.
+- Se reconfirma el diagnóstico F.1B: frontend `localhost` → API `127.0.0.1` es cross-site para `SameSite=Lax`; la cookie de refresh no acompaña el XHR y el refresh falla con `401`.
+- CORS permite el origen y no es la causa. Permitir ambos hosts no hace que compartan contexto de cookies.
+
+### Resolución
+
+El reload queda **resuelto por configuración y uso del host canónico**, sin cambios en auth, backend, cookies, interceptores ni `AuthInitializer`. README actualizado para recomendar exclusivamente `http://127.0.0.1:5173` en desarrollo/demo y advertir que no se deben mezclar hosts.
+
+No se ejecutaron typecheck/lint/build porque F.2 solo modifica documentación.
+
+---
+
+## Fase F.3 — Ajuste final cards de novedades/comunicados en dashboard (2026-07-15)
+
+**Objetivo:** que el CTA “Leer más” quede visible de forma cómoda en `/admin/dashboard` e `/intranet/dashboard` (zoom 100%, viewport default), sin romper listados completos ni Home pública.
+
+### Problema
+
+Tras F.1, las cards ya tenían `line-clamp-2` + `mt-auto` en el CTA, pero en dashboard el hero de imagen (`h-[195px]`) + padding generoso seguían dejando “Leer más” cortado o demasiado pegado al borde inferior del viewport.
+
+### Solución aplicada
+
+Variante `compact` en `RecentNewsCard`, usada solo desde `RecentNewsGrid` (dashboards):
+
+| Aspecto | `default` (listados) | `compact` (dashboard) |
+|---------|----------------------|------------------------|
+| Imagen | `h-[195px]` | `h-[120px]` |
+| Padding / gap | `p-6` / `gap-4` | `p-4` / `gap-2` |
+| Título | `text-xl` + `line-clamp-2` | `text-base` + `line-clamp-2` |
+| Descripción | no se muestra | no se muestra |
+| CTA | `mt-auto` “Leer más” | `mt-auto` “Leer más” |
+| Scroll interno | no | no (`overflow-hidden`, sin overflow-y) |
+
+### Archivos modificados
+
+- `frontend/src/shared/components/RecentNewsCard.tsx` — prop `variant?: 'default' | 'compact'`
+- `frontend/src/shared/components/RecentNewsGrid.tsx` — pasa `variant="compact"` + skeleton compacto
+- `docs/worklog/MAPS-017-qa-estabilizacion-demo.md` — este documento
+
+**No modificado:** backend, Prisma, auth, Docker, `NewsPreviewSection` (Home), `IntranetNewsPage` (usa `default` implícito).
+
+### Validación esperada / impacto
+
+| Pantalla | Resultado esperado |
+|----------|--------------------|
+| `/admin/dashboard` | Tres cards compactas; “Leer más” visible sin scroll interno |
+| `/intranet/dashboard` | Idem (mismo `RecentNewsGrid`) |
+| `/admin/novedades` | Sin cambio visual (variante `default`) |
+| `/intranet/noticias` | Sin cambio visual (variante `default`) |
+| Home pública | Sin impacto (`NewsPreviewSection` propio) |
+
+### Comandos de validación (Fase F.3)
+
+| Comando | Resultado |
+|---------|-----------|
+| `npm run typecheck` | OK |
+| `npm run lint` | OK |
+| `npm run build` | OK (warning preexistente: chunk `maplibre-gl` > 500 kB) |
+
+Backend no tocado.
+
+---
+
+## Próximos pasos (post Fase F.3)
+
 - Limpiar productores de prueba en la base de datos de desarrollo (`Nuevo Productor`, `Test Mapa`, `A B`, `Después Nombre`, `Forbidden List`) antes de demo.
-- Re-ejecutar QA UI completo (Fase D.2 checklist) en ambas URLs de frontend, con foco en los 6 fixes de F.1A.
+- Ejecutar el QA final y la demo exclusivamente desde `http://127.0.0.1:5173`.
 - Revisar puntos 8–25 de Fase F.0 como candidatos de roadmap futuro (no MAPS-017).
 
 ---

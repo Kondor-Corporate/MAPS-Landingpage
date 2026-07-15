@@ -160,13 +160,15 @@ docker compose exec backend npx prisma generate
 
 | Servicio | URL / acceso |
 |----------|----------------|
-| Frontend (Vite dev) | `http://127.0.0.1:5173` (o `localhost:5173`) |
+| Frontend (Vite dev) | `http://127.0.0.1:5173` (**URL canónica para desarrollo y demo local**) |
 | Backend API | `http://127.0.0.1:3000/api/v1` |
 | Health API | `http://127.0.0.1:3000/api/v1/health` |
 | PostgreSQL | `localhost:5432` (usuario/clave/DB: ver `docker-compose.yml`) |
 | Uploads certificaciones (local) | Volumen Docker `backend_uploads` → `/app/uploads` en backend |
 
 Puertos configurables via `.env` en la raiz: `FRONTEND_PORT`, `BACKEND_PORT`, `POSTGRES_PORT`.
+
+> **Host canónico y autenticación:** abrir el frontend en `http://127.0.0.1:5173` cuando la API usa `http://127.0.0.1:3000/api/v1`. No mezclar `localhost` y `127.0.0.1`: aunque CORS permita ambos orígenes, el navegador los considera sitios distintos para cookies HttpOnly con `SameSite=Lax`. La navegación SPA puede funcionar desde `localhost`, pero el refresh de sesión al recargar una ruta protegida no enviará la cookie y redirigirá a `/login`.
 
 ### Comandos utiles
 
@@ -245,12 +247,12 @@ Usar este flujo si queres correr backend y frontend en tu maquina y usar Docker 
 
    # terminal 2 — frontend (puerto 5173)
    cd frontend
-   npm run dev
+   npm run dev -- --host 127.0.0.1
    ```
 
 Frontend local usa `VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1` (ver `frontend/.env.example`).
 
-> **Navegador vs Docker:** el frontend en Compose corre en un contenedor, pero las llamadas HTTP las hace el **navegador de tu máquina**. Por eso `VITE_API_BASE_URL` debe apuntar al backend publicado en el host (`127.0.0.1:3000`), no al nombre de servicio `backend`. En Windows, `127.0.0.1` suele ser más confiable que `localhost` (evita cuelgues por resolución IPv6).
+> **Navegador vs Docker:** el frontend en Compose corre en un contenedor, pero las llamadas HTTP las hace el **navegador de tu máquina**. Por eso `VITE_API_BASE_URL` debe apuntar al backend publicado en el host (`127.0.0.1:3000`), no al nombre de servicio `backend`. En Windows, `127.0.0.1` suele ser más confiable que `localhost` (evita cuelgues por resolución IPv6) y mantiene frontend/API bajo el mismo host para que el refresh cookie funcione en reload.
 
 ---
 
@@ -398,9 +400,9 @@ Notas de `DATABASE_URL`:
 VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1
 ```
 
-En Docker desarrollo, `docker-compose.yml` define el mismo default. Si tenés un `frontend/.env` local con `localhost`, actualizalo a `127.0.0.1` (no se versiona). En producción, reconstruir el frontend con la URL pública real de la API.
+En Docker desarrollo, `docker-compose.yml` define el mismo default. Si tenés un `frontend/.env` local con `localhost`, actualizalo a `127.0.0.1` (no se versiona). Abrí también el frontend con `http://127.0.0.1:5173`; usar `localhost:5173` contra una API en `127.0.0.1` rompe el refresh cookie al recargar rutas protegidas. En producción, reconstruir el frontend con la URL pública real de la API.
 
-`FRONTEND_ORIGIN` (backend) acepta una o varias URLs separadas por coma para CORS. En `development`/`test`, si solo indicás `http://localhost:5173`, el backend también permite `http://127.0.0.1:5173` (y viceversa) para evitar bloqueos al alternar URLs en Windows.
+`FRONTEND_ORIGIN` (backend) acepta una o varias URLs separadas por coma para CORS. En `development`/`test`, si solo indicás `http://localhost:5173`, el backend también permite `http://127.0.0.1:5173` (y viceversa). Esto evita bloqueos CORS, pero no vuelve equivalentes ambos hosts para cookies: la URL canónica local sigue siendo `http://127.0.0.1:5173`.
 
 ---
 
