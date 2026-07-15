@@ -31,12 +31,12 @@ export function RecentNewsCard({ item, onClick }: RecentNewsCardProps) {
     <button
       type="button"
       onClick={() => onClick(item)}
-      className="flex flex-col overflow-hidden rounded-2xl bg-white text-left shadow-card transition-transform hover:scale-[1.02] hover:shadow-floating"
+      className="flex h-full flex-col overflow-hidden rounded-2xl bg-white text-left shadow-card transition-transform hover:scale-[1.02] hover:shadow-floating"
     >
       <NewsImage
         src={item.imageUrl}
         gradient={item.imageGradient}
-        className="h-[195px] w-full"
+        className="h-[195px] w-full shrink-0"
         iconSize={22}
       />
       <div className="flex flex-1 flex-col gap-4 p-6">
@@ -46,7 +46,9 @@ export function RecentNewsCard({ item, onClick }: RecentNewsCardProps) {
           </span>
           <span className="text-maps-muted-soft">{item.date}</span>
         </div>
-        <h3 className="text-xl font-bold leading-[25px] text-maps-heading">{item.title}</h3>
+        <h3 className="line-clamp-2 text-xl font-bold leading-[25px] text-maps-heading">
+          {item.title}
+        </h3>
         <span className="mt-auto inline-flex items-center gap-2 text-sm font-bold text-maps-brand">
           Leer más
           <ArrowIcon />

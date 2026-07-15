@@ -88,9 +88,9 @@ export function TeamSection() {
             {team.map((producer) => (
               <article
                 key={producer.slug}
-                className="flex flex-col items-center gap-2 rounded-2xl bg-white p-8 shadow-card"
+                className="flex h-full flex-col items-center gap-2 rounded-2xl bg-white p-8 text-center shadow-card"
               >
-                <div className="h-32 w-32 overflow-hidden rounded-full bg-maps-brand-soft">
+                <div className="h-32 w-32 shrink-0 overflow-hidden rounded-full bg-maps-brand-soft">
                   <TeamProducerAvatar producer={producer} />
                 </div>
                 <div className="mt-6 flex items-center gap-1.5">
@@ -104,15 +104,15 @@ export function TeamSection() {
                     />
                   ) : null}
                 </div>
-                <p className="text-base text-maps-muted">
+                <p className="line-clamp-2 text-base text-maps-muted">
                   {producer.tituloProfesional ?? 'Asesor de seguros'}
                 </p>
                 {producer.ciudad ? (
-                  <p className="text-sm text-maps-muted">{producer.ciudad}</p>
+                  <p className="line-clamp-2 text-sm text-maps-muted">{producer.ciudad}</p>
                 ) : null}
                 <Link
                   to={`/productor/${producer.slug}`}
-                  className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-lg bg-maps-brand text-base font-bold text-white transition-colors hover:bg-maps-brand-hover"
+                  className="mt-auto inline-flex h-12 w-full items-center justify-center rounded-lg bg-maps-brand text-base font-bold text-white transition-colors hover:bg-maps-brand-hover"
                 >
                   Ver perfil
                 </Link>

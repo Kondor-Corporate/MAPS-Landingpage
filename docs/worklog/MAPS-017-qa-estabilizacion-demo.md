@@ -32,6 +32,8 @@ MAPS-017 no agrega features de producto; estabiliza, documenta y valida.
 | C | Docker/dev setup y seed/migrate | Completada |
 | D | QA manual integral MAPS-014/015/016 | Completada (D.2 con bugs) |
 | E | Fix bugs bloqueantes QA D.2 (CORS, password, healthcheck) | Completada |
+| F.0 | Diagnóstico de fixes finales post-QA funcional (clasificación, sin código) | Completada |
+| F.1 | Fixes finales seguros (F.1A) + diagnóstico reload/mapa (F.1B) | Completada |
 | F | Testing frontend / E2E smoke (opcional) | Pendiente |
 | G | Docs/worklog cierre | Pendiente |
 
@@ -408,10 +410,113 @@ docker compose ps
 
 ---
 
-## Próximos pasos (post Fase E)
+## Fase F.0 — Diagnóstico de fixes finales post-QA funcional (2026-07-15)
 
-- Re-ejecutar QA UI completo (Fase D.2 checklist) en ambas URLs de frontend.
-- Limpieza datos demo (productores/noticias de QA) antes de demo formal.
+**Objetivo:** clasificar 25 hallazgos de QA funcional (bug / mejora UX / feature / deuda) sin tocar código, para decidir qué entra en F.1.
+
+### Resultado de la clasificación
+
+| ID | Hallazgo | Clasificación | ¿Entra F.1? |
+|----|----------|----------------|--------------|
+| 1 | Sidebar admin/intranet no fijo | Bug UX confirmado | Sí |
+| 2 | Reload intranet/admin manda a login | Requiere diagnóstico | Diagnóstico F.1B |
+| 3 | CTA "Leer más" no siempre visible | Bug UX confirmado | Sí |
+| 4 | Duplicados en "más cercanos" del mapa | Requiere diagnóstico | Diagnóstico F.1B |
+| 5 | Filtro fechas sin validación de rango | Bug confirmado | Sí |
+| 6 | Login label "Usuario" ambiguo | Mejora UX menor | Sí |
+| 7 | Falta volver a landing desde login | Mejora UX menor | Sí (link a `/`; navegación contextual por hash queda fuera) |
+| 8 | Volver a TeamSection/landing desde perfil público | Mejora UX | No (roadmap) |
+| 9 | Botones de cards de asesores desparejos | Bug visual confirmado | Sí |
+| 10 | Select actividad visualmente viejo | Mejora visual menor | Sí (si reemplazo directo con `MapsSelect`) |
+| 11–25 | Storage, branding, contraste, carrusel, chips, toasts, confirmación logout, publicación dual, biblioteca admin, perfil admin, CRUD admins, SELF real, legal, hero decorativo | Features/deuda futura | No — roadmap |
+
+Detalle completo (archivos, riesgo, dudas) entregado en el turno de diagnóstico F.0 previo a este documento; no se modificó código en esa fase.
+
+---
+
+## Fase F.1 — Fixes finales seguros + diagnóstico reload/mapa (2026-07-15)
+
+### F.1A — Fixes implementados
+
+| # | Fix | Archivos modificados | Validación |
+|---|-----|------------------------|------------|
+| 1 | Sidebar sticky/fijo en desktop | `frontend/src/shared/layouts/AppSidebar.tsx`, `frontend/src/shared/layouts/AppLayout.tsx` | `aside` con `lg:sticky lg:top-0 lg:h-screen`; contenedor raíz `h-screen overflow-hidden`; contenido principal scrollea internamente. Colapsado/expandido y mobile/drawer sin cambios de comportamiento. |
+| 2 | Cards de novedades con CTA visible | `frontend/src/shared/components/RecentNewsCard.tsx`, `frontend/src/modules/public-web/components/NewsPreviewSection.tsx` | `h-full flex flex-col` en la card, `line-clamp-2` en título, `mt-auto` en "Leer más". Validado en dashboard intranet (ver captura) — el botón queda dentro del accesible-name del card sin scroll. |
+| 3 | Validación rango fechas en filtros de productores | `frontend/src/modules/admin/components/ProducerFilterModal.tsx` | Si `fechaAltaDesde > fechaAltaHasta` al aplicar: error inline (`role="alert"`), no cierra el modal, no aplica filtros. "Limpiar filtros" borra el error. |
+| 4 | Login copy + volver al sitio público | `frontend/src/modules/auth/pages/LoginPage.tsx` | Label "Email o usuario" + placeholder coherente; link "Volver al sitio público" → `/`. Validado en browser: ambos elementos presentes y funcionales. |
+| 5 | Alinear cards de asesores en TeamSection | `frontend/src/modules/public-web/components/TeamSection.tsx` | `h-full flex-col`, `line-clamp-2` en título/ciudad, botón "Ver perfil" con `mt-auto`. Mantiene productores reales desde `/producers/map`. |
+| 6 | Selects visuales en ProducerFilterModal | `frontend/src/modules/admin/components/ProducerFilterModal.tsx` | Selects nativos de Estado, Sucursal y Actividad reemplazados por `MapsSelect` (reemplazo directo, sin tocar lógica de filtros ni agregar chips). |
+
+**No se tocó backend, Prisma, storage, SELF, CRUD admins ni branding global**, conforme a las restricciones de la fase.
+
+### Comandos de validación (Fase F.1)
+
+**Frontend** (único paquete tocado en F.1A):
+
+| Comando | Resultado |
+|---------|-----------|
+| `npm run typecheck` | OK |
+| `npm run lint` | OK |
+| `npm run build` | OK (warning preexistente: chunk `maplibre-gl` > 500 kB) |
+
+Backend no tocado en F.1 (los diagnósticos F.1B no requirieron cambios de código; no corresponde correr sus comandos por regla de la fase).
+
+**Validación manual en browser** (login productor `user` / `User1234!`, `http://localhost:5173`): dashboard con sidebar sticky, cards de novedades con "Leer más" visible sin scroll, login con nuevo copy y link de vuelta — confirmados visualmente durante F.1B.
+
+### F.1B — Diagnóstico #1: Reload en intranet/admin manda a login
+
+**Reproducido en `http://localhost:5173`** (login productor `user` → `/intranet/dashboard` → reload):
+
+1. Login OK, dashboard carga con datos reales (noticias, biblioteca).
+2. Al recargar (`F5` / navegación completa a la misma URL), la app muestra brevemente "Cargando sesión…" y termina en `/login`.
+3. Instrumentación temporal (revertida antes de cerrar el diagnóstico — `git diff` confirma `AuthInitializer.tsx` sin cambios) confirmó la secuencia exacta:
+   - `hasHydrated? true`
+   - `user` persistido correctamente desde `localStorage` (`maps-auth`).
+   - Se llama a `refreshAccessToken()` (la llamada **sí** se ejecuta).
+   - La llamada falla con **`AxiosError: Request failed with status code 401`**.
+   - `AuthInitializer` hace `logout()` → `ProtectedRoutes` redirige a `/login` (navegación cliente, no hard-reload; no es un bug de rutas protegidas, la lógica de guard es correcta).
+
+**Causa raíz confirmada — mismatch de cookie SameSite por host:**
+
+- `frontend/.env` define `VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1` (fijado en Fase D.1 para evitar cuelgues de `localhost`/IPv6 en Windows).
+- El servidor de desarrollo Vite en esta máquina **solo acepta conexiones en `http://localhost:5173`** (`http://127.0.0.1:5173` no conecta — verificado, error `chrome-error`).
+- Login exitoso: el backend responde `Set-Cookie: maps_refresh=...; HttpOnly; SameSite=Lax; Path=/` (verificado con request directa — dominio implícito `127.0.0.1`, confirmado con `Invoke-WebRequest`).
+- Al recargar, el navegador ejecuta `POST http://127.0.0.1:3000/api/v1/auth/refresh` **desde una página servida en `http://localhost:5173`**. Para el navegador, `localhost` y `127.0.0.1` son **sitios distintos** (no comparten cookies pese a ser ambos loopback).
+- Con `SameSite=Lax`, un XHR/fetch **cross-site que no es navegación de nivel superior** no adjunta la cookie. El refresh llega al backend sin cookie.
+- `ALLOW_REFRESH_BODY` (dev) permite fallback por body, pero `refreshClient.post('/auth/refresh', {})` envía body vacío → tampoco hay `refreshToken` → backend responde `401 Refresh token requerido`.
+- Resultado: `AuthInitializer` interpreta sesión inválida y desloguea, aunque la cookie de refresh sigue vigente en el servidor.
+
+**No es:** bug de `ProtectedRoutes`, de `AuthInitializer` (la lógica de guardas y de refresh-on-boot es correcta), ni de CORS (no hubo errores de CORS en consola; `Access-Control-Allow-Origin` refleja el origen correctamente, confirmado en Fase E).
+
+**Recomendación (no aplicada — requiere decisión antes de tocar código):**
+
+- Opción A (mínima, solo doc/entorno): estandarizar que frontend y `VITE_API_BASE_URL` usen **el mismo host** (ambos `localhost` o ambos `127.0.0.1`) en desarrollo local. Requiere confirmar que el hang histórico de `localhost` (Fase D) no reaparece si se vuelve a `localhost` en ambos.
+- Opción B (código, bajo riesgo pero toca `axios.ts`): resolver dinámicamente el host de `API_BASE` en dev a partir de `window.location.hostname`, manteniendo el puerto `:3000`, para que frontend y API siempre queden same-site sin importar cómo se acceda. No se implementó porque el ticket exige no tocar `axios.ts`/auth sin autorización explícita para este punto.
+- Ambas opciones son de bajo riesgo y acotadas; se dejan para decisión del Tech Lead antes de implementar.
+
+### F.1B — Diagnóstico #2: Duplicados en "más cercanos" del mapa
+
+**Verificado con `GET http://127.0.0.1:3000/api/v1/producers/map`:**
+
+- Total de registros: **39**.
+- Slugs duplicados: **0** (cada productor tiene slug único, incluso los generados por tests con sufijo aleatorio, ej. `nuevo-productor-3603`, `nuevo-productor-9e4b`).
+- Nombres repetidos (mismo `nombreCompleto`, slugs distintos): `Nuevo Productor` ×15, `Test Mapa` ×5, `A B` ×4, `Después Nombre` ×4, `Forbidden List` ×4.
+- Coordenadas repetidas: **32 de 39** productores comparten exactamente `lat=-34.9214, lng=-57.9545` — el valor por defecto del mock `geocodeAddress` usado en `backend/tests/producers.integration.test.ts`.
+
+**Conclusión:** el API devuelve datos **limpios y sin duplicación real** (slugs únicos, sin registros repetidos en la respuesta). Lo que el usuario percibe como "el mismo productor varias veces" en "más cercanos" son **productores de prueba distintos** (creados por la suite de integración y dejados en la base de datos de desarrollo) que comparten nombre genérico y coordenada mock, por lo que aparecen visualmente idénticos y agrupados en el mismo punto del mapa al buscar cerca de La Plata.
+
+**No es:** bug de deduplicación backend ni frontend, ni error en el cálculo de cercanos — es data sucia de QA en la base local.
+
+**Recomendación (no aplicada):** limpiar productores de prueba (`Nuevo Productor`, `Test Mapa`, `A B`, `Después Nombre`, `Forbidden List`, etc.) de la base de datos de desarrollo antes de cualquier demo. No requiere cambio de código; es tarea de datos/operación, fuera del alcance de F.1.
+
+---
+
+## Próximos pasos (post Fase F.1)
+
+- Decidir Opción A vs B para el mismatch de cookie SameSite (`localhost` vs `127.0.0.1`) antes de tocar `axios.ts`/env.
+- Limpiar productores de prueba en la base de datos de desarrollo (`Nuevo Productor`, `Test Mapa`, `A B`, `Después Nombre`, `Forbidden List`) antes de demo.
+- Re-ejecutar QA UI completo (Fase D.2 checklist) en ambas URLs de frontend, con foco en los 6 fixes de F.1A.
+- Revisar puntos 8–25 de Fase F.0 como candidatos de roadmap futuro (no MAPS-017).
 
 ---
 
