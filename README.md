@@ -24,7 +24,7 @@ Fuera de alcance actual: ecommerce y cotizador.
 | Mapa publico | Implementado | `/api/v1/producers/map` |
 | Biblioteca digital | Implementado para ramos | `/api/v1/library/ramos` |
 | Noticias | Implementado | `/api/v1/news` |
-| Landing publica | Parcial | TeamSection mock; CTA/contacto sin accion real |
+| Landing publica | Parcial | TeamSection real (API mapa); CTA al mapa (#mapa); contacto sin backend |
 | Portal SELF | Pendiente / deshabilitado | Sin URL configurada (`SELF_PORTAL_URL = null`) |
 | Admins | UI/ruta existente | API pendiente |
 | E2E browser | Pendiente | N/A |

@@ -2,9 +2,10 @@
 
 Documentación de la fase de estabilización y QA integral del proyecto MAPS Asesores post MAPS-014/015/016.
 
-**Estado:** En progreso  
+**Estado:** Completado — listo para PR  
 **Rama:** `feature/MAPS-017-qa-estabilizacion`  
 **Fecha inicio:** 2026-07-11  
+**Fecha cierre:** 2026-07-15  
 **TDD:** [`docs/tdd/MAPS-017-tdd-qa-estabilizacion-demo.md`](../tdd/MAPS-017-tdd-qa-estabilizacion-demo.md)
 
 ---
@@ -36,8 +37,8 @@ MAPS-017 no agrega features de producto; estabiliza, documenta y valida.
 | F.1 | Fixes finales seguros (F.1A) + diagnóstico reload/mapa (F.1B) | Completada |
 | F.2 | Host canónico local y revalidación de refresh cookie | Completada |
 | F.3 | Ajuste final cards novedades/comunicados en dashboard | Completada |
-| F | Testing frontend / E2E smoke (opcional) | Pendiente |
-| G | Docs/worklog cierre | Pendiente |
+| F | Testing frontend / E2E smoke (opcional) | Diferida (fuera de alcance MAPS-017) |
+| G | Docs/worklog cierre | Completada |
 
 ---
 
@@ -571,9 +572,9 @@ Variante `compact` en `RecentNewsCard`, usada solo desde `RecentNewsGrid` (dashb
 
 | Aspecto | `default` (listados) | `compact` (dashboard) |
 |---------|----------------------|------------------------|
-| Imagen | `h-[195px]` | `h-[120px]` |
-| Padding / gap | `p-6` / `gap-4` | `p-4` / `gap-2` |
-| Título | `text-xl` + `line-clamp-2` | `text-base` + `line-clamp-2` |
+| Imagen | `h-[195px]` | `h-[150px]` |
+| Padding / gap | `p-6` / `gap-4` | `p-5` / `gap-3` |
+| Título | `text-xl` + `line-clamp-2` | `text-lg` + `line-clamp-2` |
 | Descripción | no se muestra | no se muestra |
 | CTA | `mt-auto` “Leer más” | `mt-auto` “Leer más” |
 | Scroll interno | no | no (`overflow-hidden`, sin overflow-y) |
@@ -608,15 +609,128 @@ Backend no tocado.
 
 ---
 
-## Próximos pasos (post Fase F.3)
+## Fase G — Cierre documental (2026-07-15)
 
-- Limpiar productores de prueba en la base de datos de desarrollo (`Nuevo Productor`, `Test Mapa`, `A B`, `Después Nombre`, `Forbidden List`) antes de demo.
-- Ejecutar el QA final y la demo exclusivamente desde `http://127.0.0.1:5173`.
-- Revisar puntos 8–25 de Fase F.0 como candidatos de roadmap futuro (no MAPS-017).
+**Objetivo:** cerrar MAPS-017 como ticket completado y listo para PR hacia `development`.
+
+### Entregables
+
+- TDD actualizado a estado **Implementado — listo para PR**.
+- Worklog con cierre final, commits, validaciones y roadmap post-MAPS-017.
+- README revisado (sin reescritura; corrección de inconsistencia TeamSection/CTA).
+- Validación técnica final ejecutada (backend + frontend + Docker).
+
+### Commits en la rama (orden cronológico)
+
+| SHA | Mensaje |
+|-----|---------|
+| `93cd0c7` | `docs(maps-017): iniciar estabilización y resolver README` |
+| `21f18c5` | `fix(maps-017): estabilizar landing y navegación para demo` |
+| `bfa11bd` | `docs(maps-017): aclarar setup docker y prisma` |
+| `228bc6f` | `fix(maps-017): corregir api base url local` |
+| `87045aa` | `fix(maps-017): corregir cors y manejo de contraseña` |
+| `4ff3e62` | `fix(maps-017): aplicar algunos ajustes finales de qa` |
+| `dca88f3` | `fix(maps-017): ajustar cards de novedades en dashboard` |
+
+Commit de cierre documental (Fase G): pendiente de crear por el Lead.
+
+### Bugs corregidos en MAPS-017
+
+| ID | Bug | Fix |
+|----|-----|-----|
+| B1 | XHR colgadas con `localhost:3000` en Windows | `VITE_API_BASE_URL` → `127.0.0.1` (Fase D.1) |
+| BUG-001 | CORS rechazaba un origen localhost/127 | `FRONTEND_ORIGIN` multi-origin + auto-expansión (Fase E) |
+| BUG-002 | Password incorrecta → 401 → logout | Backend 400; sesión intacta (Fase E) |
+| BUG-003 | Frontend Docker unhealthy | Healthcheck timeout ampliado (Fase E) |
+| UX-001 | Sidebar no fijo en desktop | Sticky sidebar (F.1) |
+| UX-002 | CTA "Leer más" cortado en dashboard | Variante `compact` en cards (F.1 + F.3) |
+| UX-003 | Filtro fechas sin validación de rango | Error inline en modal (F.1) |
+| UX-004 | Login label ambiguo; sin volver a landing | Copy + link público (F.1) |
+| UX-005 | Cards TeamSection desalineadas | Flex + `mt-auto` (F.1) |
+| UX-006 | Selects nativos en filtros | `MapsSelect` (F.1) |
+| CFG-001 | Reload manda a login (localhost vs 127) | Host canónico documentado (F.2) |
+
+### Validaciones realizadas (cierre)
+
+**Backend** (`2026-07-15`):
+
+| Comando | Resultado |
+|---------|-----------|
+| `npm run typecheck` | OK |
+| `npm run lint` | OK |
+| `npm run build` | OK |
+| `npm test` | OK — 9 archivos, 119 tests |
+
+**Frontend** (`2026-07-15`):
+
+| Comando | Resultado |
+|---------|-----------|
+| `npm run typecheck` | OK |
+| `npm run lint` | OK |
+| `npm run build` | OK (warning maplibre > 500 kB) |
+
+**Docker** (`2026-07-15`):
+
+| Servicio | Estado |
+|----------|--------|
+| `db` | healthy |
+| `backend` | healthy |
+| `frontend` | healthy |
+
+### QA final
+
+- **Responsable:** Nico.
+- **Alcance:** QA funcional integral MAPS-014/015/016 + revalidación post-fixes E/F.
+- **F.3 validado:** cards de comunicados en `/admin/dashboard` e `/intranet/dashboard` con CTA "Leer más" visible; listados completos sin regresión.
+- **Host canónico:** demo y QA desde `http://127.0.0.1:5173`.
 
 ---
 
-## Pendientes fuera de MAPS-017
+## Roadmap post-MAPS-017
+
+### Bugs / UX pendientes
+
+- Mejoras visuales globales.
+- Contraste / marca.
+- Confirmación logout.
+- Chips de filtros activos.
+- Vista biblioteca como productor para admin.
+- Perfil admin/superadmin más completo.
+- Volver a TeamSection/landing desde perfil público.
+- Limpieza de productores de prueba en DB local antes de demo.
+
+### Features futuras
+
+- CRUD Administradores / SuperAdmin.
+- Portal SELF real.
+- Contacto / Sumate real.
+- Storage / uploads productivos.
+- SEO noticias.
+- Legal / Términos / Privacidad.
+- Upload imágenes noticias.
+
+### Testing / infra
+
+- Frontend tests en CI.
+- E2E Playwright.
+- Docker prod/staging.
+- One-shot migrate/seed.
+- Backend hot reload Docker.
+
+### Recomendación de próximas ramas
+
+| Rama sugerida | Tema |
+|---------------|------|
+| `chore/demo-data-cleanup` | Limpiar productores de prueba en DB dev |
+| `feature/MAPS-018-ux-polish` | UX global (contraste, logout, chips, perfil admin) |
+| `feature/MAPS-019-admins-crud` | CRUD admins API + UI |
+| `feature/MAPS-020-storage` | Storage S3 productivo |
+| `feature/MAPS-021-testing-ci-e2e` | Tests frontend CI + E2E smoke |
+| `chore/docker-prod-setup` | Compose prod + one-shot migrate |
+
+---
+
+## Pendientes fuera de MAPS-017 (confirmado)
 
 | Pendiente | Detalle |
 |-----------|---------|
@@ -625,8 +739,12 @@ Backend no tocado.
 | SEO `/noticias/:slug` | Feature aparte |
 | CRUD admins | MAPS futuro |
 | Portal SELF real | Integración externa |
+| Rich text noticias | Feature aparte |
+| E2E / frontend tests CI | Infra aparte |
+| Legal / Términos / Privacidad | Feature aparte |
 | Paginación server-side avanzada | Mejora aparte |
+| Drive real (`PLACEHOLDER_DRIVE`) | Contenido/ops aparte |
 
 ---
 
-*Documento iniciado en MAPS-017 Fase A — 2026-07-11.*
+*Documento iniciado en MAPS-017 Fase A — 2026-07-11. Cerrado en Fase G — 2026-07-15.*
