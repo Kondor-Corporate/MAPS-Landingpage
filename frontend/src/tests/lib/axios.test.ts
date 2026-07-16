@@ -143,6 +143,28 @@ describe('api — interceptor de response (MSW)', () => {
     expect(replace).toHaveBeenCalledWith('/login');
   });
 
+  it('401 en /auth/login no intenta refresh ni redirige a /login', async () => {
+    const replace = installMockLocation();
+
+    server.use(
+      http.post(`${API_BASE}/auth/login`, () =>
+        HttpResponse.json(
+          { data: null, message: 'Credenciales inválidas', error: null },
+          { status: 401 },
+        ),
+      ),
+    );
+
+    await expect(
+      api.post('/auth/login', { usuario: 'admin', password: 'wrong' }),
+    ).rejects.toMatchObject({
+      response: { status: 401 },
+    });
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+
   it('401 en /auth/refresh no reintenta refresh: logout directo', async () => {
     const replace = installMockLocation();
 

@@ -80,7 +80,7 @@ describe('ChangePasswordForm', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('muestra error si la contraseña actual es incorrecta (401 del backend) y no cierra el modal', async () => {
+  it('muestra error si la contraseña actual es incorrecta (400 del backend) y no cierra el modal', async () => {
     const user = userEvent.setup();
     const changePassword = vi.fn().mockRejectedValue({
       isAxiosError: true,

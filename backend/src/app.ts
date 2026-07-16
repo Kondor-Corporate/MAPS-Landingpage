@@ -32,7 +32,7 @@ export function createApp() {
 
   app.use(
     cors({
-      origin: env.FRONTEND_ORIGIN,
+      origin: env.frontendOrigins,
       credentials: true,
     }),
   );

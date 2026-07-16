@@ -109,7 +109,7 @@ Rutas API montadas:
 | `/api/v1/auth` | Implementado |
 | `/api/v1/producers` | Implementado |
 | `/api/v1/library` | Implementado para ramos |
-| `/api/v1/news` | Router montado; API pendiente |
+| `/api/v1/news` | Implementado (MAPS-014) |
 | `/api/v1/admins` | Router montado; API pendiente |
 
 ---

@@ -1,10 +1,50 @@
 import { z } from 'zod';
 
+/** Parsea FRONTEND_ORIGIN como lista separada por coma. */
+export function parseFrontendOrigins(raw: string): string[] {
+  return [...new Set(raw.split(',').map((part) => part.trim()).filter(Boolean))];
+}
+
+type NodeEnv = 'development' | 'production' | 'test';
+
+/**
+ * En dev/test, si solo hay localhost o 127.0.0.1 en un puerto, agrega el par equivalente
+ * para evitar bloqueos CORS al alternar URLs en Windows.
+ */
+export function expandDevFrontendOrigins(origins: string[], nodeEnv: NodeEnv): string[] {
+  if (nodeEnv !== 'development' && nodeEnv !== 'test') {
+    return origins;
+  }
+
+  const expanded = [...origins];
+  for (const origin of origins) {
+    try {
+      const url = new URL(origin);
+      if (url.hostname === 'localhost') {
+        const alt = new URL(origin);
+        alt.hostname = '127.0.0.1';
+        expanded.push(alt.origin);
+      } else if (url.hostname === '127.0.0.1') {
+        const alt = new URL(origin);
+        alt.hostname = 'localhost';
+        expanded.push(alt.origin);
+      }
+    } catch {
+      // Validación previa en superRefine.
+    }
+  }
+
+  return [...new Set(expanded)];
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3000),
-  /** Origen permitido del frontend. Usado en CORS + cookies. Ej: http://localhost:5173 */
-  FRONTEND_ORIGIN: z.string().url().default('http://localhost:5173'),
+  /**
+   * Origen(es) permitidos del frontend (CORS). Una URL o varias separadas por coma.
+   * Ej: http://localhost:5173 o http://localhost:5173,http://127.0.0.1:5173
+   */
+  FRONTEND_ORIGIN: z.string().min(1).default('http://localhost:5173'),
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().default('15m'),
@@ -50,6 +90,17 @@ const envSchema = z.object({
     .min(1)
     .default('maps-landingpage-dev/1.0 (contact@kondor.local)'),
 }).superRefine((data, ctx) => {
+  for (const origin of parseFrontendOrigins(data.FRONTEND_ORIGIN)) {
+    const urlCheck = z.string().url().safeParse(origin);
+    if (!urlCheck.success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `FRONTEND_ORIGIN contiene una URL inválida: ${origin}`,
+        path: ['FRONTEND_ORIGIN'],
+      });
+    }
+  }
+
   if (data.STORAGE_PROVIDER === 's3') {
     const required = ['S3_BUCKET', 'S3_REGION', 'S3_ACCESS_KEY', 'S3_SECRET_KEY'] as const;
     for (const key of required) {
@@ -71,6 +122,8 @@ export type Env = ParsedEnv & {
   trustProxy: boolean | number;
   /** Si se acepta `body.refreshToken` además de la cookie `maps_refresh`. */
   allowRefreshBody: boolean;
+  /** Orígenes CORS permitidos (normalizados, sin duplicados). */
+  frontendOrigins: string[];
 };
 
 let cached: Env | null = null;
@@ -91,10 +144,16 @@ function buildEnv(parsed: ParsedEnv): Env {
       ? parsed.ALLOW_REFRESH_BODY === 'true'
       : parsed.NODE_ENV !== 'production';
 
+  const frontendOrigins = expandDevFrontendOrigins(
+    parseFrontendOrigins(parsed.FRONTEND_ORIGIN),
+    parsed.NODE_ENV,
+  );
+
   return {
     ...parsed,
     trustProxy: parseTrustProxy(parsed.TRUST_PROXY),
     allowRefreshBody,
+    frontendOrigins,
   };
 }
 

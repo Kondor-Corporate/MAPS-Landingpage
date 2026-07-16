@@ -8,10 +8,11 @@ Este documento describe el estado actual. Si se agregan nuevos niveles de prueba
 
 ## Resumen de comandos
 
-Backend:
+Backend (desde `backend/`; ejecutar `npm run prisma:generate` tras clone o cambios de schema):
 
 ```bash
 cd backend
+npm run prisma:generate
 npm run typecheck
 npm run lint
 npm run build
@@ -27,12 +28,34 @@ npm run lint
 npm run build
 ```
 
-Docker desarrollo:
+Docker desarrollo (primera vez incluye migrate + seed):
 
 ```bash
 docker compose up -d --build
+docker compose exec backend npx prisma migrate deploy
+docker compose exec backend npm run db:seed
 docker compose ps
 ```
+
+Script helper: `./scripts/docker-dev-init.sh` o `.\scripts\docker-dev-init.ps1` (ver README raiz).
+
+---
+
+## Verificacion rapida manual (sin E2E)
+
+Checklist orientativo tras levantar el entorno local o Docker:
+
+| # | Verificacion | Como |
+|---|--------------|------|
+| 1 | Frontend responde | Abrir `http://localhost:5173` |
+| 2 | Backend health | `GET http://localhost:3000/api/v1/health` → 200 |
+| 3 | DB conectada | Health OK + login no falla por error de conexion |
+| 4 | Login admin seed | `admin` / `Admin1234!` → dashboard admin |
+| 5 | Mapa publico | `/#mapa` muestra marcadores (requiere seed) |
+| 6 | Noticias | Home lista noticias desde API |
+| 7 | Biblioteca demo | Login productor → `/intranet/biblioteca`; URLs `EXAMPLE` no clicables |
+
+Si el health responde pero login o listados fallan con errores SQL, probablemente faltaron `migrate deploy` y/o `db:seed`.
 
 ---
 

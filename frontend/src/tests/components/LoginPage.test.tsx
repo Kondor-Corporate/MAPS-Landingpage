@@ -99,7 +99,7 @@ describe('LoginPage', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('error 401 del API muestra mensaje', async () => {
+  it('error 401 del API muestra mensaje y conserva los valores ingresados', async () => {
     const user = userEvent.setup();
     renderLogin();
 
@@ -114,6 +114,12 @@ describe('LoginPage', () => {
         screen.getByRole('alert').textContent,
       ).toMatch(/credenciales inválidas/i);
     });
+
+    expect(getUsuarioInput()).toHaveValue('admin');
+    expect(getPasswordInput()).toHaveValue('wrong');
+    expect(
+      screen.getByRole('button', { name: /ingresar al portal/i }),
+    ).not.toBeDisabled();
   });
 
   it('login PRODUCTOR navega a intranet', async () => {
