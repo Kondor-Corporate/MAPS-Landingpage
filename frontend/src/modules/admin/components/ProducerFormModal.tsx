@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { UserPlus } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { AddressMapPicker } from '@/shared/components/map/AddressMapPicker';
@@ -127,9 +127,18 @@ export function ProducerFormModal({
 }: Props) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<ReturnType<typeof validate>>({});
+  const formContextRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      formContextRef.current = null;
+      return;
+    }
+
+    const formContext = `${mode}:${producer?.id ?? 'new'}`;
+    if (formContextRef.current === formContext) return;
+
+    formContextRef.current = formContext;
     setErrors({});
     if (mode === 'edit' && producer) {
       setForm(fromProducer(producer));
@@ -167,6 +176,7 @@ export function ProducerFormModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     const v = validate(form, mode);
     setErrors(v);
     if (Object.keys(v).length > 0) return;

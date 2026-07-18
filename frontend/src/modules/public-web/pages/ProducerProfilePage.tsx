@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { ProfileCertificationsList } from '@/shared/components/profile/ProfileCertificationsList';
 import { ProfileHeaderCard } from '@/shared/components/profile/ProfileHeaderCard';
 import { ProfileInfluenceMap } from '@/shared/components/profile/ProfileInfluenceMap';
@@ -62,6 +63,13 @@ export function ProducerProfilePage() {
     <article className="bg-maps-surface px-6 py-8 sm:px-8 sm:py-12">
       <div className="mx-auto max-w-[1232px]">
         <div className="flex flex-col gap-8">
+          <Link
+            to="/#mapa"
+            className="inline-flex w-fit items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-maps-brand transition-colors hover:text-maps-brand-hover focus:outline-none focus:ring-2 focus:ring-maps-brand/40 focus:ring-offset-2"
+          >
+            <ArrowLeft className="size-4" aria-hidden />
+            Volver al mapa
+          </Link>
           <ProfileHeaderCard profile={profile} variant="public" />
 
           <div className="grid gap-8 lg:grid-cols-[1fr_390px]">
