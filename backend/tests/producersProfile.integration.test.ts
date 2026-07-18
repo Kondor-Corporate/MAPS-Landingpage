@@ -491,6 +491,38 @@ describe('producers admin profile API (MAPS-013 Fase 2)', () => {
 
   });
 
+  it('POST certificaciones — rechaza una imagen con mensaje funcional', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/certificaciones`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.from('fake-image'), {
+        filename: 'certificacion.png',
+        contentType: 'image/png',
+      })
+      .expect(400);
+
+    expect(res.body.message).toBe('Solo se permiten archivos PDF');
+  });
+
+  it('POST certificaciones — informa el límite máximo de 10 MB', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/certificaciones`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.alloc(10 * 1024 * 1024 + 1), {
+        filename: 'certificacion-grande.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(413);
+
+    expect(res.body.message).toBe('El archivo supera el tamaño máximo de 10 MB.');
+  });
+
 });
 
 describe('POST /producers/me/foto (MAPS-016)', () => {
@@ -562,6 +594,22 @@ describe('POST /producers/me/foto (MAPS-016)', () => {
         contentType: 'application/pdf',
       })
       .expect(400);
+  });
+
+  it('archivo mayor a 5 MB → 413 con mensaje funcional', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.alloc(5 * 1024 * 1024 + 1), {
+        filename: 'avatar-grande.png',
+        contentType: 'image/png',
+      })
+      .expect(413);
+
+    expect(res.body.message).toBe('El archivo supera el tamaño máximo de 5 MB.');
   });
 
   it('admin no puede usar el endpoint self-service → 403', async () => {

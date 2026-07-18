@@ -24,6 +24,7 @@ type Props = {
 
 const FOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
 const FOTO_MAX_BYTES = 5 * 1024 * 1024;
+const FOTO_ALLOWED_MIME_TYPES = new Set(FOTO_ACCEPT.split(','));
 
 export function ProfileHeaderCard({
   profile,
@@ -46,10 +47,15 @@ export function ProfileHeaderCard({
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ''; // permite volver a elegir el mismo archivo después
-    if (!file || !onUploadFoto) return;
+    if (!file || !onUploadFoto || uploading) return;
+
+    if (!FOTO_ALLOWED_MIME_TYPES.has(file.type)) {
+      setUploadError('La foto debe ser JPG, PNG o WEBP.');
+      return;
+    }
 
     if (file.size > FOTO_MAX_BYTES) {
-      setUploadError('La imagen no puede superar los 5MB');
+      setUploadError('El archivo supera el tamaño máximo de 5 MB.');
       return;
     }
 
@@ -58,7 +64,7 @@ export function ProfileHeaderCard({
     try {
       await onUploadFoto(file);
     } catch (err) {
-      setUploadError(getApiErrorMessage(err, 'No se pudo actualizar la foto'));
+      setUploadError(getApiErrorMessage(err, 'No se pudo subir la foto. Intentá nuevamente.'));
     } finally {
       setUploading(false);
     }
@@ -124,10 +130,17 @@ export function ProfileHeaderCard({
             <input
               ref={fileInputRef}
               type="file"
+              aria-label="Seleccionar foto de perfil"
               accept={FOTO_ACCEPT}
+              disabled={uploading}
               onChange={(e) => void handleFileChange(e)}
               className="hidden"
             />
+          )}
+          {canUploadFoto && !uploadError && (
+            <p className="mt-2 max-w-[9rem] text-center text-xs text-slate-500">
+              JPG, PNG o WEBP · máximo 5 MB
+            </p>
           )}
           {uploadError && (
             <p className="mt-2 max-w-[8rem] text-center text-xs text-rose-600" role="alert">

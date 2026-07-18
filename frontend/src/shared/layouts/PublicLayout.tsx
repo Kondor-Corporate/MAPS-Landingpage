@@ -29,17 +29,6 @@ type PublicNavLinkProps = {
 };
 
 function PublicNavLink({ sectionId, label, className, onNavigate }: PublicNavLinkProps) {
-  const { pathname } = useLocation();
-  const isHome = pathname === '/';
-
-  if (isHome) {
-    return (
-      <a href={`#${sectionId}`} className={className} onClick={onNavigate}>
-        {label}
-      </a>
-    );
-  }
-
   return (
     <Link to={`/#${sectionId}`} className={className} onClick={onNavigate}>
       {label}
@@ -48,9 +37,6 @@ function PublicNavLink({ sectionId, label, className, onNavigate }: PublicNavLin
 }
 
 function PublicBrandLink({ className }: { className: string }) {
-  const { pathname } = useLocation();
-  const isHome = pathname === '/';
-
   const content = (
     <>
       <img
@@ -64,16 +50,8 @@ function PublicBrandLink({ className }: { className: string }) {
     </>
   );
 
-  if (isHome) {
-    return (
-      <a href="#inicio" className={className}>
-        {content}
-      </a>
-    );
-  }
-
   return (
-    <Link to="/" className={className}>
+    <Link to="/#inicio" className={className}>
       {content}
     </Link>
   );
@@ -84,11 +62,20 @@ export function PublicLayout({ children }: PublicLayoutProps) {
   const location = useLocation();
 
   useEffect(() => {
-    if (location.pathname !== '/' || !location.hash) return;
+    if (!location.hash) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      return;
+    }
 
-    const sectionId = location.hash.slice(1);
+    const sectionId = decodeURIComponent(location.hash.slice(1));
+
     const frame = window.requestAnimationFrame(() => {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     });
 
     return () => window.cancelAnimationFrame(frame);
@@ -201,20 +188,20 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               <h3 className="text-lg font-bold text-maps-heading">Enlaces</h3>
               <ul className="flex flex-col gap-3 text-sm text-maps-muted">
                 <li>
-                  <a
-                    href="/#nosotros"
+                  <Link
+                    to="/#nosotros"
                     className="transition-colors hover:text-maps-brand"
                   >
                     Nosotros
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="/#mapa"
+                  <Link
+                    to="/#mapa"
                     className="transition-colors hover:text-maps-brand"
                   >
                     Mapa de asesores
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>

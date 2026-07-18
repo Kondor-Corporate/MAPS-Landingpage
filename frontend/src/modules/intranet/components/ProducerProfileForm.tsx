@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal } from '@/shared/components/Modal';
 import { AddressMapPicker } from '@/shared/components/map/AddressMapPicker';
 import { ProducerCertificationsManager } from '@/shared/components/profile/ProducerCertificationsManager';
@@ -64,11 +64,14 @@ export function ProducerProfileForm({
   const [form, setForm] = useState<FormState>(() => fromProfile(profile));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const wasOpenRef = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
-    setForm(fromProfile(profile));
-    setError(null);
+    if (open && !wasOpenRef.current) {
+      setForm(fromProfile(profile));
+      setError(null);
+    }
+    wasOpenRef.current = open;
   }, [open, profile]);
 
   function toggleEspecialidad(clave: string) {
@@ -82,6 +85,7 @@ export function ProducerProfileForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     setSubmitting(true);
     setError(null);
 
