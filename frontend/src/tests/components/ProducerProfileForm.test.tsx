@@ -142,4 +142,42 @@ describe('ProducerProfileForm coordinate flow', () => {
     expect(screen.getByTestId('profile-picker-latitude')).toHaveTextContent('-35.1111');
     expect(screen.getByTestId('profile-picker-longitude')).toHaveTextContent('-58.2222');
   });
+
+  it('conserva campos sin guardar cuando se actualizan las certificaciones', async () => {
+    const user = userEvent.setup();
+    const commonProps = {
+      onClose: vi.fn(),
+      onSaved: vi.fn(),
+      updateProfile: vi.fn().mockResolvedValue(PROFILE),
+      uploadCertificacion: vi.fn(),
+      deleteCertificacion: vi.fn(),
+    };
+    const { rerender } = render(
+      <ProducerProfileForm open profile={PROFILE} {...commonProps} />,
+    );
+    const bio = screen.getByLabelText(/trayectoria/i);
+    await user.type(bio, 'Texto todavía no guardado');
+
+    rerender(
+      <ProducerProfileForm
+        open
+        profile={{
+          ...PROFILE,
+          certificaciones: [
+            {
+              id: 10,
+              nombre: 'Certificación nueva',
+              archivoUrl: '/certificacion.pdf',
+              tamanoBytes: 1024,
+              mimeType: 'application/pdf',
+            },
+          ],
+        }}
+        {...commonProps}
+      />,
+    );
+
+    expect(bio).toHaveValue('Texto todavía no guardado');
+    expect(screen.getByText('Certificación nueva')).toBeInTheDocument();
+  });
 });
