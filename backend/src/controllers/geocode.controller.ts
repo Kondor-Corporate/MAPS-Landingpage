@@ -1,5 +1,8 @@
 import type { RequestHandler } from 'express';
-import { geocodeAddress } from '../lib/geocode.js';
+import {
+  geocodeAddress,
+  reverseGeocodeCoordinates,
+} from '../lib/geocode.js';
 
 /**
  * GET /api/v1/geocode?q=<texto>
@@ -14,6 +17,18 @@ export const getGeocode: RequestHandler = async (req, res) => {
   const q = req.query.q as string;
 
   const result = await geocodeAddress(q);
+
+  res.json({
+    data: result,
+    message: result ? 'ok' : 'no encontrado',
+    error: null,
+  });
+};
+
+export const getReverseGeocode: RequestHandler = async (req, res) => {
+  const latitud = req.query.latitud as unknown as number;
+  const longitud = req.query.longitud as unknown as number;
+  const result = await reverseGeocodeCoordinates(latitud, longitud);
 
   res.json({
     data: result,

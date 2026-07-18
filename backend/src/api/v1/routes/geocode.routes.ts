@@ -1,9 +1,21 @@
 import { Router } from 'express';
 import { validate } from '../../../middlewares/validate.js';
-import { geocodeQuerySchema } from '../../../validations/geocode.schema.js';
-import { getGeocode } from '../../../controllers/geocode.controller.js';
+import {
+  geocodeQuerySchema,
+  reverseGeocodeQuerySchema,
+} from '../../../validations/geocode.schema.js';
+import {
+  getGeocode,
+  getReverseGeocode,
+} from '../../../controllers/geocode.controller.js';
 
 export const geocodeRouter = Router();
+
+geocodeRouter.get(
+  '/reverse',
+  validate({ query: reverseGeocodeQuerySchema }),
+  getReverseGeocode,
+);
 
 /**
  * GET /api/v1/geocode?q=<texto>
