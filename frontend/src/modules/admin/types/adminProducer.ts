@@ -40,8 +40,8 @@ export type AdminProducer = {
   direccion: string | null;
   dni: string | null;
   foto: string | null;
-  latitud: number | null;
-  longitud: number | null;
+  latitud: number | string | null;
+  longitud: number | string | null;
   telefono: string | null;
   matricula: string | null;
   verificado: boolean;

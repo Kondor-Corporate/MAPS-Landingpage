@@ -17,23 +17,34 @@ type PickedLocation = {
   source: 'cleared' | 'geocoded' | 'manual';
 };
 
-// AddressMapPicker usa maplibre-gl (WebGL) — se reemplaza por un stub liviano
-// que expone un botón para simular una ubicación confirmada.
 vi.mock('@/shared/components/map/AddressMapPicker', () => ({
-  AddressMapPicker: ({ onChange }: { onChange: (location: PickedLocation) => void }) => (
-    <button
-      type="button"
-      onClick={() =>
-        onChange({
-          direccion: 'Calle 7 776, La Plata, Buenos Aires, Argentina',
-          latitud: -34.9214,
-          longitud: -57.9545,
-          source: 'manual',
-        })
-      }
-    >
-      Simular ubicación confirmada
-    </button>
+  AddressMapPicker: ({
+    direccion,
+    initialCoords,
+    onChange,
+  }: {
+    direccion: string;
+    initialCoords?: { latitud: number; longitud: number } | null;
+    onChange: (location: PickedLocation) => void;
+  }) => (
+    <div>
+      <span data-testid="picker-address">{direccion}</span>
+      <span data-testid="picker-latitude">{initialCoords?.latitud ?? ''}</span>
+      <span data-testid="picker-longitude">{initialCoords?.longitud ?? ''}</span>
+      <button
+        type="button"
+        onClick={() =>
+          onChange({
+            direccion: 'Calle 50 1000, La Plata, Buenos Aires, Argentina',
+            latitud: -34.9214,
+            longitud: -57.9545,
+            source: 'manual',
+          })
+        }
+      >
+        Simular ubicación confirmada
+      </button>
+    </div>
   ),
 }));
 
@@ -145,6 +156,88 @@ describe('ProducerFormModal', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.not.objectContaining({ password: expect.anything() }),
     );
+  });
+
+  it('flujo admin: inicializa el picker con dirección y coordenadas guardadas', () => {
+    renderModal({
+      mode: 'edit',
+      producer: {
+        ...BASE_PRODUCER,
+        direccion: 'Calle 12 345, La Plata',
+        latitud: -34.9123,
+        longitud: -57.9456,
+      },
+    });
+
+    expect(screen.getByTestId('picker-address')).toHaveTextContent(
+      'Calle 12 345, La Plata',
+    );
+    expect(screen.getByTestId('picker-latitude')).toHaveTextContent('-34.9123');
+    expect(screen.getByTestId('picker-longitude')).toHaveTextContent('-57.9456');
+  });
+
+  it('flujo admin: el payload incluye ambas coordenadas manuales', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderModal({ mode: 'edit', producer: BASE_PRODUCER });
+
+    await user.click(screen.getByRole('button', { name: /simular ubicación confirmada/i }));
+    await user.click(screen.getByRole('button', { name: /guardar cambios/i }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        direccion: 'Calle 50 1000, La Plata, Buenos Aires, Argentina',
+        latitud: -34.9214,
+        longitud: -57.9545,
+      }),
+    );
+  });
+
+  it('flujo admin: al reabrir usa las coordenadas guardadas más recientes', () => {
+    const initialProducer = {
+      ...BASE_PRODUCER,
+      direccion: 'Calle 12 345, La Plata',
+      latitud: -34.9123,
+      longitud: -57.9456,
+    };
+    const { rerender } = render(
+      <ProducerFormModal
+        isOpen
+        onClose={vi.fn()}
+        mode="edit"
+        producer={initialProducer}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    rerender(
+      <ProducerFormModal
+        isOpen={false}
+        onClose={vi.fn()}
+        mode="edit"
+        producer={initialProducer}
+        onSubmit={vi.fn()}
+      />,
+    );
+    rerender(
+      <ProducerFormModal
+        isOpen
+        onClose={vi.fn()}
+        mode="edit"
+        producer={{
+          ...initialProducer,
+          direccion: 'Calle 50 1000, La Plata',
+          latitud: -35.1234,
+          longitud: -58.5678,
+        }}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('picker-address')).toHaveTextContent(
+      'Calle 50 1000, La Plata',
+    );
+    expect(screen.getByTestId('picker-latitude')).toHaveTextContent('-35.1234');
+    expect(screen.getByTestId('picker-longitude')).toHaveTextContent('-58.5678');
   });
 
   it('modo create: valida la contraseña en tiempo real, antes de tocar submit', async () => {

@@ -5,6 +5,7 @@ import { loadEnv } from '../src/config/env.js';
 
 vi.mock('../src/lib/geocode.js', () => ({
   geocodeAddress: vi.fn(async () => ({ latitud: -34.9214, longitud: -57.9545 })),
+  reverseGeocodeCoordinates: vi.fn(async () => null),
 }));
 
 const BASE = '/api/v1/producers';
