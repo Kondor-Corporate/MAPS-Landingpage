@@ -9,6 +9,7 @@ vi.mock('../src/lib/geocode.js', () => ({
     if (query.includes('INVALID_ADDRESS_XYZ')) return null;
     return { latitud: -34.9214, longitud: -57.9545 };
   }),
+  reverseGeocodeCoordinates: vi.fn(async () => null),
 }));
 
 const BASE = '/api/v1';

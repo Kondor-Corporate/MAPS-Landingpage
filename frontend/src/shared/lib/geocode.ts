@@ -10,6 +10,10 @@ type GeocodeResponseData = {
   longitud: number;
 } | null;
 
+type ReverseGeocodeResponseData = {
+  direccion: string;
+} | null;
+
 /**
  * Geocodifica un texto de búsqueda usando el proxy del backend.
  *
@@ -27,6 +31,25 @@ export async function geocodeQuery(query: string): Promise<GeocodeCoords | null>
     const d = res.data.data;
     if (!d) return null;
     return { latitude: d.latitud, longitude: d.longitud };
+  } catch {
+    return null;
+  }
+}
+
+export async function reverseGeocodeQuery(
+  latitude: number,
+  longitude: number,
+): Promise<string | null> {
+  try {
+    const res = await api.get<{
+      data: ReverseGeocodeResponseData;
+      message: string;
+      error: null;
+    }>('/geocode/reverse', {
+      params: { latitud: latitude, longitud: longitude },
+    });
+    const direccion = res.data.data?.direccion.trim();
+    return direccion || null;
   } catch {
     return null;
   }

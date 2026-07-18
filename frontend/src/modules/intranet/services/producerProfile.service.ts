@@ -1,5 +1,9 @@
 import type { AxiosResponse } from 'axios';
 import { api } from '@/lib/axios';
+import {
+  normalizeCoordinates,
+  type CoordinateInput,
+} from '@/shared/lib/coordinates';
 import type { ProducerCertificacion } from '@/shared/types/producerProfile';
 import type {
   ChangeMyPasswordBody,
@@ -8,26 +12,39 @@ import type {
 } from '@/modules/intranet/types/producerProfile';
 
 type ApiSuccess<T> = { data: T; message: string; error: null };
+type ProducerProfileResponse = Omit<ProducerProfile, 'latitud' | 'longitud'> & {
+  latitud: CoordinateInput;
+  longitud: CoordinateInput;
+};
 
 function unwrap<T>(res: AxiosResponse<ApiSuccess<T>>): T {
   return res.data.data;
 }
 
+function normalizeProducerProfile(profile: ProducerProfileResponse): ProducerProfile {
+  const coordinates = normalizeCoordinates(profile.latitud, profile.longitud);
+  return {
+    ...profile,
+    latitud: coordinates?.latitud ?? null,
+    longitud: coordinates?.longitud ?? null,
+  };
+}
+
 export async function getMyProducerProfile(): Promise<ProducerProfile> {
-  const res = await api.get<ApiSuccess<{ profile: ProducerProfile }>>(
+  const res = await api.get<ApiSuccess<{ profile: ProducerProfileResponse }>>(
     '/producers/me',
   );
-  return unwrap(res).profile;
+  return normalizeProducerProfile(unwrap(res).profile);
 }
 
 export async function updateMyProducerProfile(
   body: UpdateMyProfileBody,
 ): Promise<ProducerProfile> {
-  const res = await api.patch<ApiSuccess<{ profile: ProducerProfile }>>(
+  const res = await api.patch<ApiSuccess<{ profile: ProducerProfileResponse }>>(
     '/producers/me',
     body,
   );
-  return unwrap(res).profile;
+  return normalizeProducerProfile(unwrap(res).profile);
 }
 
 export async function uploadMyCertificacion(

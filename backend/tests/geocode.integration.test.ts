@@ -8,6 +8,10 @@ vi.mock('../src/lib/geocode.js', () => ({
     if (query.toLowerCase().includes('inexistente')) return null;
     return { latitud: -34.9214, longitud: -57.9545 };
   }),
+  reverseGeocodeCoordinates: vi.fn(async (latitud: number) => {
+    if (latitud === 0) return null;
+    return { direccion: 'Calle 50 1000, La Plata, Buenos Aires, Argentina' };
+  }),
 }));
 
 const BASE = '/api/v1/geocode';
@@ -61,5 +65,30 @@ describe('geocode API', () => {
   it('GET /geocode?q=Buenos+Aires — accesible sin token → 200', async () => {
     const res = await request(app).get(`${BASE}?q=Buenos+Aires`).expect(200);
     expect(res.body.error).toBeNull();
+  });
+
+  it('GET /geocode/reverse — coordenadas válidas → 200 con dirección', async () => {
+    const res = await request(app)
+      .get(`${BASE}/reverse?latitud=-34.923456&longitud=-57.956789`)
+      .expect(200);
+
+    expect(res.body.error).toBeNull();
+    expect(res.body.data).toEqual({
+      direccion: 'Calle 50 1000, La Plata, Buenos Aires, Argentina',
+    });
+  });
+
+  it('GET /geocode/reverse — resultado sin dirección → 200 data null', async () => {
+    const res = await request(app)
+      .get(`${BASE}/reverse?latitud=0&longitud=-57.956789`)
+      .expect(200);
+
+    expect(res.body.data).toBeNull();
+  });
+
+  it('GET /geocode/reverse — coordenadas inválidas → 422', async () => {
+    await request(app)
+      .get(`${BASE}/reverse?latitud=100&longitud=-57.956789`)
+      .expect(422);
   });
 });
