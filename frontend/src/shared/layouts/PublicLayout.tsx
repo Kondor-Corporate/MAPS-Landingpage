@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { NewsDetailModal } from '@/modules/public-web/components/NewsDetailModal';
 
 type PublicLayoutProps = {
   children: ReactNode;
 };
 
 const navLinks = [
-  { label: 'Inicio', sectionId: 'inicio' },
-  { label: 'Nosotros', sectionId: 'nosotros' },
-  { label: 'Noticias', sectionId: 'noticias' },
-  { label: 'Mapa de Asesores', sectionId: 'mapa' },
+  { label: 'Inicio', to: '/#inicio' },
+  { label: 'Nosotros', to: '/#nosotros' },
+  { label: 'Noticias', to: '/#noticias' },
+  { label: 'Mapa de Asesores', to: '/#mapa' },
 ];
 
 const brandLogoSrc = '/mapsLogo.webp';
@@ -22,15 +23,21 @@ const mobileNavLinkClassName =
   'rounded-lg px-4 py-3 text-sm font-medium text-maps-heading hover:bg-maps-surface hover:text-maps-brand transition-colors';
 
 type PublicNavLinkProps = {
-  sectionId: string;
+  to: string;
   label: string;
   className: string;
+  isActive?: boolean;
   onNavigate?: () => void;
 };
 
-function PublicNavLink({ sectionId, label, className, onNavigate }: PublicNavLinkProps) {
+function PublicNavLink({ to, label, className, isActive = false, onNavigate }: PublicNavLinkProps) {
   return (
-    <Link to={`/#${sectionId}`} className={className} onClick={onNavigate}>
+    <Link
+      to={to}
+      className={`${className} ${isActive ? 'text-maps-brand' : ''}`}
+      aria-current={isActive ? 'location' : undefined}
+      onClick={onNavigate}
+    >
       {label}
     </Link>
   );
@@ -60,6 +67,7 @@ function PublicBrandLink({ className }: { className: string }) {
 export function PublicLayout({ children }: PublicLayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const currentPublicTarget = `${location.pathname}${location.hash}`;
 
   useEffect(() => {
     if (!location.hash) {
@@ -93,21 +101,22 @@ export function PublicLayout({ children }: PublicLayoutProps) {
           >
             {navLinks.map((link) => (
               <PublicNavLink
-                key={link.sectionId}
-                sectionId={link.sectionId}
+                key={link.to}
+                to={link.to}
                 label={link.label}
                 className={navLinkClassName}
+                isActive={currentPublicTarget === link.to}
               />
             ))}
           </nav>
 
           <div className="relative z-10 ml-auto flex shrink-0 items-center gap-2">
-            <a
-              href="/login"
+            <Link
+              to="/login"
               className="hidden h-10 items-center justify-center rounded-lg bg-maps-brand px-4 text-sm font-bold tracking-[0.21px] text-white transition-colors hover:bg-maps-brand-hover lg:inline-flex"
             >
               Acceso Productores
-            </a>
+            </Link>
 
             <button
               type="button"
@@ -144,26 +153,28 @@ export function PublicLayout({ children }: PublicLayoutProps) {
             <nav className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <PublicNavLink
-                  key={link.sectionId}
-                  sectionId={link.sectionId}
+                  key={link.to}
+                  to={link.to}
                   label={link.label}
                   className={mobileNavLinkClassName}
+                  isActive={currentPublicTarget === link.to}
                   onNavigate={() => setIsMenuOpen(false)}
                 />
               ))}
-              <a
-                href="/login"
+              <Link
+                to="/login"
                 onClick={() => setIsMenuOpen(false)}
                 className="mt-2 inline-flex h-10 items-center justify-center rounded-lg bg-maps-brand px-4 text-sm font-bold text-white hover:bg-maps-brand-hover transition-colors"
               >
                 Acceso Productores
-              </a>
+              </Link>
             </nav>
           </div>
         )}
       </header>
 
       <main className="flex-1">{children}</main>
+      <NewsDetailModal />
 
       <footer className="border-t border-maps-border bg-white px-4 pb-12 pt-16 text-maps-body sm:px-6 lg:px-10">
         <div className="mx-auto max-w-[1188px]">
@@ -180,13 +191,21 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 </span>
               </div>
               <p className="max-w-[300px] text-sm leading-[22px] text-maps-muted">
-                Modernización, gestión operativa y cobertura nacional al alcance de un clic.
+                Un espacio para conocer a nuestros asesores y acceder a información de interés.
               </p>
             </div>
 
             <div className="flex flex-col gap-4">
               <h3 className="text-lg font-bold text-maps-heading">Enlaces</h3>
               <ul className="flex flex-col gap-3 text-sm text-maps-muted">
+                <li>
+                  <Link
+                    to="/#noticias"
+                    className="transition-colors hover:text-maps-brand"
+                  >
+                    Noticias
+                  </Link>
+                </li>
                 <li>
                   <Link
                     to="/#nosotros"

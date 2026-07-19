@@ -24,7 +24,7 @@ type UserLocation = {
   label: string;
 };
 
-type ProducerWithDistance = MapProducer & { distanceKm: number | null };
+export type ProducerWithDistance = MapProducer & { distanceKm: number | null };
 
 export function FindAdvisorMap() {
   const mapRef = useRef<MapRef | null>(null);
@@ -176,9 +176,9 @@ export function FindAdvisorMap() {
   };
 
   return (
-    <section id="mapa" className="grid grid-cols-1 lg:grid-cols-[704px_1fr]">
-      <div className="flex items-center bg-white px-6 sm:px-10 lg:px-16 py-12 sm:py-16 lg:py-32">
-        <div className="flex w-full max-w-[560px] flex-col gap-5">
+    <section id="mapa" className="grid min-w-0 grid-cols-1 lg:grid-cols-[704px_1fr]">
+      <div className="flex min-w-0 items-center bg-white px-6 sm:px-10 lg:px-16 py-12 sm:py-16 lg:py-32">
+        <div className="flex min-w-0 w-full max-w-[560px] flex-col gap-5">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-maps-brand-soft text-maps-brand">
             <MapPinIcon className="h-6 w-6" />
           </div>
@@ -193,7 +193,7 @@ export function FindAdvisorMap() {
           </p>
 
           <form
-            className="mt-4 flex h-16 items-stretch overflow-hidden rounded-xl border border-maps-border bg-white shadow-card"
+            className="mt-4 flex min-w-0 flex-col gap-2 rounded-xl border border-maps-border bg-white p-2 shadow-card min-[420px]:h-16 min-[420px]:flex-row min-[420px]:items-stretch min-[420px]:gap-0"
             onSubmit={handleSearch}
           >
             <span className="flex w-9 items-center justify-center text-maps-muted-soft">
@@ -207,12 +207,12 @@ export function FindAdvisorMap() {
                 if (status !== 'idle' && status !== 'loading') setStatus('idle');
               }}
               placeholder="Ingresa tu ciudad"
-              className="flex-1 bg-transparent px-2 text-base text-maps-heading placeholder:text-maps-muted-soft focus:outline-none"
+              className="min-h-11 min-w-0 flex-1 bg-transparent px-2 text-base text-maps-heading placeholder:text-maps-muted-soft focus:outline-none"
             />
             <button
               type="submit"
               disabled={status === 'loading' || !query.trim()}
-              className="m-2 inline-flex min-w-[100px] items-center justify-center rounded-lg bg-maps-brand px-6 text-base font-bold text-white transition-colors hover:bg-maps-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-11 min-w-[100px] items-center justify-center rounded-lg bg-maps-brand px-6 text-base font-bold text-white transition-colors hover:bg-maps-brand-hover disabled:cursor-not-allowed disabled:opacity-60 min-[420px]:m-0"
             >
               {status === 'loading' ? 'Buscando…' : 'Buscar'}
             </button>
@@ -263,7 +263,7 @@ export function FindAdvisorMap() {
 
           {nearby.length > 0 && (
             <div className="mt-4 rounded-xl border border-maps-border bg-white p-4 shadow-card">
-              <p className="text-xs font-bold uppercase tracking-wide text-maps-muted">
+              <p className="break-words text-xs font-bold uppercase tracking-wide text-maps-muted">
                 Más cercanos a {userLocation?.label}
               </p>
               <ul className="mt-3 flex flex-col gap-2">
@@ -303,7 +303,7 @@ export function FindAdvisorMap() {
         </div>
       </div>
 
-      <div className="relative min-h-[300px] sm:min-h-[400px] lg:min-h-[600px] overflow-hidden">
+      <div className="relative min-h-[380px] min-w-0 sm:min-h-[460px] lg:min-h-[600px]">
         {loading && (
           <div className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-100/80">
             <p className="text-sm font-medium text-maps-muted">Cargando mapa…</p>
@@ -338,10 +338,6 @@ export function FindAdvisorMap() {
               longitude={producer.longitud}
               latitude={producer.latitud}
               anchor="bottom"
-              onClick={(e) => {
-                e.originalEvent.stopPropagation();
-                setActiveSlug(producer.slug);
-              }}
             >
               <button
                 type="button"
@@ -350,6 +346,10 @@ export function FindAdvisorMap() {
                     ? `, a ${formatDistance(producer.distanceKm)}`
                     : ''
                 }`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setActiveSlug(producer.slug);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
@@ -374,17 +374,21 @@ export function FindAdvisorMap() {
               anchor="bottom"
               offset={36}
               closeButton
-              closeOnClick={false}
+              closeOnClick
               onClose={() => setActiveSlug(null)}
               className="maps-popup"
-              maxWidth="320px"
+              maxWidth="min(320px, calc(100vw - 32px))"
             >
               <ProducerPopupCard producer={activeProducer} />
             </Popup>
           )}
         </Map>
 
-        <div className="absolute right-6 top-6 z-[10] flex flex-col gap-2">
+        <div
+          className={`absolute right-3 top-3 z-[10] flex-col gap-2 sm:right-6 sm:top-6 ${
+            activeProducer ? 'hidden sm:flex' : 'flex'
+          }`}
+        >
           <button
             type="button"
             aria-label="Acercar"
@@ -443,14 +447,14 @@ function ProducerAvatar({
   );
 }
 
-function ProducerPopupCard({ producer }: { producer: ProducerWithDistance }) {
+export function ProducerPopupCard({ producer }: { producer: ProducerWithDistance }) {
   const waLink = producer.whatsapp
     ? `https://wa.me/${producer.whatsapp.replace(/\D/g, '')}`
     : null;
   const specialties = producer.especialidades.slice(0, 3);
 
   return (
-    <div className="flex flex-col gap-3 p-1">
+    <div className="flex max-w-full min-w-0 flex-col gap-3 p-1">
       <div className="flex items-start gap-3">
         <ProducerAvatar producer={producer} size="md" />
         <div className="flex min-w-0 flex-1 flex-col">
@@ -494,13 +498,13 @@ function ProducerPopupCard({ producer }: { producer: ProducerWithDistance }) {
         </ul>
       )}
 
-      <div className="flex items-center gap-2 pt-1">
+      <div className="flex flex-col gap-2 pt-1 min-[420px]:flex-row min-[420px]:items-center">
         {waLink && (
           <a
             href={waLink}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#22c55e] px-3 py-1.5 text-xs font-bold text-white hover:opacity-90"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#22c55e] px-3 py-2 text-sm font-bold text-white hover:opacity-90"
           >
             <MessageCircle className="h-3.5 w-3.5" aria-hidden />
             WhatsApp
@@ -508,7 +512,7 @@ function ProducerPopupCard({ producer }: { producer: ProducerWithDistance }) {
         )}
         <Link
           to={`/productor/${producer.slug}`}
-          className={`inline-flex items-center justify-center rounded-lg bg-maps-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-maps-brand-hover ${
+          className={`inline-flex min-h-11 items-center justify-center rounded-lg bg-maps-brand px-3 py-2 text-sm font-bold text-white hover:bg-maps-brand-hover ${
             waLink ? '' : 'flex-1'
           }`}
         >

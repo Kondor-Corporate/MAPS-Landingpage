@@ -45,12 +45,11 @@ export function mapApiPublicNewsToNewsItem(dto: ApiPublicNews, index = 0): NewsI
     category: CATEGORIA_LABEL[dto.categoria] ?? dto.categoria,
     date: formatNewsCardDate(dto.publicadaEn),
     title: dto.titulo,
-    href: `#noticias-${dto.slug}`,
+    href: `/noticias/${dto.slug}`,
     imageGradient: resolveGradient(dto, index),
     imageUrl: dto.imagenUrl,
     content: dto.contenido,
     description: dto.descripcion,
-    author: 'Equipo Editorial MAPS',
     publishedAt,
     publishedAtLabel: formatNewsFullDate(dto.publicadaEn),
   };
