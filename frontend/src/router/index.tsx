@@ -13,6 +13,8 @@ import { IntranetNewsPage } from '@/modules/intranet/pages/IntranetNewsPage';
 import { MyProfilePage } from '@/modules/intranet/pages/MyProfilePage';
 import { ProducerProfileViewPage } from '@/modules/intranet/pages/ProducerProfileViewPage';
 import { HomePage } from '@/modules/public-web/pages/HomePage';
+import { NewsDetailPage } from '@/modules/public-web/pages/NewsDetailPage';
+import { NewsListPage } from '@/modules/public-web/pages/NewsListPage';
 import { ProducerProfilePage } from '@/modules/public-web/pages/ProducerProfilePage';
 import { AppLayout } from '@/shared/layouts/AppLayout';
 import { PublicLayout } from '@/shared/layouts/PublicLayout';
@@ -117,6 +119,8 @@ export const appRouter = createBrowserRouter([
     ),
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'noticias', element: <NewsListPage /> },
+      { path: 'noticias/:slug', element: <NewsDetailPage /> },
       { path: 'productor/:slug', element: <ProducerProfilePage /> },
     ],
   },
