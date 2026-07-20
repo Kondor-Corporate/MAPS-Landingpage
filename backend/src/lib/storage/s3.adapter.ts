@@ -5,7 +5,19 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { loadEnv } from '../../config/env.js';
-import type { StorageAdapter, UploadCertificacionInput, UploadCertificacionResult } from './types.js';
+import type {
+  StorageAdapter,
+  UploadCertificacionInput,
+  UploadCertificacionResult,
+  UploadFotoInput,
+  UploadFotoResult,
+} from './types.js';
+
+const FOTO_EXTENSION_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
 
 function keyFromUrl(url: string, publicBase: string): string | null {
   const normalizedBase = publicBase.replace(/\/$/, '');
@@ -69,5 +81,34 @@ export class S3StorageAdapter implements StorageAdapter {
         Key: key,
       }),
     );
+  }
+
+  async uploadFoto(input: UploadFotoInput): Promise<UploadFotoResult> {
+    const ext = FOTO_EXTENSION_BY_MIME[input.mimeType] ?? 'jpg';
+    const key = `fotos/${input.productorId}/${Date.now()}-${randomBytes(4).toString('hex')}.${ext}`;
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: input.buffer,
+        ContentType: input.mimeType,
+      }),
+    );
+    return { url: `${this.publicBaseUrl}/${key}` };
+  }
+
+  async deleteFoto(url: string): Promise<void> {
+    const key = keyFromUrl(url, this.publicBaseUrl);
+    if (!key) return;
+    try {
+      await this.client.send(
+        new DeleteObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+        }),
+      );
+    } catch {
+      /* file may already be gone, or was an external URL we don't manage */
+    }
   }
 }

@@ -196,7 +196,7 @@ export function AppSidebar({ collapsed = false, onToggleCollapse }: AppSidebarPr
   return (
     <aside
       className={[
-        'hidden shrink-0 flex-col overflow-hidden border-maps-border bg-white transition-[width] duration-200 ease-in-out lg:flex',
+        'hidden shrink-0 flex-col overflow-hidden border-maps-border bg-white transition-[width] duration-200 ease-in-out lg:sticky lg:top-0 lg:flex lg:h-screen',
         collapsed ? 'w-0 border-r-0' : 'w-64 border-r',
       ].join(' ')}
       aria-hidden={collapsed}

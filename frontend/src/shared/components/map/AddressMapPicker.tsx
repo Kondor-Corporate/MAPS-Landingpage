@@ -1,13 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Map, { Marker, type MapRef, type MarkerDragEvent } from 'react-map-gl/maplibre';
 import { MapPinIcon } from '@/shared/components/map/MapPinIcon';
 import { LA_PLATA_VIEW, MAP_STYLE } from '@/shared/components/map/mapStyle';
-import { geocodeQuery } from '@/shared/lib/geocode';
+import {
+  normalizeCoordinates,
+  type CoordinateInput,
+} from '@/shared/lib/coordinates';
+import { geocodeQuery, reverseGeocodeQuery } from '@/shared/lib/geocode';
 
 const DEBOUNCE_MS = 600;
 const MIN_QUERY_LENGTH = 5;
 
 export type PickedCoords = { latitud: number; longitud: number };
+export type InitialCoords = { latitud: CoordinateInput; longitud: CoordinateInput };
 export type LocationSource = 'cleared' | 'geocoded' | 'manual';
 export type PickedLocation = {
   direccion: string;
@@ -16,11 +21,25 @@ export type PickedLocation = {
   source: LocationSource;
 };
 
-type Status = 'idle' | 'loading' | 'found' | 'not-found' | 'error' | 'manual';
+type Status =
+  | 'idle'
+  | 'loading'
+  | 'found'
+  | 'not-found'
+  | 'error'
+  | 'manual'
+  | 'reverse-loading'
+  | 'reverse-error';
+type LocationOrigin =
+  | 'initial/persisted'
+  | 'user-address-input'
+  | 'geocoded'
+  | 'manual-pin'
+  | 'reverse-geocoded-label';
 
 type Props = {
   direccion: string;
-  initialCoords?: PickedCoords | null;
+  initialCoords?: InitialCoords | null;
   onChange: (location: PickedLocation) => void;
   label?: string;
   required?: boolean;
@@ -34,6 +53,8 @@ const STATUS_LABEL: Record<Status, string> = {
   'not-found': 'No encontramos esa dirección. Podés ubicar el pin manualmente.',
   error: 'No pudimos verificar la dirección. Podés ubicar el pin manualmente.',
   manual: 'Ubicación ajustada manualmente.',
+  'reverse-loading': 'Buscando dirección de la ubicación seleccionada...',
+  'reverse-error': 'No se pudo determinar una dirección exacta para esta ubicación.',
 };
 
 const STATUS_TONE: Record<Status, string> = {
@@ -43,6 +64,8 @@ const STATUS_TONE: Record<Status, string> = {
   'not-found': 'text-amber-700',
   error: 'text-rose-600',
   manual: 'text-maps-brand',
+  'reverse-loading': 'text-maps-muted',
+  'reverse-error': 'text-amber-700',
 };
 
 export function AddressMapPicker({
@@ -54,53 +77,113 @@ export function AddressMapPicker({
   className,
 }: Props) {
   const mapRef = useRef<MapRef | null>(null);
-  const originalDireccion = useRef(direccion.trim());
-  const lastQueried = useRef<string | null>(initialCoords ? direccion.trim() : null);
-  const initialLat = initialCoords?.latitud;
-  const initialLng = initialCoords?.longitud;
+  const initialNormalizedCoords = normalizeCoordinates(
+    initialCoords?.latitud,
+    initialCoords?.longitud,
+  );
+  const initialLat = initialNormalizedCoords?.latitud;
+  const initialLng = initialNormalizedCoords?.longitud;
+  const initialAddress = direccion.trim();
+  const hasInitialQuery = !initialNormalizedCoords && initialAddress.length >= MIN_QUERY_LENGTH;
+  const requestId = useRef(0);
+  const debounceHandle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shouldGeocode = useRef(hasInitialQuery);
+  const didMount = useRef(false);
+  const lastEmitted = useRef<PickedLocation | null>(null);
+  const onChangeRef = useRef(onChange);
+  const locationOrigin = useRef<LocationOrigin>('initial/persisted');
   const [address, setAddress] = useState(direccion);
-  const [status, setStatus] = useState<Status>(initialCoords ? 'found' : 'idle');
-  const [coords, setCoords] = useState<PickedCoords | null>(initialCoords ?? null);
+  const [status, setStatus] = useState<Status>(
+    initialNormalizedCoords ? 'found' : hasInitialQuery ? 'loading' : 'idle',
+  );
+  const [coords, setCoords] = useState<PickedCoords | null>(initialNormalizedCoords);
+  const [geocodeRevision, setGeocodeRevision] = useState(0);
+
+  onChangeRef.current = onChange;
+
+  const invalidatePendingGeocode = useCallback(() => {
+    requestId.current += 1;
+    if (debounceHandle.current) {
+      clearTimeout(debounceHandle.current);
+      debounceHandle.current = null;
+    }
+  }, []);
+
+  const emit = useCallback((location: PickedLocation) => {
+    lastEmitted.current = location;
+    onChangeRef.current(location);
+  }, []);
 
   useEffect(() => {
-    setAddress(direccion);
-    setCoords(
-      initialLat !== undefined && initialLng !== undefined
-        ? { latitud: initialLat, longitud: initialLng }
-        : null,
-    );
-    setStatus(initialLat !== undefined && initialLng !== undefined ? 'found' : 'idle');
-    originalDireccion.current = direccion.trim();
-    lastQueried.current =
-      initialLat !== undefined && initialLng !== undefined ? direccion.trim() : null;
-  }, [direccion, initialLat, initialLng]);
-
-  useEffect(() => {
-    const trimmed = address.trim();
-
-    if (trimmed === originalDireccion.current && coords) return;
-    if (trimmed === lastQueried.current) return;
-
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      lastQueried.current = null;
-      setStatus('idle');
-      setCoords(null);
-      onChange({ direccion: trimmed, source: 'cleared' });
+    if (!didMount.current) {
+      didMount.current = true;
       return;
     }
 
-    setStatus('loading');
-    setCoords(null);
-    onChange({ direccion: trimmed, source: 'cleared' });
+    const normalizedCoords =
+      initialLat !== undefined && initialLng !== undefined
+        ? { latitud: initialLat, longitud: initialLng }
+        : null;
+    const trimmedDireccion = direccion.trim();
+    const emitted = lastEmitted.current;
+    const isParentEcho =
+      emitted !== null &&
+      emitted.direccion === trimmedDireccion &&
+      emitted.latitud === normalizedCoords?.latitud &&
+      emitted.longitud === normalizedCoords?.longitud;
 
-    const handle = setTimeout(() => {
-      lastQueried.current = trimmed;
+    if (isParentEcho) {
+      lastEmitted.current = null;
+      return;
+    }
+
+    invalidatePendingGeocode();
+    setAddress(direccion);
+    setCoords(normalizedCoords);
+
+    if (normalizedCoords) {
+      locationOrigin.current = 'initial/persisted';
+      shouldGeocode.current = false;
+      setStatus('found');
+      mapRef.current?.flyTo({
+        center: [normalizedCoords.longitud, normalizedCoords.latitud],
+        zoom: 15,
+        duration: 0,
+      });
+      return;
+    }
+
+    const canGeocode = trimmedDireccion.length >= MIN_QUERY_LENGTH;
+    locationOrigin.current = 'initial/persisted';
+    shouldGeocode.current = canGeocode;
+    setStatus(canGeocode ? 'loading' : 'idle');
+    if (canGeocode) setGeocodeRevision((revision) => revision + 1);
+  }, [direccion, initialLat, initialLng, invalidatePendingGeocode]);
+
+  useEffect(() => {
+    const trimmed = address.trim();
+    const origin = locationOrigin.current;
+
+    if (
+      !shouldGeocode.current ||
+      trimmed.length < MIN_QUERY_LENGTH ||
+      origin === 'manual-pin' ||
+      origin === 'reverse-geocoded-label'
+    ) {
+      return;
+    }
+    const currentRequestId = ++requestId.current;
+
+    debounceHandle.current = setTimeout(() => {
+      debounceHandle.current = null;
+      shouldGeocode.current = false;
       geocodeQuery(trimmed)
         .then((result) => {
+          if (currentRequestId !== requestId.current || address.trim() !== trimmed) return;
+
           if (!result) {
             setStatus('not-found');
             setCoords(null);
-            onChange({ direccion: trimmed, source: 'cleared' });
             mapRef.current?.flyTo({
               center: [LA_PLATA_VIEW.longitude, LA_PLATA_VIEW.latitude],
               zoom: LA_PLATA_VIEW.zoom,
@@ -110,9 +193,10 @@ export function AddressMapPicker({
           }
 
           const next = { latitud: result.latitude, longitud: result.longitude };
+          locationOrigin.current = 'geocoded';
           setStatus('found');
           setCoords(next);
-          onChange({ direccion: trimmed, ...next, source: 'geocoded' });
+          emit({ direccion: trimmed, ...next, source: 'geocoded' });
           mapRef.current?.flyTo({
             center: [next.longitud, next.latitud],
             zoom: 15,
@@ -120,30 +204,73 @@ export function AddressMapPicker({
           });
         })
         .catch(() => {
+          if (currentRequestId !== requestId.current || address.trim() !== trimmed) return;
           setStatus('error');
           setCoords(null);
-          onChange({ direccion: trimmed, source: 'cleared' });
         });
     }, DEBOUNCE_MS);
 
-    return () => clearTimeout(handle);
-    // onChange is intentionally omitted because parent forms recreate callbacks often.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address]);
+    return () => {
+      if (debounceHandle.current) {
+        clearTimeout(debounceHandle.current);
+        debounceHandle.current = null;
+      }
+    };
+  }, [address, emit, geocodeRevision]);
+
+  useEffect(
+    () => () => {
+      requestId.current += 1;
+      if (debounceHandle.current) clearTimeout(debounceHandle.current);
+    },
+    [],
+  );
 
   function handleAddressChange(nextAddress: string) {
+    invalidatePendingGeocode();
+    locationOrigin.current = 'user-address-input';
+    const trimmed = nextAddress.trim();
+    const canGeocode = trimmed.length >= MIN_QUERY_LENGTH;
+    shouldGeocode.current = canGeocode;
     setAddress(nextAddress);
+    setCoords(null);
+    setStatus(canGeocode ? 'loading' : 'idle');
+    emit({ direccion: trimmed, source: 'cleared' });
   }
 
   function handleDragEnd(e: MarkerDragEvent) {
+    invalidatePendingGeocode();
+    locationOrigin.current = 'manual-pin';
+    shouldGeocode.current = false;
     const next = { latitud: e.lngLat.lat, longitud: e.lngLat.lng };
+    const currentRequestId = requestId.current;
+    const currentAddress = address.trim();
     setCoords(next);
-    setStatus('manual');
-    onChange({ direccion: address.trim(), ...next, source: 'manual' });
+    setStatus('reverse-loading');
+    emit({ direccion: currentAddress, ...next, source: 'manual' });
+
+    void reverseGeocodeQuery(next.latitud, next.longitud)
+      .then((direccionResult) => {
+        if (currentRequestId !== requestId.current) return;
+
+        if (!direccionResult) {
+          setStatus('reverse-error');
+          return;
+        }
+
+        locationOrigin.current = 'reverse-geocoded-label';
+        shouldGeocode.current = false;
+        setAddress(direccionResult);
+        setStatus('manual');
+        emit({ direccion: direccionResult, ...next, source: 'manual' });
+      })
+      .catch(() => {
+        if (currentRequestId === requestId.current) setStatus('reverse-error');
+      });
   }
 
   const center = coords ?? { latitud: LA_PLATA_VIEW.latitude, longitud: LA_PLATA_VIEW.longitude };
-  const showPin = status !== 'idle' && status !== 'loading';
+  const showPin = coords !== null || status === 'not-found' || status === 'error';
 
   return (
     <div className={className ?? 'flex flex-col gap-2'}>

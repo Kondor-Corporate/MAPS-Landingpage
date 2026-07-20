@@ -8,4 +8,10 @@ export const geocodeQuerySchema = z.object({
     .max(200, 'La búsqueda es demasiado larga'),
 });
 
+export const reverseGeocodeQuerySchema = z.object({
+  latitud: z.coerce.number().finite().min(-90).max(90),
+  longitud: z.coerce.number().finite().min(-180).max(180),
+});
+
 export type GeocodeQueryParams = z.infer<typeof geocodeQuerySchema>;
+export type ReverseGeocodeQueryParams = z.infer<typeof reverseGeocodeQuerySchema>;

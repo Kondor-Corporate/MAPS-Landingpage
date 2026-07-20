@@ -1,27 +1,89 @@
+import { useRef, useState } from 'react';
 import {
   BadgeCheck,
+  Camera,
   Globe,
+  KeyRound,
   Mail,
   MapPin,
   MessageCircle,
   Pencil,
   Phone,
 } from 'lucide-react';
+import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
 import type { ProfileHeaderData } from '@/shared/types/producerProfile';
 import { getInitials } from '@/shared/utils/initials';
 
 type Props = {
   profile: ProfileHeaderData;
   onEdit?: () => void;
+  onChangePassword?: () => void;
+  onUploadFoto?: (file: File) => Promise<void>;
   variant?: 'intranet' | 'public';
 };
 
-export function ProfileHeaderCard({ profile, onEdit, variant = 'intranet' }: Props) {
+const FOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
+const FOTO_MAX_BYTES = 5 * 1024 * 1024;
+const FOTO_ALLOWED_MIME_TYPES = new Set(FOTO_ACCEPT.split(','));
+
+export function ProfileHeaderCard({
+  profile,
+  onEdit,
+  onChangePassword,
+  onUploadFoto,
+  variant = 'intranet',
+}: Props) {
   const initials = getInitials(profile.nombreCompleto);
   const matriculaLabel = profile.matricula
     ? `#${profile.matricula.replace(/^#/, '')}`
     : null;
   const isPublic = variant === 'public';
+  const canUploadFoto = !isPublic && Boolean(onUploadFoto);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite volver a elegir el mismo archivo después
+    if (!file || !onUploadFoto || uploading) return;
+
+    if (!FOTO_ALLOWED_MIME_TYPES.has(file.type)) {
+      setUploadError('La foto debe ser JPG, PNG o WEBP.');
+      return;
+    }
+
+    if (file.size > FOTO_MAX_BYTES) {
+      setUploadError('El archivo supera el tamaño máximo de 5 MB.');
+      return;
+    }
+
+    setUploadError(null);
+    setUploading(true);
+    try {
+      await onUploadFoto(file);
+    } catch (err) {
+      setUploadError(getApiErrorMessage(err, 'No se pudo subir la foto. Intentá nuevamente.'));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const avatarNode = profile.foto ? (
+    <img
+      src={profile.foto}
+      alt={profile.nombreCompleto}
+      className="size-32 rounded-full object-cover shadow-[0_0_0_4px_white]"
+    />
+  ) : (
+    <div
+      className="flex size-32 items-center justify-center rounded-full bg-maps-brand-soft text-3xl font-bold text-maps-brand shadow-[0_0_0_4px_white]"
+      aria-hidden
+    >
+      {initials}
+    </div>
+  );
 
   return (
     <section className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white p-8 shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
@@ -31,25 +93,59 @@ export function ProfileHeaderCard({ profile, onEdit, variant = 'intranet' }: Pro
       />
 
       <div className="relative flex flex-col gap-8 lg:flex-row lg:items-start">
-        <div className="relative mx-auto shrink-0 lg:mx-0">
-          {profile.foto ? (
-            <img
-              src={profile.foto}
-              alt={profile.nombreCompleto}
-              className="size-32 rounded-full object-cover shadow-[0_0_0_4px_white]"
+        <div className="mx-auto shrink-0 lg:mx-0">
+          <div className="relative">
+            {canUploadFoto ? (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="group relative block rounded-full focus:outline-none focus:ring-2 focus:ring-maps-brand/40 focus:ring-offset-2 disabled:cursor-wait"
+                aria-label="Cambiar foto de perfil"
+                title="Cambiar foto de perfil"
+              >
+                {avatarNode}
+                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-white opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+                  <Camera className="size-6" aria-hidden />
+                </span>
+                {uploading && (
+                  <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
+                    <span
+                      className="size-6 animate-spin rounded-full border-2 border-white border-t-transparent"
+                      aria-hidden
+                    />
+                  </span>
+                )}
+              </button>
+            ) : (
+              avatarNode
+            )}
+            {profile.verificado && (
+              <span className="absolute bottom-1 right-1 flex size-6 items-center justify-center rounded-full border-2 border-white bg-maps-brand text-white">
+                <BadgeCheck className="size-3.5" aria-hidden />
+              </span>
+            )}
+          </div>
+          {canUploadFoto && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              aria-label="Seleccionar foto de perfil"
+              accept={FOTO_ACCEPT}
+              disabled={uploading}
+              onChange={(e) => void handleFileChange(e)}
+              className="hidden"
             />
-          ) : (
-            <div
-              className="flex size-32 items-center justify-center rounded-full bg-maps-brand-soft text-3xl font-bold text-maps-brand shadow-[0_0_0_4px_white]"
-              aria-hidden
-            >
-              {initials}
-            </div>
           )}
-          {profile.verificado && (
-            <span className="absolute bottom-1 right-1 flex size-6 items-center justify-center rounded-full border-2 border-white bg-maps-brand text-white">
-              <BadgeCheck className="size-3.5" aria-hidden />
-            </span>
+          {canUploadFoto && !uploadError && (
+            <p className="mt-2 max-w-[9rem] text-center text-xs text-slate-500">
+              JPG, PNG o WEBP · máximo 5 MB
+            </p>
+          )}
+          {uploadError && (
+            <p className="mt-2 max-w-[8rem] text-center text-xs text-rose-600" role="alert">
+              {uploadError}
+            </p>
           )}
         </div>
 
@@ -128,6 +224,16 @@ export function ProfileHeaderCard({ profile, onEdit, variant = 'intranet' }: Pro
               >
                 <Pencil className="size-[18px]" aria-hidden />
                 Editar Perfil
+              </button>
+            )}
+            {!isPublic && onChangePassword && (
+              <button
+                type="button"
+                onClick={onChangePassword}
+                className="inline-flex h-[46px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-base font-bold text-slate-700 transition-colors hover:bg-slate-50"
+              >
+                <KeyRound className="size-[18px]" aria-hidden />
+                Cambiar contraseña
               </button>
             )}
           </div>

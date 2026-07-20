@@ -108,12 +108,12 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [mobileNavOpen]);
 
   return (
-    <div className="flex min-h-screen bg-maps-surface">
+    <div className="flex h-screen overflow-hidden bg-maps-surface">
       <AppSidebar
         collapsed={desktopSidebarCollapsed}
         onToggleCollapse={toggleDesktopSidebar}
       />
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
         {user ? (
           <>
             <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-maps-border bg-white px-4 py-3 lg:hidden">

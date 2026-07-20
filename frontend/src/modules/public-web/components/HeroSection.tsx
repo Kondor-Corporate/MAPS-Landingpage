@@ -1,10 +1,5 @@
 import { Link } from 'react-router-dom';
 import heroBg from '@/assets/images/hero-bg.png';
-import avatar1 from '@/assets/images/avatar-1.jpg';
-import avatar2 from '@/assets/images/avatar-2.jpg';
-import avatar3 from '@/assets/images/avatar-3.jpg';
-
-const avatars = [avatar1, avatar2, avatar3];
 
 export function HeroSection() {
   return (
@@ -26,18 +21,18 @@ export function HeroSection() {
           <span className="inline-flex w-fit items-center gap-2 rounded-full border border-maps-brand/30 bg-maps-brand/20 px-3 py-[5px] backdrop-blur-sm">
             <span className="h-2 w-2 rounded-full bg-maps-brand" />
             <span className="text-[12px] font-bold uppercase tracking-[0.3px] text-white">
-              Innovación en Seguros
+              Asesores de seguros
             </span>
           </span>
 
           <h1 className="text-4xl sm:text-5xl lg:text-[60px] font-extrabold leading-tight lg:leading-[66px] tracking-[-1.5px] lg:tracking-[-1.98px] text-white">
-            Seguros con Respaldo
-            <br />y Confianza
+            Encontrá asesoramiento
+            <br />cerca tuyo
           </h1>
 
           <p className="max-w-[540px] text-base sm:text-[18px] leading-[26px] sm:leading-[28px] text-[#e5e7eb]">
-            Conectamos a clientes con los mejores asesores de seguros del país. Modernización,
-            gestión operativa y cobertura nacional al alcance de un clic.
+            Conocé a los asesores que forman parte de MAPS, explorá sus perfiles y encontrá una
+            opción según tu ubicación.
           </p>
 
           <div className="flex flex-wrap gap-4 pt-2">
@@ -55,22 +50,9 @@ export function HeroSection() {
             </Link>
           </div>
 
-          <div className="mt-4 flex items-center gap-4 border-t border-white/10 pt-6">
-            <div className="flex items-center -space-x-2">
-              {avatars.map((src, idx) => (
-                <img
-                  key={idx}
-                  src={src}
-                  alt=""
-                  className="h-8 w-8 rounded-full border-2 border-maps-dark object-cover"
-                />
-              ))}
-            </div>
-            <p className="text-sm text-white/60">
-              Más de <span className="font-bold text-white">2,500</span> personas confían en
-              nosotros
-            </p>
-          </div>
+          <p className="mt-4 border-t border-white/10 pt-6 text-sm text-white/70">
+            Perfiles públicos y datos de contacto en un solo lugar.
+          </p>
         </div>
       </div>
     </section>

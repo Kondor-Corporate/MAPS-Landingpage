@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { v1Router } from './api/v1/index.js';
 import { loadEnv } from './config/env.js';
 import { errorHandler } from './middlewares/errorHandler.js';
-import { getCertificacionesUploadDir } from './lib/uploadPaths.js';
+import { getCertificacionesUploadDir, getFotosUploadDir } from './lib/uploadPaths.js';
 
 const backendRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -32,7 +32,7 @@ export function createApp() {
 
   app.use(
     cors({
-      origin: env.FRONTEND_ORIGIN,
+      origin: env.frontendOrigins,
       credentials: true,
     }),
   );
@@ -44,6 +44,8 @@ export function createApp() {
     '/uploads/certificaciones',
     express.static(path.join(backendRoot, 'uploads', 'certificaciones')),
   );
+  getFotosUploadDir();
+  app.use('/uploads/fotos', express.static(path.join(backendRoot, 'uploads', 'fotos')));
   app.use('/api/v1', v1Router);
   app.use(errorHandler);
   return app;

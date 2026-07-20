@@ -101,6 +101,7 @@ describe('validate', () => {
         nombre: '  Ana ',
         apellido: ' Gómez ',
         email: ' ANA@EXAMPLE.COM ',
+        password: 'Temporal123',
         ciudad: ' Calle 7 776, La Plata ',
       },
     } as Request;
@@ -115,6 +116,7 @@ describe('validate', () => {
       nombre: 'Ana',
       apellido: 'Gómez',
       email: 'ANA@EXAMPLE.COM',
+      password: 'Temporal123',
       ciudad: 'Calle 7 776, La Plata',
     });
   });

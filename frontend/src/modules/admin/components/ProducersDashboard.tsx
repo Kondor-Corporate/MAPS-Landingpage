@@ -10,7 +10,9 @@ import { TablePagination } from '@/shared/components/TablePagination';
 import { ProducerFilterModal } from '@/modules/admin/components/ProducerFilterModal';
 import { ProducerFormModal } from '@/modules/admin/components/ProducerFormModal';
 import { ProducerViewModal } from '@/modules/admin/components/ProducerViewModal';
+import { ProducerResetPasswordModal } from '@/modules/admin/components/ProducerResetPasswordModal';
 import { DeactivateConfirmModal } from '@/modules/admin/components/DeactivateConfirmModal';
+import type { ResetProducerPasswordPayload } from '@/modules/admin/types/adminProducer';
 import type { Producer, ProducerFormSubmit } from '@/modules/admin/types/producer';
 
 type Scope = 'active' | 'inactive';
@@ -39,6 +41,7 @@ export function ProducersDashboard({ scope }: Props) {
     deleteCertificacion,
     activate,
     deactivate,
+    resetPassword,
   } = useAdminProducers(scope);
 
   const filtersHook = useProducerFilters();
@@ -52,12 +55,16 @@ export function ProducersDashboard({ scope }: Props) {
   const [editing, setEditing] = useState<Producer | null>(null);
   const [creating, setCreating] = useState(false);
   const [confirming, setConfirming] = useState<Producer | null>(null);
+  const [resettingPassword, setResettingPassword] = useState<Producer | null>(null);
 
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const [toggleBusy, setToggleBusy] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
+
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const [toast, setToast] = useState<string | null>(null);
 
@@ -93,6 +100,26 @@ export function ProducersDashboard({ scope }: Props) {
   function handleToggleEstado(p: Producer) {
     setToggleError(null);
     setConfirming(p);
+  }
+
+  function handleResetPassword(p: Producer) {
+    setResetError(null);
+    setResettingPassword(p);
+  }
+
+  async function confirmResetPassword(payload: ResetProducerPasswordPayload) {
+    if (!resettingPassword) return;
+    setResetSubmitting(true);
+    setResetError(null);
+    try {
+      await resetPassword(resettingPassword.id, payload);
+      flash('Contraseña restablecida');
+      setResettingPassword(null);
+    } catch (err) {
+      setResetError(getApiErrorMessage(err));
+    } finally {
+      setResetSubmitting(false);
+    }
   }
 
   async function confirmToggle(p: Producer) {
@@ -189,6 +216,7 @@ export function ProducersDashboard({ scope }: Props) {
           onView={(p) => setViewing(p)}
           onEdit={handleEdit}
           onToggleEstado={handleToggleEstado}
+          onResetPassword={handleResetPassword}
         />
       )}
 
@@ -269,6 +297,17 @@ export function ProducersDashboard({ scope }: Props) {
           if (!toggleBusy) setConfirming(null);
         }}
         onConfirm={confirmToggle}
+      />
+
+      <ProducerResetPasswordModal
+        isOpen={resettingPassword !== null}
+        producer={resettingPassword}
+        submitting={resetSubmitting}
+        submitError={resetError}
+        onClose={() => {
+          if (!resetSubmitting) setResettingPassword(null);
+        }}
+        onSubmit={confirmResetPassword}
       />
     </div>
   );

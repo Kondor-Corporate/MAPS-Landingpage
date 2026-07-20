@@ -491,5 +491,143 @@ describe('producers admin profile API (MAPS-013 Fase 2)', () => {
 
   });
 
+  it('POST certificaciones — rechaza una imagen con mensaje funcional', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/certificaciones`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.from('fake-image'), {
+        filename: 'certificacion.png',
+        contentType: 'image/png',
+      })
+      .expect(400);
+
+    expect(res.body.message).toBe('Solo se permiten archivos PDF');
+  });
+
+  it('POST certificaciones — informa el límite máximo de 10 MB', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/certificaciones`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.alloc(10 * 1024 * 1024 + 1), {
+        filename: 'certificacion-grande.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(413);
+
+    expect(res.body.message).toBe('El archivo supera el tamaño máximo de 10 MB.');
+  });
+
+});
+
+describe('POST /producers/me/foto (MAPS-016)', () => {
+  const app = createApp();
+
+  beforeAll(() => {
+    loadEnv();
+  });
+
+  const pngBuffer = Buffer.from('fake-png-bytes');
+
+  it('productor autenticado sube su foto de perfil', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', pngBuffer, { filename: 'avatar.png', contentType: 'image/png' })
+      .expect(200);
+
+    expect(res.body.data.profile.foto).toMatch(/\/uploads\/fotos\//);
+
+    const me = await agent
+      .get(`${PRODUCERS}/me`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(me.body.data.profile.foto).toBe(res.body.data.profile.foto);
+  });
+
+  it('subir una segunda foto reemplaza la anterior', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const first = await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', pngBuffer, { filename: 'avatar1.png', contentType: 'image/png' })
+      .expect(200);
+
+    const second = await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', pngBuffer, { filename: 'avatar2.png', contentType: 'image/png' })
+      .expect(200);
+
+    expect(second.body.data.profile.foto).not.toBe(first.body.data.profile.foto);
+  });
+
+  it('sin archivo → 400', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+  });
+
+  it('mimetype no permitido (PDF) → 400', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.from('%PDF-1.4'), {
+        filename: 'doc.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(400);
+  });
+
+  it('archivo mayor a 5 MB → 413 con mensaje funcional', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.alloc(5 * 1024 * 1024 + 1), {
+        filename: 'avatar-grande.png',
+        contentType: 'image/png',
+      })
+      .expect(413);
+
+    expect(res.body.message).toBe('El archivo supera el tamaño máximo de 5 MB.');
+  });
+
+  it('admin no puede usar el endpoint self-service → 403', async () => {
+    const agent = request.agent(app);
+    const token = await loginAdmin(agent);
+
+    await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', pngBuffer, { filename: 'avatar.png', contentType: 'image/png' })
+      .expect(403);
+  });
+
+  it('sin token → 401', async () => {
+    await request(app)
+      .post(`${PRODUCERS}/me/foto`)
+      .attach('file', pngBuffer, { filename: 'avatar.png', contentType: 'image/png' })
+      .expect(401);
+  });
 });
 

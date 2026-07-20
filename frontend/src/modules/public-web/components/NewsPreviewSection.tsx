@@ -1,68 +1,14 @@
 /**
  * Sección de noticias en la Home pública (`#noticias`).
- * Muestra previews desde API y abre el modal de detalle al hacer click.
+ * Muestra previews desde API sin sacar al usuario de la landing.
  */
-import { useNewsModalStore } from '@/shared/store/newsModalStore';
+import { Link } from 'react-router-dom';
 import { usePublicNews } from '@/shared/hooks/usePublicNews';
-import { NewsImage } from '@/shared/components/NewsImage';
+import { useNewsModalStore } from '@/shared/store/newsModalStore';
 import type { NewsItem } from '@/shared/types/news';
+import { PublicNewsCard } from '@/modules/public-web/components/PublicNewsCard';
 
 const PREVIEW_LIMIT = 3; // Cantidad alineada al diseño de la sección Home.
-
-const ArrowIcon = () => (
-  <svg
-    width="6"
-    height="9"
-    viewBox="0 0 6 9"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden
-  >
-    <path
-      d="M1 1L5 4.5L1 8"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-function NewsPreviewCard({
-  item,
-  onOpen,
-}: {
-  item: NewsItem;
-  onOpen: (item: NewsItem) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(item)}
-      className="flex flex-col overflow-hidden rounded-2xl bg-white text-left shadow-card transition-transform hover:scale-105 hover:shadow-lg"
-    >
-      <NewsImage
-        src={item.imageUrl}
-        gradient={item.imageGradient}
-        className="h-[195px] w-full"
-        iconSize={22}
-      />
-      <div className="flex flex-1 flex-col gap-4 p-6">
-        <div className="flex items-center gap-3 text-xs">
-          <span className="rounded-md bg-maps-brand-soft px-3 py-1 font-semibold text-maps-brand">
-            {item.category}
-          </span>
-          <span className="text-maps-muted-soft">{item.date}</span>
-        </div>
-        <h3 className="text-xl font-bold leading-[25px] text-maps-heading">{item.title}</h3>
-        <span className="mt-auto inline-flex items-center gap-2 text-sm font-bold text-maps-brand">
-          Leer más
-          <ArrowIcon />
-        </span>
-      </div>
-    </button>
-  );
-}
 
 function LoadingCards() {
   return (
@@ -85,26 +31,33 @@ function LoadingCards() {
 }
 
 export function NewsPreviewSection() {
-  const openModal = useNewsModalStore((state) => state.openModal);
   const { news, loading, error, refetch } = usePublicNews(PREVIEW_LIMIT);
+  const openModal = useNewsModalStore((state) => state.openModal);
 
-  function handleOpen(item: NewsItem) {
-    openModal(item, news);
-  }
+  const handleOpen = (item: NewsItem) => openModal(item, news);
 
   return (
     <section id="noticias" className="bg-maps-brand px-4 sm:px-6 lg:px-10 py-16 sm:py-20 lg:py-24">
       <div className="mx-auto flex max-w-[1200px] flex-col gap-8">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <span className="h-[2px] w-8 rounded-full bg-white" />
-            <span className="text-sm font-semibold uppercase tracking-[0.18em] text-white/80">
-              Actualidad
-            </span>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="h-[2px] w-8 rounded-full bg-white" />
+              <span className="text-sm font-semibold uppercase tracking-[0.18em] text-white/80">
+                Actualidad
+              </span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl lg:text-[36px] font-bold leading-tight lg:leading-10 tracking-[-0.9px] text-white">
+              Últimas Noticias y Novedades
+            </h2>
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-[36px] font-bold leading-tight lg:leading-10 tracking-[-0.9px] text-white">
-            Últimas Noticias y Novedades
-          </h2>
+          <Link
+            to="/noticias"
+            className="inline-flex w-fit items-center gap-2 rounded-lg border border-white/40 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            Ver todas las noticias
+            <span aria-hidden>→</span>
+          </Link>
         </div>
 
         {error ? (
@@ -138,7 +91,7 @@ export function NewsPreviewSection() {
         {!error && !loading && news.length > 0 ? (
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {news.map((item) => (
-              <NewsPreviewCard key={item.slug ?? item.title} item={item} onOpen={handleOpen} />
+              <PublicNewsCard key={item.slug ?? item.title} item={item} onOpen={handleOpen} />
             ))}
           </div>
         ) : null}

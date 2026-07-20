@@ -4,12 +4,12 @@ services:
       context: ./frontend
       target: dev
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api/v1}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:3000/api/v1}
     container_name: maps-asesores-frontend
     ports:
       - '${FRONTEND_PORT:-5173}:5173'
     environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api/v1}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:3000/api/v1}
       CHOKIDAR_USEPOLLING: 'true'
       TZ: ${TZ:-America/Argentina/Buenos_Aires}
     depends_on:
@@ -44,7 +44,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
-      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173,http://127.0.0.1:5173}
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/maps_asesores_dev}
       JWT_SECRET: ${JWT_SECRET:-dev_access_secret_change_me_32_chars_minimum}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}

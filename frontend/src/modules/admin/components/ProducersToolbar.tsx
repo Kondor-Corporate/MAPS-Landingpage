@@ -31,7 +31,7 @@ export function ProducersToolbar({
           value={search}
           onChange={onSearchChange}
           onMenuClick={onFilterClick}
-          placeholder="Buscar por nombre, DNI o email..."
+          placeholder="Buscar por nombre o email..."
         />
       </div>
 

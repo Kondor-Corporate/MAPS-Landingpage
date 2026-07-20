@@ -1,5 +1,6 @@
 import type { AdminProducer } from '@/modules/admin/types/adminProducer';
 import type { Producer } from '@/modules/admin/types/producer';
+import { normalizeCoordinates } from '@/shared/lib/coordinates';
 
 function nullableString(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -9,6 +10,7 @@ function nullableString(value: string | null | undefined): string | null {
 
 export function mapAdminProducerToProducer(row: AdminProducer): Producer {
   const estado = row.usuario.activo ? 'ACTIVO' : 'INACTIVO';
+  const coordinates = normalizeCoordinates(row.latitud, row.longitud);
 
   return {
     id: String(row.id),
@@ -33,8 +35,8 @@ export function mapAdminProducerToProducer(row: AdminProducer): Producer {
     ciudad: nullableString(row.ciudad),
     direccion: nullableString(row.direccion),
     whatsapp: nullableString(row.whatsapp),
-    latitud: row.latitud,
-    longitud: row.longitud,
+    latitud: coordinates?.latitud ?? null,
+    longitud: coordinates?.longitud ?? null,
     idiomas: row.idiomas ?? [],
     especialidades: row.especialidades ?? [],
     redesSociales: row.redesSociales ?? [],
@@ -67,6 +69,8 @@ export function producerFormToApiPayload(input: {
   tituloProfesional?: string;
   anosExperiencia?: string;
   clientesActivos?: string;
+  /** Solo en alta; si viene undefined/vacío no se agrega al payload (edición no toca password). */
+  password?: string;
 }) {
   const payload: Record<string, unknown> = {
     nombre: input.nombre,
@@ -74,6 +78,10 @@ export function producerFormToApiPayload(input: {
     email: input.email,
     telefono: input.telefono.trim() === '' ? '' : input.telefono,
   };
+
+  if (input.password !== undefined && input.password.trim() !== '') {
+    payload.password = input.password;
+  }
 
   const ciudadTrimmed = input.ciudad.trim();
   if (ciudadTrimmed.length >= 5) {
@@ -85,14 +93,10 @@ export function producerFormToApiPayload(input: {
     payload.direccion = direccionTrimmed;
   }
 
-  if (
-    input.latitud !== undefined &&
-    input.longitud !== undefined &&
-    Number.isFinite(input.latitud) &&
-    Number.isFinite(input.longitud)
-  ) {
-    payload.latitud = input.latitud;
-    payload.longitud = input.longitud;
+  const coordinates = normalizeCoordinates(input.latitud, input.longitud);
+  if (coordinates) {
+    payload.latitud = coordinates.latitud;
+    payload.longitud = coordinates.longitud;
   }
 
   if (input.matricula !== undefined) {

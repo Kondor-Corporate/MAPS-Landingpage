@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useLibraryRamos } from '@/modules/intranet/hooks/useLibraryRamos';
 
 import { RamoIcon } from '@/modules/admin/components/RamoIcon';
+import { isResolvableLibraryUrl } from '@/shared/utils/libraryLinks';
 
 
 
@@ -98,7 +99,7 @@ export function LibrarySecondarySection() {
 
             {secundarios.map((ramo) => {
 
-              const hasLink = ramo.gdriveUrl.trim().length > 0;
+              const hasLink = isResolvableLibraryUrl(ramo.gdriveUrl);
 
               return (
 

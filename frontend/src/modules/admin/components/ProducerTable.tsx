@@ -11,16 +11,18 @@ type Props = {
   onView: (p: Producer) => void;
   onEdit: (p: Producer) => void;
   onToggleEstado: (p: Producer) => void;
+  onResetPassword: (p: Producer) => void;
   emptyMessage?: string;
 };
 
-const COLUMNS = ['Nombre', 'Estado', 'DNI', 'Últ. act. cuenta', 'Acciones'];
+const COLUMNS = ['Nombre', 'Usuario', 'Estado', 'Últ. act. cuenta', 'Acciones'];
 
 export function ProducerTable({
   producers,
   onView,
   onEdit,
   onToggleEstado,
+  onResetPassword,
   emptyMessage = 'No encontramos productores con esos criterios.',
 }: Props) {
   if (producers.length === 0) {
@@ -73,11 +75,11 @@ export function ProducerTable({
                     <span className="text-sm font-semibold text-maps-heading">{name}</span>
                   </div>
                 </td>
+                <td className="whitespace-nowrap px-6 py-3.5 text-sm text-maps-body">
+                  {p.email}
+                </td>
                 <td className="whitespace-nowrap px-6 py-3.5">
                   <ProducerStatusBadge estado={p.estado} />
-                </td>
-                <td className="whitespace-nowrap px-6 py-3.5 text-sm font-semibold text-maps-heading">
-                  {p.dni ?? '—'}
                 </td>
                 <td className="whitespace-nowrap px-6 py-3.5 text-sm text-maps-muted">
                   {relativeTimeFromNow(p.ultimaActividad)}
@@ -88,6 +90,7 @@ export function ProducerTable({
                     onView={onView}
                     onEdit={onEdit}
                     onToggleEstado={onToggleEstado}
+                    onResetPassword={onResetPassword}
                   />
                 </td>
               </tr>
@@ -107,7 +110,7 @@ export function ProducerTable({
                 <Avatar name={name} src={p.avatarUrl} size="md" />
                 <div className="flex flex-1 flex-col">
                   <span className="text-sm font-semibold text-maps-heading">{name}</span>
-                  <span className="text-xs text-maps-muted">DNI {p.dni ?? '—'}</span>
+                  <span className="text-xs text-maps-muted">{p.email}</span>
                 </div>
                 <ProducerStatusBadge estado={p.estado} />
               </div>
@@ -118,6 +121,7 @@ export function ProducerTable({
                   onView={onView}
                   onEdit={onEdit}
                   onToggleEstado={onToggleEstado}
+                  onResetPassword={onResetPassword}
                 />
               </div>
             </li>

@@ -9,11 +9,13 @@ vi.mock('../src/lib/geocode.js', () => ({
     if (query.includes('INVALID_ADDRESS_XYZ')) return null;
     return { latitud: -34.9214, longitud: -57.9545 };
   }),
+  reverseGeocodeCoordinates: vi.fn(async () => null),
 }));
 
 const BASE = '/api/v1';
 const AUTH = `${BASE}/auth`;
 const PRODUCERS = `${BASE}/producers`;
+const TEST_PASSWORD = 'Temporal123';
 
 async function loginAdmin(agent: ReturnType<typeof request.agent>) {
   const res = await agent
@@ -62,6 +64,7 @@ describe('producers map API', () => {
         nombre: 'Test',
         apellido: 'Mapa',
         email: `test-mapa-${unique}@example.com`,
+        password: TEST_PASSWORD,
         ciudad: 'Calle 7 776, La Plata, Buenos Aires, Argentina',
       })
       .expect(201);
@@ -97,6 +100,7 @@ describe('producers map API', () => {
         nombre: 'Manual',
         apellido: 'Mapa',
         email: `manual-mapa-${unique}@example.com`,
+        password: TEST_PASSWORD,
         direccion: 'Diagonal 75 172, La Plata, Buenos Aires, Argentina',
         latitud: -34.91234,
         longitud: -57.98765,
@@ -134,6 +138,7 @@ describe('producers map API', () => {
         nombre: 'Update',
         apellido: 'Mapa',
         email: `update-mapa-${unique}@example.com`,
+        password: TEST_PASSWORD,
         direccion: 'Calle 7 776, La Plata, Buenos Aires, Argentina',
         latitud: -34.9214,
         longitud: -57.9545,
@@ -170,6 +175,7 @@ describe('producers map API', () => {
         nombre: 'Fail',
         apellido: 'Geocode',
         email: `fail-geocode-${unique}@example.com`,
+        password: TEST_PASSWORD,
         ciudad: 'INVALID_ADDRESS_XYZ',
       })
       .expect(400);
@@ -187,6 +193,7 @@ describe('producers map API', () => {
         nombre: 'Sin',
         apellido: 'Direccion',
         email: `sin-dir-${unique}@example.com`,
+        password: TEST_PASSWORD,
       })
       .expect(422);
   });

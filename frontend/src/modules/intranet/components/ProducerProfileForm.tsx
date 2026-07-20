@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal } from '@/shared/components/Modal';
 import { AddressMapPicker } from '@/shared/components/map/AddressMapPicker';
 import { ProducerCertificationsManager } from '@/shared/components/profile/ProducerCertificationsManager';
@@ -25,7 +25,6 @@ type FormState = {
   direccion: string;
   telefono: string;
   whatsapp: string;
-  foto: string;
   idiomasText: string;
   latitud?: number;
   longitud?: number;
@@ -44,7 +43,6 @@ function fromProfile(p: ProducerProfile): FormState {
     direccion: p.direccion ?? p.ciudad ?? '',
     telefono: p.telefono ?? '',
     whatsapp: p.whatsapp ?? '',
-    foto: p.foto ?? '',
     idiomasText: p.idiomas.join(', '),
     latitud: p.latitud ?? undefined,
     longitud: p.longitud ?? undefined,
@@ -66,11 +64,14 @@ export function ProducerProfileForm({
   const [form, setForm] = useState<FormState>(() => fromProfile(profile));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const wasOpenRef = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
-    setForm(fromProfile(profile));
-    setError(null);
+    if (open && !wasOpenRef.current) {
+      setForm(fromProfile(profile));
+      setError(null);
+    }
+    wasOpenRef.current = open;
   }, [open, profile]);
 
   function toggleEspecialidad(clave: string) {
@@ -84,6 +85,7 @@ export function ProducerProfileForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     setSubmitting(true);
     setError(null);
 
@@ -111,7 +113,6 @@ export function ProducerProfileForm({
         direccion: form.direccion.trim() || undefined,
         telefono: form.telefono.trim() || undefined,
         whatsapp: form.whatsapp.trim() || undefined,
-        foto: form.foto.trim() || undefined,
         idiomas,
         latitud: form.latitud,
         longitud: form.longitud,
@@ -189,15 +190,6 @@ export function ProducerProfileForm({
               <input
                 value={form.whatsapp}
                 onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-maps-border px-3 py-2 text-sm"
-              />
-            </label>
-
-            <label className="block text-sm font-medium text-maps-heading">
-              URL foto
-              <input
-                value={form.foto}
-                onChange={(e) => setForm((f) => ({ ...f, foto: e.target.value }))}
                 className="mt-1 w-full rounded-lg border border-maps-border px-3 py-2 text-sm"
               />
             </label>
