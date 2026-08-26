@@ -19,7 +19,7 @@ Incluye:
 | Mapa publico | Implementado con MapLibre y API de productores |
 | Perfil publico `/productor/:slug` | Implementado con API |
 | Noticias en landing | Implementadas con API real |
-| TeamSection | Mock / datos estaticos |
+| OurTeamSection (equipo, ex-TeamSection) | Mock / datos estaticos (MAPS-018) |
 | CTA / contacto comercial | Pendiente o sin accion real |
 | SEO/metadatos avanzados | Pendiente |
 
@@ -40,7 +40,7 @@ Archivos principales:
 - `frontend/src/modules/public-web/components/WhyUsSection.tsx`
 - `frontend/src/modules/public-web/components/FindAdvisorMap.tsx`
 - `frontend/src/modules/public-web/components/NewsPreviewSection.tsx`
-- `frontend/src/modules/public-web/components/TeamSection.tsx`
+- `frontend/src/modules/public-web/components/OurTeamSection.tsx`
 - `frontend/src/modules/public-web/components/CtaSection.tsx`
 - `frontend/src/shared/layouts/PublicLayout.tsx`
 
@@ -144,7 +144,7 @@ Perfil publico:
 
 ## Pendientes conocidos
 
-- TeamSection con datos reales o CMS.
+- OurTeamSection con datos reales (reemplazar placeholders, ver MAPS-018).
 - CTA/contacto con accion real (formulario, mailto o integracion).
 - SEO y metadatos por pagina/perfil.
 - Lazy-load del bundle de MapLibre si impacta performance.
