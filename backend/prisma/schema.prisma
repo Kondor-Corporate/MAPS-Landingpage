@@ -33,14 +33,15 @@ enum CategoriaNoticia {
 }
 
 model Usuario {
-  id           Int      @id @default(autoincrement())
-  activo       Boolean  @default(true)
-  usuario      String   @unique
-  passwordHash String   @map("password_hash")
-  rol          Rol      @default(PRODUCTOR)
+  id           Int       @id @default(autoincrement())
+  activo       Boolean   @default(true)
+  usuario      String    @unique
+  passwordHash String    @map("password_hash")
+  tokenVersion Int       @default(0) @map("token_version")
+  rol          Rol       @default(PRODUCTOR)
   creadoPorId  Int?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   lastLoginAt  DateTime? @map("last_login_at")
 
   creadoPor Usuario?  @relation("CreadoPor", fields: [creadoPorId], references: [id])

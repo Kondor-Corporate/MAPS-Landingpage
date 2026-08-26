@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyRound } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { PasswordField } from '@/shared/components/PasswordField';
@@ -33,6 +33,7 @@ export function ProducerResetPasswordModal({
 }: Props) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const submitLockRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -67,6 +68,7 @@ export function ProducerResetPasswordModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting || submitLockRef.current) return;
     const nextErrors: Partial<Record<keyof FormState, string>> = {};
     const passwordError = passwordPolicyError(form.newPassword);
     if (passwordError) {
@@ -77,10 +79,13 @@ export function ProducerResetPasswordModal({
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
+    submitLockRef.current = true;
     try {
       await onSubmit({ newPassword: form.newPassword, confirmPassword: form.confirmPassword });
     } catch {
       /* error mostrado vía submitError prop */
+    } finally {
+      submitLockRef.current = false;
     }
   }
 
@@ -122,19 +127,19 @@ export function ProducerResetPasswordModal({
           />
         </div>
 
-        <footer className="flex items-center justify-end gap-2 border-t border-maps-border bg-white px-6 py-4">
+        <footer className="flex flex-col-reverse gap-2 border-t border-maps-border bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="rounded-lg border border-maps-border bg-white px-4 py-2 text-sm font-medium text-maps-heading transition hover:bg-maps-surface disabled:opacity-50"
+            className="min-h-11 w-full rounded-lg border border-maps-border bg-white px-4 py-2 text-sm font-medium text-maps-heading transition hover:bg-maps-surface disabled:opacity-50 sm:w-auto"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-lg bg-maps-brand px-4 py-2 text-sm font-semibold text-white shadow-cta transition hover:bg-maps-brand-hover disabled:opacity-50"
+            className="min-h-11 w-full rounded-lg bg-maps-brand px-4 py-2 text-sm font-semibold text-white shadow-cta transition hover:bg-maps-brand-hover disabled:opacity-50 sm:w-auto"
           >
             {submitting ? 'Restableciendo…' : 'Restablecer contraseña'}
           </button>

@@ -226,7 +226,7 @@ describe('producers API (integración)', () => {
     });
   });
 
-  it('PATCH /:id/activo false — desactiva cuenta y revoca sesiones', async () => {
+  it('desactivar y reactivar no rehabilita access ni refresh anteriores', async () => {
     const adminToken = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
     const email = uniqueEmail('deactivate');
     const createRes = await createProducer(app, adminToken, {
@@ -238,9 +238,20 @@ describe('producers API (integración)', () => {
     const id = createRes.body.data.id as number;
 
     const agent = request.agent(app);
-    await agent
+    const producerLogin = await agent
       .post(`${AUTH}/login`)
       .send({ usuario: email, password: TEST_PASSWORD })
+      .expect(200);
+    const producerAccessToken = producerLogin.body.data.accessToken as string;
+    const loginCookies = producerLogin.headers['set-cookie'] as string[] | string;
+    const cookieArr = Array.isArray(loginCookies) ? loginCookies : [loginCookies];
+    const refreshCookie = cookieArr.find((cookie) => cookie.startsWith('maps_refresh='));
+    const previousRefreshToken = refreshCookie?.split('=')[1].split(';')[0];
+
+    expect(previousRefreshToken).toBeDefined();
+    await request(app)
+      .get(`${BASE}/me`)
+      .set('Authorization', `Bearer ${producerAccessToken}`)
       .expect(200);
 
     await request(app)
@@ -250,6 +261,31 @@ describe('producers API (integración)', () => {
       .expect(200);
 
     await agent.post(`${AUTH}/refresh`).expect(401);
+    await request(app)
+      .get(`${BASE}/me`)
+      .set('Authorization', `Bearer ${producerAccessToken}`)
+      .expect(401);
+
+    await request(app)
+      .patch(`${BASE}/${id}/activo`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ activo: true })
+      .expect(200);
+
+    await request(app)
+      .get(`${BASE}/me`)
+      .set('Authorization', `Bearer ${producerAccessToken}`)
+      .expect(401);
+    await request(app)
+      .post(`${AUTH}/refresh`)
+      .send({ refreshToken: previousRefreshToken })
+      .expect(401);
+
+    const newAccessToken = await loginUsuarioPassword(app, email, TEST_PASSWORD);
+    await request(app)
+      .get(`${BASE}/me`)
+      .set('Authorization', `Bearer ${newAccessToken}`)
+      .expect(200);
   });
 
   it('GET /?activo=false — incluye productores inactivos', async () => {
@@ -294,6 +330,10 @@ describe('producers API (integración)', () => {
         .expect(200);
 
       expect(JSON.stringify(res.body)).not.toContain('passwordHash');
+      await request(app)
+        .get(`${BASE}/me`)
+        .set('Authorization', `Bearer ${producerToken}`)
+        .expect(401);
     });
 
     it('login con la nueva contraseña funciona; con la anterior falla', async () => {
@@ -409,10 +449,11 @@ describe('producers API (integración)', () => {
       const id = createRes.body.data.id as number;
 
       const agent = request.agent(app);
-      await agent
+      const producerLogin = await agent
         .post(`${AUTH}/login`)
         .send({ usuario: email, password: TEST_PASSWORD })
         .expect(200);
+      const producerAccessToken = producerLogin.body.data.accessToken as string;
 
       await request(app)
         .patch(`${BASE}/${id}/password`)
@@ -422,6 +463,10 @@ describe('producers API (integración)', () => {
 
       // La sesión (refresh token) previa queda revocada.
       await agent.post(`${AUTH}/refresh`).expect(401);
+      await request(app)
+        .get(`${BASE}/me`)
+        .set('Authorization', `Bearer ${producerAccessToken}`)
+        .expect(401);
 
       await request(app)
         .post(`${AUTH}/login`)

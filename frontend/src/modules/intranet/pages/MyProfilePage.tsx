@@ -18,11 +18,11 @@ export function MyProfilePage() {
 }
 
 function MyProfileFallback() {
-  const { profile, isLoading, error } = useProducerProfile();
+  const { profile, isLoading, error, refetch } = useProducerProfile();
 
   if (isLoading) {
     return (
-      <div className="px-8 py-6">
+      <div className="px-4 py-5 sm:px-8 sm:py-6">
         <p className="text-maps-muted">Cargando perfil…</p>
       </div>
     );
@@ -30,9 +30,16 @@ function MyProfileFallback() {
 
   if (error || !profile) {
     return (
-      <div className="px-8 py-6">
+      <div className="px-4 py-5 sm:px-8 sm:py-6">
         <h1 className="text-3xl font-bold text-maps-heading">Mi Perfil</h1>
         <p className="mt-2 text-maps-body">{error ?? 'Perfil no disponible.'}</p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="mt-4 min-h-11 rounded-lg bg-maps-brand px-4 py-2 text-sm font-semibold text-white hover:bg-maps-brand-hover"
+        >
+          Reintentar
+        </button>
       </div>
     );
   }

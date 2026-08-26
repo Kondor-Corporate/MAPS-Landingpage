@@ -439,7 +439,10 @@ export const producersService = {
     await prisma.$transaction([
       prisma.usuario.update({
         where: { id: current.usuarioId },
-        data: { activo },
+        data: {
+          activo,
+          ...(activo ? {} : { tokenVersion: { increment: 1 } }),
+        },
       }),
       ...(activo
         ? []
@@ -483,7 +486,10 @@ export const producersService = {
     await prisma.$transaction([
       prisma.usuario.update({
         where: { id: usuarioId },
-        data: { passwordHash },
+        data: {
+          passwordHash,
+          tokenVersion: { increment: 1 },
+        },
       }),
       prisma.sesionToken.deleteMany({ where: { usuarioId } }),
     ]);
@@ -503,7 +509,10 @@ export const producersService = {
     await prisma.$transaction([
       prisma.usuario.update({
         where: { id: current.usuarioId },
-        data: { passwordHash },
+        data: {
+          passwordHash,
+          tokenVersion: { increment: 1 },
+        },
       }),
       prisma.sesionToken.deleteMany({ where: { usuarioId: current.usuarioId } }),
     ]);

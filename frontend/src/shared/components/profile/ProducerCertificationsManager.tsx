@@ -26,6 +26,8 @@ export function ProducerCertificationsManager({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadLockRef = useRef(false);
+  const deleteLockRef = useRef(false);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFile = e.target.files?.[0] ?? null;
@@ -55,11 +57,12 @@ export function ProducerCertificationsManager({
   }
 
   async function handleUpload() {
-    if (busy) return;
+    if (busy || uploadLockRef.current) return;
     if (!file) {
       setError('Seleccioná un archivo PDF.');
       return;
     }
+    uploadLockRef.current = true;
     setBusy(true);
     setError(null);
     setSuccess(null);
@@ -74,12 +77,17 @@ export function ProducerCertificationsManager({
         getApiErrorMessage(err, 'No se pudo subir la certificación. Intentá nuevamente.'),
       );
     } finally {
+      uploadLockRef.current = false;
       setBusy(false);
     }
   }
 
   async function handleDelete(certId: number) {
-    if (deletingId !== null) return;
+    if (deletingId !== null || deleteLockRef.current) return;
+    if (!window.confirm('¿Querés eliminar esta certificación? Esta acción no se puede deshacer.')) {
+      return;
+    }
+    deleteLockRef.current = true;
     setDeletingId(certId);
     setError(null);
     setSuccess(null);
@@ -91,6 +99,7 @@ export function ProducerCertificationsManager({
         getApiErrorMessage(err, 'No se pudo eliminar la certificación. Intentá nuevamente.'),
       );
     } finally {
+      deleteLockRef.current = false;
       setDeletingId(null);
     }
   }

@@ -131,6 +131,7 @@ export function NewsManagementDashboard() {
   const [actionBusy, setActionBusy] = useState(false);
 
   const [actionError, setActionError] = useState<string | null>(null);
+  const actionLockRef = useRef(false);
 
 
 
@@ -286,6 +287,8 @@ export function NewsManagementDashboard() {
 
 
   async function handleUnpublishFromTable(n: News) {
+    if (actionLockRef.current) return;
+    actionLockRef.current = true;
 
     setActionBusy(true);
 
@@ -314,6 +317,7 @@ export function NewsManagementDashboard() {
       showError('No se pudo completar la acción');
 
     } finally {
+      actionLockRef.current = false;
 
       setActionBusy(false);
 
@@ -324,6 +328,8 @@ export function NewsManagementDashboard() {
 
 
   async function handleConfirmDelete(n: News) {
+    if (actionLockRef.current) return;
+    actionLockRef.current = true;
 
     setActionBusy(true);
 
@@ -354,6 +360,7 @@ export function NewsManagementDashboard() {
       showError('No se pudo completar la acción');
 
     } finally {
+      actionLockRef.current = false;
 
       setActionBusy(false);
 
@@ -369,7 +376,7 @@ export function NewsManagementDashboard() {
 
   return (
 
-    <div className="flex flex-col gap-6 px-8 py-6">
+    <div className="flex min-w-0 flex-col gap-6 px-4 py-5 sm:px-8 sm:py-6">
 
       <MapsFeedbackToastHost toast={toast} onDismiss={dismiss} />
 

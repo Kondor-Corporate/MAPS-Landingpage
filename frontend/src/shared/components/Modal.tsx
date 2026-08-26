@@ -76,7 +76,7 @@ export function Modal({
       : 'bg-white text-maps-muted border border-maps-border shadow-card hover:bg-maps-surface hover:text-maps-heading';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6">
       <div
         className="absolute inset-0 bg-black/50 transition-opacity"
         onClick={onClose}
@@ -87,13 +87,13 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
-        className={`relative flex max-h-[min(90vh,880px)] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ${maxWidth}`}
+        className={`relative flex max-h-[calc(100dvh-1rem)] w-full flex-col overflow-hidden rounded-xl bg-white shadow-2xl sm:max-h-[min(90vh,880px)] sm:rounded-2xl ${maxWidth}`}
       >
         <button
           ref={closeButtonRef}
           type="button"
           onClick={onClose}
-          className={`absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-maps-brand/30 ${closeButtonClass}`}
+          className={`absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-maps-brand/30 ${closeButtonClass}`}
           aria-label="Cerrar modal"
           title="Cerrar"
         >

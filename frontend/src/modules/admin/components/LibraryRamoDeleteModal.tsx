@@ -6,6 +6,7 @@ type Props = {
   isOpen: boolean;
   ramo: Ramo | null;
   isBusy?: boolean;
+  submitError?: string | null;
   onClose: () => void;
   onConfirm: () => void;
 };
@@ -14,6 +15,7 @@ export function LibraryRamoDeleteModal({
   isOpen,
   ramo,
   isBusy = false,
+  submitError,
   onClose,
   onConfirm,
 }: Props) {
@@ -33,6 +35,11 @@ export function LibraryRamoDeleteModal({
             </p>
           </div>
         </div>
+        {submitError ? (
+          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">
+            {submitError}
+          </p>
+        ) : null}
         <div className="flex justify-end gap-2 border-t border-maps-border pt-4">
           <button
             type="button"
