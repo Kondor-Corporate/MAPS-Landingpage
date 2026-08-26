@@ -22,7 +22,7 @@ describe('authStore', () => {
   });
 
   it('login asigna usuario, token y marca autenticado', () => {
-    const user = { id: 1, usuario: 'admin', rol: 'ADMIN' as const };
+    const user = { id: 1, usuario: 'admin', rol: 'ADMIN' as const, slug: null };
     useAuthStore.getState().login(user, 'jwt-1');
 
     const s = useAuthStore.getState();
@@ -35,7 +35,7 @@ describe('authStore', () => {
   it('logout limpia sesión y mantiene isInitialized true', () => {
     useAuthStore
       .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN' }, 'tok');
+      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
     useAuthStore.getState().logout();
 
     const s = useAuthStore.getState();
@@ -46,7 +46,12 @@ describe('authStore', () => {
   });
 
   it('updateToken solo cambia accessToken', () => {
-    const user = { id: 2, usuario: 'p', rol: 'PRODUCTOR' as const };
+    const user = {
+      id: 2,
+      usuario: 'p',
+      rol: 'PRODUCTOR' as const,
+      slug: 'productor-prueba',
+    };
     useAuthStore.getState().login(user, 'old');
     useAuthStore.getState().updateToken('new');
 
@@ -62,7 +67,7 @@ describe('authStore', () => {
   });
 
   it('partialize: accessToken no se persiste en localStorage', () => {
-    const user = { id: 1, usuario: 'admin', rol: 'ADMIN' as const };
+    const user = { id: 1, usuario: 'admin', rol: 'ADMIN' as const, slug: null };
     useAuthStore.getState().login(user, 'secret-access');
 
     const raw = localStorage.getItem('maps-auth');
@@ -77,7 +82,7 @@ describe('authStore', () => {
       'maps-auth',
       JSON.stringify({
         state: {
-          user: { id: 9, usuario: 'restored', rol: 'SUPERADMIN' },
+          user: { id: 9, usuario: 'restored', rol: 'SUPERADMIN', slug: null },
         },
         version: 0,
       }),
@@ -89,6 +94,7 @@ describe('authStore', () => {
       id: 9,
       usuario: 'restored',
       rol: 'SUPERADMIN',
+      slug: null,
     });
     expect(useAuthStore.getState().accessToken).toBeNull();
   });
