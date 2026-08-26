@@ -10,6 +10,7 @@ import { ProfileSpecialtiesGrid } from '@/shared/components/profile/ProfileSpeci
 import { ProfileStatsCards } from '@/shared/components/profile/ProfileStatsCards';
 import { ProfileTrajectorySection } from '@/shared/components/profile/ProfileTrajectorySection';
 import { useProducerProfile } from '@/modules/intranet/hooks/useProducerProfile';
+import { useLogout } from '@/modules/auth/hooks/useLogout';
 import { useAuthStore } from '@/store/authStore';
 
 export function ProducerProfileViewPage() {
@@ -41,7 +42,9 @@ function ProducerProfileViewInner({
     deleteCertificacion,
     changePassword,
     uploadFoto,
+    refetch,
   } = useProducerProfile();
+  const logout = useLogout();
   const [editOpen, setEditOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -60,9 +63,16 @@ function ProducerProfileViewInner({
 
   if (error || !profile) {
     return (
-      <div className="px-8 py-6">
+      <div className="px-4 py-5 sm:px-8 sm:py-6">
         <h1 className="text-xl font-bold text-maps-heading">Mi Perfil</h1>
         <p className="mt-2 text-maps-body">{error ?? 'No se encontró el perfil.'}</p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="mt-4 min-h-11 rounded-lg bg-maps-brand px-4 py-2 text-sm font-semibold text-white hover:bg-maps-brand-hover"
+        >
+          Reintentar
+        </button>
       </div>
     );
   }
@@ -136,8 +146,7 @@ function ProducerProfileViewInner({
         onClose={() => setChangePasswordOpen(false)}
         changePassword={changePassword}
         onSaved={() => {
-          setToast('Contraseña actualizada correctamente');
-          setTimeout(() => setToast(null), 3000);
+          void logout();
         }}
       />
 

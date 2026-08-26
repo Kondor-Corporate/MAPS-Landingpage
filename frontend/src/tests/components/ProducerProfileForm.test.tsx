@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ProducerProfileForm } from '@/modules/intranet/components/ProducerProfileForm';
@@ -65,6 +65,14 @@ const PROFILE: ProducerProfile = {
   redesSociales: [],
   certificaciones: [],
 };
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
 
 function renderForm(profile = PROFILE) {
   const updateProfile = vi.fn().mockResolvedValue(profile);
@@ -179,5 +187,49 @@ describe('ProducerProfileForm coordinate flow', () => {
 
     expect(bio).toHaveValue('Texto todavía no guardado');
     expect(screen.getByText('Certificación nueva')).toBeInTheDocument();
+  });
+
+  it('bloquea X, overlay, Escape y Cancelar mientras el guardado está pendiente', async () => {
+    const update = deferred<ProducerProfile>();
+    const onClose = vi.fn();
+    const onSaved = vi.fn();
+    const updateProfile = vi.fn().mockReturnValue(update.promise);
+    const { container } = render(
+      <ProducerProfileForm
+        open
+        onClose={onClose}
+        profile={PROFILE}
+        onSaved={onSaved}
+        updateProfile={updateProfile}
+        uploadCertificacion={vi.fn()}
+        deleteCertificacion={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/trayectoria/i), {
+      target: { value: 'Trayectoria actualizada' },
+    });
+    const save = screen.getByRole('button', { name: /^guardar$/i });
+    fireEvent.click(save);
+    fireEvent.click(save);
+
+    fireEvent.click(screen.getByRole('button', { name: /cerrar modal/i }));
+    const overlay = container.querySelector('[role="presentation"]');
+    expect(overlay).not.toBeNull();
+    fireEvent.click(overlay!);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
+
+    expect(updateProfile).toHaveBeenCalledOnce();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    await act(async () => {
+      update.resolve(PROFILE);
+      await update.promise;
+    });
+
+    expect(onSaved).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

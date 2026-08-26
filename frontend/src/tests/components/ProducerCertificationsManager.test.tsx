@@ -19,15 +19,16 @@ function makePdf() {
 function renderManager(
   onUpload = vi.fn().mockResolvedValue(undefined),
   certificaciones: ProducerCertificacion[] = [],
+  onDelete = vi.fn().mockResolvedValue(undefined),
 ) {
   render(
     <ProducerCertificationsManager
       certificaciones={certificaciones}
       onUpload={onUpload}
-      onDelete={vi.fn().mockResolvedValue(undefined)}
+      onDelete={onDelete}
     />,
   );
-  return { onUpload };
+  return { onUpload, onDelete };
 }
 
 describe('ProducerCertificationsManager', () => {
@@ -106,5 +107,17 @@ describe('ProducerCertificationsManager', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Subir PDF' })).toBeEnabled());
     expect(screen.getByRole('status')).toHaveTextContent('Certificación cargada correctamente.');
     expect(onUpload).toHaveBeenCalledTimes(2);
+  });
+
+  it('solicita confirmación antes de eliminar una certificación', async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderManager(undefined, [EXISTING_CERTIFICATION], onDelete);
+
+    await user.click(screen.getByRole('button', { name: /eliminar/i }));
+
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(onDelete).not.toHaveBeenCalled();
   });
 });
