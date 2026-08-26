@@ -2,7 +2,7 @@ import { HeroSection } from '@/modules/public-web/components/HeroSection';
 import { WhyUsSection } from '@/modules/public-web/components/WhyUsSection';
 import { NewsPreviewSection } from '@/modules/public-web/components/NewsPreviewSection';
 import { FindAdvisorMap } from '@/modules/public-web/components/FindAdvisorMap';
-import { TeamSection } from '@/modules/public-web/components/TeamSection';
+import { OurTeamSection } from '@/modules/public-web/components/OurTeamSection';
 import { CtaSection } from '@/modules/public-web/components/CtaSection';
 
 export function HomePage() {
@@ -12,7 +12,7 @@ export function HomePage() {
       <WhyUsSection />
       <NewsPreviewSection />
       <FindAdvisorMap />
-      <TeamSection />
+      <OurTeamSection />
       <CtaSection />
     </>
   );
