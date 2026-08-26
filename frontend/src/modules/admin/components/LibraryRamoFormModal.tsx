@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FolderOpen } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { RamoIcon } from '@/modules/admin/components/RamoIcon';
@@ -94,6 +94,7 @@ export function LibraryRamoFormModal({
 }: Props) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<ReturnType<typeof validate>>({});
+  const submitLockRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -109,19 +110,25 @@ export function LibraryRamoFormModal({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting || submitLockRef.current) return;
     const v = validate(form);
     setErrors(v);
     if (Object.keys(v).length > 0) return;
-    void onSubmit(toInput(form));
+    submitLockRef.current = true;
+    try {
+      await onSubmit(toInput(form));
+    } finally {
+      submitLockRef.current = false;
+    }
   }
 
   const title = mode === 'create' ? 'Nuevo ramo' : `Editar: ${ramo?.nombre ?? ''}`;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
-      <form onSubmit={handleSubmit} className="flex max-h-[85vh] flex-col gap-5 overflow-y-auto p-6">
+      <form onSubmit={(event) => void handleSubmit(event)} className="flex max-h-[85vh] flex-col gap-5 overflow-y-auto p-4 sm:p-6">
         <header className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-maps-brand-soft text-maps-brand">
             <FolderOpen size={20} strokeWidth={1.75} />
@@ -230,7 +237,7 @@ export function LibraryRamoFormModal({
           </p>
         ) : null}
 
-        <div className="flex justify-end gap-2 border-t border-maps-border pt-4">
+        <div className="flex flex-col-reverse gap-2 border-t border-maps-border pt-4 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}

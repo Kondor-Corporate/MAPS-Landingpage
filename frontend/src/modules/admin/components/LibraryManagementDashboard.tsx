@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
 
@@ -65,6 +65,13 @@ export function LibraryManagementDashboard() {
   const [actionBusy, setActionBusy] = useState(false);
 
   const [actionError, setActionError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const actionLockRef = useRef(false);
+
+  function flash(message: string) {
+    setSuccess(message);
+    window.setTimeout(() => setSuccess(null), 3500);
+  }
 
 
 
@@ -113,10 +120,12 @@ export function LibraryManagementDashboard() {
       if (formModal.mode === 'edit' && formModal.ramo) {
 
         await update(formModal.ramo.id, input);
+        flash('Ramo actualizado correctamente');
 
       } else {
 
         await create(input);
+        flash('Ramo creado correctamente');
 
       }
 
@@ -137,7 +146,11 @@ export function LibraryManagementDashboard() {
 
 
   async function handleToggle(ramo: Ramo) {
+    if (actionLockRef.current) return;
+    const action = ramo.activo ? 'desactivar' : 'activar';
+    if (!window.confirm(`¿Querés ${action} “${ramo.nombre}”?`)) return;
 
+    actionLockRef.current = true;
     setActionBusy(true);
 
     setActionError(null);
@@ -145,6 +158,7 @@ export function LibraryManagementDashboard() {
     try {
 
       await toggleActivo(ramo.id, !ramo.activo);
+      flash(ramo.activo ? 'Ramo desactivado' : 'Ramo activado');
 
     } catch (err) {
 
@@ -152,6 +166,7 @@ export function LibraryManagementDashboard() {
 
     } finally {
 
+      actionLockRef.current = false;
       setActionBusy(false);
 
     }
@@ -162,8 +177,9 @@ export function LibraryManagementDashboard() {
 
   async function handleDeleteConfirm() {
 
-    if (!deleteModal.ramo) return;
+    if (!deleteModal.ramo || actionLockRef.current) return;
 
+    actionLockRef.current = true;
     setActionBusy(true);
 
     setActionError(null);
@@ -171,6 +187,7 @@ export function LibraryManagementDashboard() {
     try {
 
       await remove(deleteModal.ramo.id);
+      flash('Ramo eliminado');
 
       setDeleteModal({ open: false, ramo: null });
 
@@ -180,6 +197,7 @@ export function LibraryManagementDashboard() {
 
     } finally {
 
+      actionLockRef.current = false;
       setActionBusy(false);
 
     }
@@ -189,7 +207,7 @@ export function LibraryManagementDashboard() {
 
 
   return (
-    <div className="flex flex-col gap-8 px-8 py-6">
+    <div className="flex min-w-0 flex-col gap-8 px-4 py-5 sm:px-8 sm:py-6">
       <LibraryHeader />
       <LibraryToolbar search={search} onSearchChange={setSearch} onNewClick={openCreate} />
 
@@ -209,6 +227,12 @@ export function LibraryManagementDashboard() {
       {actionError ? (
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">
           {actionError}
+        </p>
+      ) : null}
+
+      {success ? (
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900" role="status">
+          {success}
         </p>
       ) : null}
 
@@ -240,6 +264,7 @@ export function LibraryManagementDashboard() {
         isOpen={deleteModal.open}
         ramo={deleteModal.ramo}
         isBusy={actionBusy}
+        submitError={actionError}
         onClose={() => {
           if (!actionBusy) setDeleteModal({ open: false, ramo: null });
         }}

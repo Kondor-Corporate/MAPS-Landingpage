@@ -2,7 +2,7 @@
  * Formulario de alta/edición de Noticias en el panel admin.
  * Agrupa campos editoriales, audiencia, portada (URL) y acciones de guardado/publicación.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CATEGORIA_OPTIONS,
   type NewsAudiencia,
@@ -79,6 +79,7 @@ export function NewsForm({
   onCancelEdit,
 }: Props) {
   const [showErrors, setShowErrors] = useState(false);
+  const actionLockRef = useRef(false);
 
   const errors = useMemo(() => validate(state), [state]);
 
@@ -95,27 +96,38 @@ export function NewsForm({
   }
 
   async function tryCommit(estado: NewsEstado) {
+    if (isSubmitting || actionLockRef.current) return;
     const currentErrors = validate(state);
     setShowErrors(true);
     if (Object.keys(currentErrors).length > 0) return;
 
+    actionLockRef.current = true;
     const now = new Date().toISOString();
-    await onSubmit({
-      titulo: state.titulo.trim(),
-      categoria: state.categoria as NewsCategoria,
-      audiencia: state.audiencia,
-      cuerpo: state.cuerpo.trim(),
-      imagenPortada: state.imagenPortada?.trim() || null,
-      estado,
-      fechaPublicacion: now,
-    });
-    setShowErrors(false);
+    try {
+      await onSubmit({
+        titulo: state.titulo.trim(),
+        categoria: state.categoria as NewsCategoria,
+        audiencia: state.audiencia,
+        cuerpo: state.cuerpo.trim(),
+        imagenPortada: state.imagenPortada?.trim() || null,
+        estado,
+        fechaPublicacion: now,
+      });
+      setShowErrors(false);
+    } finally {
+      actionLockRef.current = false;
+    }
   }
 
   async function tryUnpublish() {
-    if (!onUnpublish) return;
-    await onUnpublish();
-    setShowErrors(false);
+    if (!onUnpublish || isSubmitting || actionLockRef.current) return;
+    actionLockRef.current = true;
+    try {
+      await onUnpublish();
+      setShowErrors(false);
+    } finally {
+      actionLockRef.current = false;
+    }
   }
 
   const categoriaOptions = CATEGORIA_OPTIONS.map((opt) => ({
@@ -124,8 +136,8 @@ export function NewsForm({
   }));
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-      <section className="flex flex-col gap-4 rounded-2xl border border-maps-border bg-white p-6 shadow-card">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]" aria-busy={isSubmitting}>
+      <section className={`flex flex-col gap-4 rounded-2xl border border-maps-border bg-white p-4 shadow-card sm:p-6 ${isSubmitting ? 'pointer-events-none opacity-70' : ''}`}>
         <h2 className="text-base font-semibold text-maps-heading">Contenido de la Noticia</h2>
 
         <div className="flex flex-col gap-1.5">
@@ -187,7 +199,7 @@ export function NewsForm({
         </div>
       </section>
 
-      <aside className="flex flex-col gap-4">
+      <aside className={`flex flex-col gap-4 ${isSubmitting ? 'pointer-events-none opacity-70' : ''}`}>
         <NewsAudienceCard value={state.audiencia} onChange={(audiencia) => patch({ audiencia })} />
         <NewsPublishActionsCard
           mode={mode}
