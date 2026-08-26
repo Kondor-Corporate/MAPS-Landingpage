@@ -46,6 +46,7 @@ export const authService = {
     const accessPayload: JWTPayload = {
       sub: String(user.id),
       role: user.rol,
+      ver: user.tokenVersion,
     };
     const accessOpts: SignOptions = {
       expiresIn: env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
@@ -106,6 +107,18 @@ export const authService = {
     const tokenHash = hashToken(refreshToken);
     const session = await prisma.sesionToken.findUnique({
       where: { tokenHash },
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            usuario: true,
+            rol: true,
+            activo: true,
+            tokenVersion: true,
+            productor: { select: { slug: true } },
+          },
+        },
+      },
     });
 
     if (!session) {
@@ -120,17 +133,30 @@ export const authService = {
     if (session.usuarioId !== Number(payload.sub)) {
       throw new AppError(401, 'Refresh token inválido');
     }
+    if (!session.usuario.activo) {
+      await prisma.sesionToken.deleteMany({ where: { usuarioId: session.usuarioId } });
+      throw new AppError(401, 'Cuenta desactivada');
+    }
 
     const accessPayload: JWTPayload = {
       sub: payload.sub,
-      role: payload.role,
+      role: session.usuario.rol,
+      ver: session.usuario.tokenVersion,
     };
     const accessOpts: SignOptions = {
       expiresIn: env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
     };
     const accessToken = jwt.sign(accessPayload, env.JWT_SECRET, accessOpts);
 
-    return { accessToken };
+    return {
+      accessToken,
+      user: {
+        id: session.usuario.id,
+        usuario: session.usuario.usuario,
+        rol: session.usuario.rol,
+        slug: session.usuario.productor?.slug ?? null,
+      },
+    };
   },
 
   async logout(userSub: string, refreshToken: string) {

@@ -93,6 +93,9 @@ export const authController: Record<string, RequestHandler> = {
         error: null,
       });
     } catch (err) {
+      if (err instanceof AppError && err.statusCode === 401) {
+        res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieClearOptions(env));
+      }
       next(err);
     }
   },

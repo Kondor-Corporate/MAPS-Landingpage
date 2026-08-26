@@ -26,7 +26,7 @@ export const defaultHandlers = [
       return HttpResponse.json({
         data: {
           accessToken: 'token-productor',
-          user: { id: 1, usuario: 'producer', rol: 'PRODUCTOR' },
+          user: { id: 1, usuario: 'producer', rol: 'PRODUCTOR', slug: 'producer' },
         },
         message: 'OK',
         error: null,
@@ -36,7 +36,7 @@ export const defaultHandlers = [
     return HttpResponse.json({
       data: {
         accessToken: 'token-admin',
-        user: { id: 2, usuario: 'admin', rol: 'ADMIN' },
+        user: { id: 2, usuario: 'admin', rol: 'ADMIN', slug: null },
       },
       message: 'OK',
       error: null,

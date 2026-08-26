@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useAdminProducers } from '@/modules/admin/hooks/useAdminProducers';
 import { useProducerFilters } from '@/modules/admin/hooks/useProducerFilters';
@@ -62,6 +62,7 @@ export function ProducersDashboard({ scope }: Props) {
 
   const [toggleBusy, setToggleBusy] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
+  const toggleLockRef = useRef(false);
 
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
@@ -123,6 +124,8 @@ export function ProducersDashboard({ scope }: Props) {
   }
 
   async function confirmToggle(p: Producer) {
+    if (toggleLockRef.current) return;
+    toggleLockRef.current = true;
     setToggleBusy(true);
     setToggleError(null);
     try {
@@ -137,6 +140,7 @@ export function ProducersDashboard({ scope }: Props) {
     } catch (err) {
       setToggleError(getApiErrorMessage(err));
     } finally {
+      toggleLockRef.current = false;
       setToggleBusy(false);
     }
   }
@@ -175,7 +179,7 @@ export function ProducersDashboard({ scope }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-8 py-6">
+    <div className="flex min-w-0 flex-col gap-6 px-4 py-5 sm:px-8 sm:py-6">
       <ProducersGreeting name={greetingName} totalProductores={totalProductores} />
 
       {toast ? (
@@ -210,15 +214,22 @@ export function ProducersDashboard({ scope }: Props) {
         <div className="rounded-2xl border border-maps-border bg-white px-6 py-10 text-center text-sm text-maps-muted">
           Cargando productores…
         </div>
-      ) : (
+      ) : !error || producers.length > 0 ? (
         <ProducerTable
           producers={paginated}
+          emptyMessage={
+            search || activeCount > 0
+              ? 'No encontramos productores con los filtros aplicados.'
+              : scope === 'inactive'
+                ? 'Todavía no hay productores desactivados.'
+                : 'Todavía no hay productores activos. Podés crear el primero desde “Nuevo productor”.'
+          }
           onView={(p) => setViewing(p)}
           onEdit={handleEdit}
           onToggleEstado={handleToggleEstado}
           onResetPassword={handleResetPassword}
         />
-      )}
+      ) : null}
 
       {!loading && filtered.length > 0 ? (
         <TablePagination

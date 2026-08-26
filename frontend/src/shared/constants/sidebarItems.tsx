@@ -229,6 +229,7 @@ const producerItems: SidebarItem[] = [
 const adminItems: SidebarItem[] = [
   { label: 'Dashboard', to: '/admin/dashboard', icon: DashboardIcon },
   { label: 'Productores', to: '/admin/productores', icon: ProducersIcon },
+  { label: 'Productores inactivos', to: '/admin/inactivos', icon: ProducersIcon },
   { label: 'Noticias', to: '/admin/noticias', icon: NewsIcon },
   { label: 'Biblioteca Digital', to: '/admin/biblioteca', icon: LibraryIcon },
   accesoSelfItem,
@@ -238,6 +239,7 @@ const adminItems: SidebarItem[] = [
 const superadminItems: SidebarItem[] = [
   { label: 'Dashboard', to: '/admin/dashboard', icon: DashboardIcon },
   { label: 'Productores', to: '/admin/productores', icon: ProducersIcon },
+  { label: 'Productores inactivos', to: '/admin/inactivos', icon: ProducersIcon },
   { label: 'Administradores', to: '/admin/admins', icon: AdminsIcon },
   { label: 'Noticias', to: '/admin/noticias', icon: NewsIcon },
   { label: 'Biblioteca Digital', to: '/admin/biblioteca', icon: LibraryIcon },

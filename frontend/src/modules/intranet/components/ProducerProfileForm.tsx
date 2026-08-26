@@ -65,6 +65,7 @@ export function ProducerProfileForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wasOpenRef = useRef(false);
+  const submitLockRef = useRef(false);
 
   useEffect(() => {
     if (open && !wasOpenRef.current) {
@@ -85,7 +86,8 @@ export function ProducerProfileForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (submitting) return;
+    if (submitting || submitLockRef.current) return;
+    submitLockRef.current = true;
     setSubmitting(true);
     setError(null);
 
@@ -132,13 +134,22 @@ export function ProducerProfileForm({
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
+      submitLockRef.current = false;
       setSubmitting(false);
     }
   }
 
+  function handleClose() {
+    if (submitting || submitLockRef.current) return;
+    onClose();
+  }
+
   return (
-    <Modal isOpen={open} onClose={onClose} maxWidth="max-w-2xl">
-      <form onSubmit={(e) => void handleSubmit(e)} className="p-6 sm:p-8">
+    <Modal isOpen={open} onClose={handleClose} maxWidth="max-w-2xl">
+      <form
+        onSubmit={(e) => void handleSubmit(e)}
+        className="flex max-h-[90vh] min-h-0 flex-col p-4 sm:p-8"
+      >
         <h2 className="text-xl font-bold text-maps-heading">Editar perfil</h2>
         {error && (
           <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
@@ -146,7 +157,7 @@ export function ProducerProfileForm({
           </p>
         )}
 
-        <div className="mt-6 flex max-h-[60vh] flex-col gap-4 overflow-y-auto pr-1">
+        <div className="mt-6 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
           <label className="block text-sm font-medium text-maps-heading">
             Trayectoria (bio)
             <textarea
@@ -248,11 +259,11 @@ export function ProducerProfileForm({
           />
         </div>
 
-        <div className="mt-6 flex justify-end gap-3 border-t border-maps-border pt-4">
+        <div className="mt-6 flex flex-col-reverse gap-2 border-t border-maps-border pt-4 sm:flex-row sm:justify-end sm:gap-3">
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-lg border border-maps-border px-4 py-2 text-sm font-medium text-maps-body"
+            onClick={handleClose}
+            className="min-h-11 w-full rounded-lg border border-maps-border px-4 py-2 text-sm font-medium text-maps-body sm:w-auto"
             disabled={submitting}
           >
             Cancelar
@@ -260,7 +271,7 @@ export function ProducerProfileForm({
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-lg bg-maps-brand px-5 py-2 text-sm font-bold text-white hover:bg-maps-brand-hover disabled:opacity-60"
+            className="min-h-11 w-full rounded-lg bg-maps-brand px-5 py-2 text-sm font-bold text-white hover:bg-maps-brand-hover disabled:opacity-60 sm:w-auto"
           >
             {submitting ? 'Guardando...' : 'Guardar'}
           </button>

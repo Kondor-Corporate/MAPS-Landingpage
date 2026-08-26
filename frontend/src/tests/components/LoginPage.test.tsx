@@ -177,7 +177,7 @@ describe('LoginPage', () => {
         return HttpResponse.json({
           data: {
             accessToken: 't',
-            user: { id: 1, usuario: 'admin', rol: 'ADMIN' },
+            user: { id: 1, usuario: 'admin', rol: 'ADMIN', slug: null },
           },
           message: 'OK',
           error: null,

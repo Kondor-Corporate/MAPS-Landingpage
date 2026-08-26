@@ -43,7 +43,7 @@ describe('api — interceptor de request (axios-mock-adapter)', () => {
   it('adjunta Authorization Bearer cuando hay accessToken', async () => {
     useAuthStore
       .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN' }, 'mi-jwt');
+      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'mi-jwt');
 
     mock.onGet('/ping').reply(200, { ok: true });
 
@@ -112,7 +112,7 @@ describe('api — interceptor de response (MSW)', () => {
 
     useAuthStore
       .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN' }, 'viejo');
+      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'viejo');
 
     const res = await api.get('/foo');
 
@@ -133,7 +133,7 @@ describe('api — interceptor de response (MSW)', () => {
 
     useAuthStore
       .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN' }, 'tok');
+      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
 
     await expect(api.get('/foo')).rejects.toMatchObject({
       response: { status: 401 },
@@ -165,7 +165,7 @@ describe('api — interceptor de response (MSW)', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
-  it('401 en /auth/refresh no reintenta refresh: logout directo', async () => {
+  it('401 en /auth/refresh no inicia otro refresh ni redirige por sí solo', async () => {
     const replace = installMockLocation();
 
     server.use(
@@ -176,14 +176,14 @@ describe('api — interceptor de response (MSW)', () => {
 
     useAuthStore
       .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN' }, 'x');
+      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'x');
 
     await expect(api.post('/auth/refresh', {})).rejects.toMatchObject({
       response: { status: 401 },
     });
 
-    expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    expect(replace).toHaveBeenCalledWith('/login');
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it('reintento con _retry sigue en 401: logout sin bucle de refresh', async () => {
@@ -206,7 +206,7 @@ describe('api — interceptor de response (MSW)', () => {
 
     useAuthStore
       .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN' }, 't');
+      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 't');
 
     await expect(api.get('/foo')).rejects.toMatchObject({
       response: { status: 401 },
@@ -215,5 +215,85 @@ describe('api — interceptor de response (MSW)', () => {
     expect(hits).toBe(2);
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(replace).toHaveBeenCalledWith('/login');
+  });
+
+  it('400 funcional no refresca ni cierra la sesión', async () => {
+    const replace = installMockLocation();
+    let refreshHits = 0;
+    server.use(
+      http.post(`${API_BASE}/functional`, () =>
+        HttpResponse.json(
+          { data: null, message: 'Dato inválido', error: null },
+          { status: 400 },
+        ),
+      ),
+      http.post(`${API_BASE}/auth/refresh`, () => {
+        refreshHits += 1;
+        return new HttpResponse(null, { status: 401 });
+      }),
+    );
+    useAuthStore
+      .getState()
+      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
+
+    await expect(api.post('/functional', {})).rejects.toMatchObject({
+      response: { status: 400 },
+    });
+
+    expect(refreshHits).toBe(0);
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('un error de red durante refresh conserva la sesión y no redirige', async () => {
+    const replace = installMockLocation();
+    server.use(
+      http.get(`${API_BASE}/offline`, () => new HttpResponse(null, { status: 401 })),
+      http.post(`${API_BASE}/auth/refresh`, () => HttpResponse.error()),
+    );
+    useAuthStore
+      .getState()
+      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
+
+    await expect(api.get('/offline')).rejects.toBeTruthy();
+
+    expect(useAuthStore.getState().user).not.toBeNull();
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('401 concurrentes comparten un único refresh', async () => {
+    let refreshHits = 0;
+    const resourceHits = new Map<string, number>();
+    server.use(
+      http.get(`${API_BASE}/concurrent/:id`, ({ params }) => {
+        const id = String(params.id);
+        const hits = (resourceHits.get(id) ?? 0) + 1;
+        resourceHits.set(id, hits);
+        return hits === 1
+          ? new HttpResponse(null, { status: 401 })
+          : HttpResponse.json({ data: { id }, message: 'OK', error: null });
+      }),
+      http.post(`${API_BASE}/auth/refresh`, async () => {
+        refreshHits += 1;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return HttpResponse.json({
+          data: {
+            accessToken: 'shared-token',
+            user: { id: 1, usuario: 'a', rol: 'ADMIN', slug: null },
+          },
+          message: 'OK',
+          error: null,
+        });
+      }),
+    );
+    useAuthStore
+      .getState()
+      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'old');
+
+    await Promise.all([api.get('/concurrent/1'), api.get('/concurrent/2')]);
+
+    expect(refreshHits).toBe(1);
+    expect(useAuthStore.getState().accessToken).toBe('shared-token');
   });
 });

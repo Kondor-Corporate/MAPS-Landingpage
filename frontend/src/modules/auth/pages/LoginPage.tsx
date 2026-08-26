@@ -1,7 +1,8 @@
 import { isAxiosError } from 'axios';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/axios';
+import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
 import { AuthLayout } from '@/shared/layouts/AuthLayout';
 import type { Rol } from '@/store/authStore';
 import { useAuthStore } from '@/store/authStore';
@@ -47,9 +48,11 @@ export function LoginPage() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const submitLockRef = useRef(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isLoading || submitLockRef.current) return;
     setApiError(null);
 
     const next: FieldErrors = {};
@@ -60,6 +63,7 @@ export function LoginPage() {
     setErrors(next);
     if (uErr || pErr) return;
 
+    submitLockRef.current = true;
     setIsLoading(true);
     try {
       const { data: body } = await api.post<LoginResponse>('/auth/login', {
@@ -87,12 +91,12 @@ export function LoginPage() {
       }
     } catch (err) {
       if (isAxiosError(err) && err.response) {
-        const data = err.response.data as { message?: string } | undefined;
-        setApiError(data?.message ?? 'No se pudo iniciar sesión.');
+        setApiError(getApiErrorMessage(err, 'No se pudo iniciar sesión.'));
         return;
       }
       setApiError('Error de red. Comprueba tu conexión y la URL del API.');
     } finally {
+      submitLockRef.current = false;
       setIsLoading(false);
     }
   }
@@ -193,13 +197,12 @@ export function LoginPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
-            <a
-              href="#"
-              className="font-medium text-maps-brand transition hover:text-maps-brand-hover hover:underline focus:outline-none focus:ring-2 focus:ring-maps-brand/40 rounded"
-              onClick={(e) => e.preventDefault()}
+            <span
+              className="cursor-not-allowed font-medium text-maps-muted"
+              title="La recuperación de contraseña todavía no está disponible."
             >
-              ¿Olvidaste tu contraseña?
-            </a>
+              Recuperación de contraseña no disponible
+            </span>
           </div>
 
           <button
@@ -223,24 +226,16 @@ export function LoginPage() {
 
           <button
             type="button"
-            className="h-[3.75rem] w-full rounded-lg border-2 border-maps-brand bg-white font-semibold text-maps-brand transition hover:bg-maps-brand/5 focus:outline-none focus:ring-2 focus:ring-maps-brand focus:ring-offset-2"
-            onClick={() => {
-              /* Solicitar acceso: enlazar cuando exista la ruta */
-            }}
+            disabled
+            title="La solicitud de acceso todavía no está disponible."
+            className="h-[3.75rem] w-full cursor-not-allowed rounded-lg border-2 border-maps-border bg-maps-surface font-semibold text-maps-muted"
           >
-            Solicitar Acceso
+            Solicitud de acceso no disponible
           </button>
         </form>
 
-        <p className="text-center text-sm text-maps-body">
-          ¿Necesitas ayuda?{' '}
-          <a
-            href="#"
-            className="font-semibold text-maps-brand transition hover:text-maps-brand-hover hover:underline focus:outline-none focus:ring-2 focus:ring-maps-brand/40 rounded"
-            onClick={(e) => e.preventDefault()}
-          >
-            Contactar soporte
-          </a>
+        <p className="text-center text-sm text-maps-muted">
+          El canal de soporte todavía no está disponible.
         </p>
       </div>
     </AuthLayout>

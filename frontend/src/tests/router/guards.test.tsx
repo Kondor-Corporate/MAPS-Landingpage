@@ -57,7 +57,7 @@ describe('ProtectedRoutes', () => {
     useAuthStore.setState({
       isInitialized: true,
       isAuthenticated: true,
-      user: { id: 1, usuario: 'a', rol: 'ADMIN' },
+      user: { id: 1, usuario: 'a', rol: 'ADMIN', slug: null },
       accessToken: 't',
     });
 
@@ -126,7 +126,7 @@ describe('RoleGuard', () => {
   it('rol no permitido: redirige a unauthorized', () => {
     useAuthStore.setState({
       isInitialized: true,
-      user: { id: 1, usuario: 'p', rol: 'PRODUCTOR' },
+      user: { id: 1, usuario: 'p', rol: 'PRODUCTOR', slug: 'productor-prueba' },
       accessToken: 't',
       isAuthenticated: true,
     });
@@ -145,10 +145,36 @@ describe('RoleGuard', () => {
     expect(screen.getByText('Sin permiso')).toBeInTheDocument();
   });
 
+  it('ADMIN no obtiene permisos exclusivos de SUPERADMIN', () => {
+    useAuthStore.setState({
+      isInitialized: true,
+      user: { id: 1, usuario: 'admin', rol: 'ADMIN', slug: null },
+      accessToken: 't',
+      isAuthenticated: true,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/admin/admins']}>
+        <Routes>
+          <Route
+            path="/admin/admins"
+            element={<RoleGuard allowedRoles={['SUPERADMIN']} />}
+          >
+            <Route index element={<div>Administradores</div>} />
+          </Route>
+          <Route path="/unauthorized" element={<div>Sin permiso</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Sin permiso')).toBeInTheDocument();
+    expect(screen.queryByText('Administradores')).not.toBeInTheDocument();
+  });
+
   it('rol permitido: muestra hijo', () => {
     useAuthStore.setState({
       isInitialized: true,
-      user: { id: 1, usuario: 'a', rol: 'ADMIN' },
+      user: { id: 1, usuario: 'a', rol: 'ADMIN', slug: null },
       accessToken: 't',
       isAuthenticated: true,
     });
