@@ -1,20 +1,18 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { API_BASE_URL } from '@/lib/apiConfig';
 import { getAuthState, useAuthStore, type AuthUser } from '@/store/authStore';
-
-/** Fallback dev local: 127.0.0.1 evita cuelgues de localhost/IPv6 en Windows. */
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:3000/api/v1';
 
 type ApiSuccess<T> = { data: T; message: string; error: null };
 type RefreshPayload = { accessToken: string; user?: AuthUser };
 
 const refreshClient = axios.create({
-  baseURL: API_BASE,
+  baseURL: API_BASE_URL,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
 
 export const api = axios.create({
-  baseURL: API_BASE,
+  baseURL: API_BASE_URL,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });

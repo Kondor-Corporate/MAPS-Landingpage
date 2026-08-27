@@ -23,14 +23,28 @@ export function AuthInitializer({ children }: AuthInitializerProps) {
     setInitialized(false);
     setIsChecking(true);
     setSessionError(null);
-    void (async () => {
-      const { user, accessToken, logout } = useAuthStore.getState();
-      const isProtectedPath =
-        window.location.pathname.startsWith('/admin') ||
-        window.location.pathname.startsWith('/intranet');
+    const { user, accessToken, logout } = useAuthStore.getState();
+    const isProtectedPath =
+      window.location.pathname.startsWith('/admin') ||
+      window.location.pathname.startsWith('/intranet');
 
+    if (!isProtectedPath) {
+      setInitialized(true);
+      setIsChecking(false);
+
+      // La landing no espera a la red. Si había una sesión persistida, se intenta
+      // restaurar en segundo plano sin bloquear contenido público.
+      if (!accessToken && user != null) {
+        void refreshAccessToken().catch((error) => {
+          if (isInvalidRefreshError(error)) logout();
+        });
+      }
+      return;
+    }
+
+    void (async () => {
       try {
-        if (!accessToken && (user != null || isProtectedPath)) {
+        if (!accessToken) {
           try {
             await refreshAccessToken();
           } catch (error) {

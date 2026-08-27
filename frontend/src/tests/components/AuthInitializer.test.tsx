@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { AuthInitializer } from '@/components/AuthInitializer';
 import { refreshAccessToken } from '@/lib/axios';
 import { ProtectedRoutes } from '@/router/ProtectedRoutes';
@@ -24,6 +24,7 @@ function deferred<T>() {
 
 describe('AuthInitializer — reload y recuperación', () => {
   beforeEach(() => {
+    window.history.replaceState({}, '', '/');
     localStorage.clear();
     refreshMock.mockReset();
     useAuthStore.setState({
@@ -37,6 +38,7 @@ describe('AuthInitializer — reload y recuperación', () => {
   it.each<Rol>(['ADMIN', 'SUPERADMIN', 'PRODUCTOR'])(
     'restaura la sesión al recargar como %s',
     async (rol) => {
+      window.history.replaceState({}, '', '/admin/dashboard');
       const user = {
         id: 1,
         usuario: rol.toLowerCase(),
@@ -65,6 +67,7 @@ describe('AuthInitializer — reload y recuperación', () => {
   );
 
   it('mantiene loading y no ejecuta guards mientras el retry sigue pendiente', async () => {
+    window.history.replaceState({}, '', '/admin/dashboard');
     const userEventInstance = userEvent.setup();
     const user = { id: 1, usuario: 'admin', rol: 'ADMIN' as const, slug: null };
     const retry = deferred<string>();
@@ -129,7 +132,83 @@ describe('AuthInitializer — reload y recuperación', () => {
     );
 
     expect(await screen.findByText('Aplicación inicializada')).toBeInTheDocument();
-    expect(useAuthStore.getState().user).toBeNull();
+    await waitFor(() => expect(useAuthStore.getState().user).toBeNull());
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+
+  it('muestra la landing anónima sin esperar una llamada de refresh', async () => {
+    const pendingRefresh = deferred<string>();
+    refreshMock.mockReturnValue(pendingRefresh.promise);
+
+    render(
+      <AuthInitializer>
+        <p>Landing pública</p>
+      </AuthInitializer>,
+    );
+
+    expect(await screen.findByText('Landing pública')).toBeInTheDocument();
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it('no bloquea la landing si falla el refresh en segundo plano', async () => {
+    useAuthStore.setState({
+      user: { id: 1, usuario: 'admin', rol: 'ADMIN', slug: null },
+    });
+    refreshMock.mockRejectedValue({ isAxiosError: true, message: 'Network Error' });
+
+    render(
+      <AuthInitializer>
+        <p>Landing pública</p>
+      </AuthInitializer>,
+    );
+
+    expect(await screen.findByText('Landing pública')).toBeInTheDocument();
+    expect(screen.queryByText('No se pudo verificar la sesión')).not.toBeInTheDocument();
+  });
+
+  it('espera el refresh en curso al navegar de la landing a una ruta privada', async () => {
+    const user = { id: 1, usuario: 'admin', rol: 'ADMIN' as const, slug: null };
+    const pendingRefresh = deferred<string>();
+    useAuthStore.setState({ user });
+    refreshMock.mockImplementation(() =>
+      pendingRefresh.promise.then((token) => {
+        useAuthStore.getState().login(user, token);
+        return token;
+      }),
+    );
+
+    function Landing() {
+      const navigate = useNavigate();
+      return (
+        <button type="button" onClick={() => navigate('/admin/dashboard')}>
+          Administrar
+        </button>
+      );
+    }
+
+    render(
+      <AuthInitializer>
+        <MemoryRouter initialEntries={['/']}>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route element={<ProtectedRoutes />}>
+              <Route path="/admin/dashboard" element={<p>Ruta protegida</p>} />
+            </Route>
+            <Route path="/login" element={<p>Pantalla de login</p>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthInitializer>,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Administrar' })).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Administrar' }));
+
+    expect(screen.queryByText('Ruta protegida')).not.toBeInTheDocument();
+    expect(screen.queryByText('Pantalla de login')).not.toBeInTheDocument();
+
+    pendingRefresh.resolve('access-renovado');
+
+    expect(await screen.findByText('Ruta protegida')).toBeInTheDocument();
+    expect(refreshMock).toHaveBeenCalledTimes(2);
   });
 });
