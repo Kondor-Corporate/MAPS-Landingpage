@@ -178,7 +178,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
 
       <footer className="border-t border-maps-border bg-white px-4 pb-12 pt-16 text-maps-body sm:px-6 lg:px-10">
         <div className="mx-auto max-w-[1188px]">
-          <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
                 <img
@@ -223,13 +223,6 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                   </Link>
                 </li>
               </ul>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <h3 className="text-lg font-bold text-maps-heading">Legal</h3>
-              <p className="text-sm leading-[22px] text-maps-muted">
-                Términos y condiciones y política de privacidad próximamente.
-              </p>
             </div>
           </div>
 
