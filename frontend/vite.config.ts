@@ -104,6 +104,8 @@ function mapsPublicHtmlMetadata({ indexing, siteUrl }: PublicHtmlMetadata): Plug
 
       if (siteUrl) {
         const pageUrl = `${siteUrl}/`;
+        const imageUrl = `${siteUrl}/og-maps.webp`;
+        const imageAlt = 'MAPS Asesores - Encontrá asesoramiento cerca tuyo';
         tags.push(
           {
             tag: 'link',
@@ -113,6 +115,36 @@ function mapsPublicHtmlMetadata({ indexing, siteUrl }: PublicHtmlMetadata): Plug
           {
             tag: 'meta',
             attrs: { property: 'og:url', content: pageUrl },
+            injectTo: 'head',
+          },
+          {
+            tag: 'meta',
+            attrs: { property: 'og:image', content: imageUrl },
+            injectTo: 'head',
+          },
+          {
+            tag: 'meta',
+            attrs: { property: 'og:image:width', content: '1200' },
+            injectTo: 'head',
+          },
+          {
+            tag: 'meta',
+            attrs: { property: 'og:image:height', content: '630' },
+            injectTo: 'head',
+          },
+          {
+            tag: 'meta',
+            attrs: { property: 'og:image:alt', content: imageAlt },
+            injectTo: 'head',
+          },
+          {
+            tag: 'meta',
+            attrs: { name: 'twitter:image', content: imageUrl },
+            injectTo: 'head',
+          },
+          {
+            tag: 'meta',
+            attrs: { name: 'twitter:image:alt', content: imageAlt },
             injectTo: 'head',
           },
         );
