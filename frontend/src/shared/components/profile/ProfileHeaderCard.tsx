@@ -156,13 +156,13 @@ export function ProfileHeaderCard({
             </h1>
             {profile.verificado && (
               <span className="inline-flex items-center rounded-full bg-maps-brand/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.6px] text-maps-brand">
-                Productor verificado
+                {isPublic ? 'Asesor verificado' : 'Productor verificado'}
               </span>
             )}
           </div>
 
           <p className="mt-3 text-lg font-medium text-slate-600">
-            {profile.tituloProfesional ?? 'Productor de Seguros'}
+            {profile.tituloProfesional ?? (isPublic ? 'Asesor de Seguros' : 'Productor de Seguros')}
             {matriculaLabel && (
               <>
                 <span className="mx-2 text-slate-300">•</span>

@@ -184,7 +184,7 @@ export function FindAdvisorMap() {
           </div>
 
           <h2 className="text-2xl sm:text-3xl lg:text-[36px] font-bold leading-tight lg:leading-[48px] tracking-[-0.9px] text-maps-heading">
-            Encuentra a tu Asesor
+            Encontrá a tu asesor
           </h2>
 
           <p className="text-lg leading-[29px] text-maps-muted">
@@ -206,7 +206,7 @@ export function FindAdvisorMap() {
                 setQuery(e.target.value);
                 if (status !== 'idle' && status !== 'loading') setStatus('idle');
               }}
-              placeholder="Ingresa tu ciudad"
+              placeholder="Ingresá tu ciudad"
               className="min-h-11 min-w-0 flex-1 bg-transparent px-2 text-base text-maps-heading placeholder:text-maps-muted-soft focus:outline-none"
             />
             <button
@@ -465,7 +465,7 @@ export function ProducerPopupCard({ producer }: { producer: ProducerWithDistance
             {producer.verificado && (
               <BadgeCheck
                 className="h-4 w-4 shrink-0 text-maps-brand"
-                aria-label="Productor verificado"
+                aria-label="Asesor verificado"
               />
             )}
           </div>

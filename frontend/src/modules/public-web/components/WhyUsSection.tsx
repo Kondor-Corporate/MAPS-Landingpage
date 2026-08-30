@@ -70,7 +70,7 @@ const features: Feature[] = [
     icon: <MapPinIcon />,
     title: 'Cobertura Nacional',
     description:
-      'Red de asesores presentes en todo el país para estar cerca de ti cuando más lo necesites, sin importar dónde estés.',
+      'Red de asesores presentes en todo el país para estar cerca de vos cuando más lo necesites, sin importar dónde estés.',
   },
   {
     icon: <HeadsetIcon />,
