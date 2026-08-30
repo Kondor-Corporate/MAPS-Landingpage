@@ -83,7 +83,7 @@ export function NewsPreviewSection() {
           <div className="rounded-2xl border border-dashed border-white/30 bg-white/10 px-6 py-10 text-center">
             <p className="text-sm font-medium text-white">Todavía no hay noticias publicadas.</p>
             <p className="mt-1 text-xs text-white/70">
-              Cuando publiques novedades públicas desde el admin, aparecerán acá.
+              Próximamente vas a encontrar acá las últimas novedades de MAPS.
             </p>
           </div>
         ) : null}

@@ -46,7 +46,7 @@ export function HeroSection() {
               to="/login"
               className="inline-flex h-12 min-w-[160px] items-center justify-center rounded-lg border border-white/30 bg-white/10 px-6 text-base font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/20"
             >
-              Soy Productor
+              Acceso Productores
             </Link>
           </div>
 
