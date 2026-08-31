@@ -37,7 +37,21 @@ export function expandDevFrontendOrigins(origins: string[], nodeEnv: NodeEnv): s
   return [...new Set(expanded)];
 }
 
-const envSchema = z.object({
+const gcsPrefixSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/^\/+|\/+$/g, ''))
+  .refine(
+    (value) =>
+      value === '' ||
+      (/^[A-Za-z0-9][A-Za-z0-9._-]*(?:\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/.test(value) &&
+        value.split('/').every((segment) => segment !== '.' && segment !== '..')),
+    {
+      message: 'GCS_PREFIX debe ser una ruta relativa sin segmentos vacíos ni traversal',
+    },
+  );
+
+export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3000),
   /**
@@ -72,17 +86,24 @@ const envSchema = z.object({
    */
   DEFAULT_PRODUCER_PASSWORD: z.string().min(12).optional(),
 
-  /** URL pública del API (para URLs de archivos en storage local). */
-  API_PUBLIC_URL: z.string().url().optional(),
+  /** Origen público que expone archivos locales o privados a través del API. */
+  API_PUBLIC_URL: z
+    .string()
+    .url()
+    .transform((value) => value.replace(/\/+$/, ''))
+    .optional(),
 
-  /** `local` = disco en uploads/; `s3` = bucket S3-compatible. */
-  STORAGE_PROVIDER: z.enum(['local', 's3']).default('local'),
+  /** `local` = disco; `s3` = S3-compatible público; `gcs` = bucket GCS privado. */
+  STORAGE_PROVIDER: z.enum(['local', 's3', 'gcs']).default('local'),
 
   S3_BUCKET: z.string().min(1).optional(),
   S3_REGION: z.string().min(1).optional(),
   S3_ACCESS_KEY: z.string().min(1).optional(),
   S3_SECRET_KEY: z.string().min(1).optional(),
   S3_PUBLIC_BASE_URL: z.string().url().optional(),
+
+  GCS_BUCKET: z.string().min(1).optional(),
+  GCS_PREFIX: gcsPrefixSchema.optional(),
 
   /** User-Agent para peticiones a Nominatim (política de uso obligatoria). */
   NOMINATIM_USER_AGENT: z
@@ -109,6 +130,36 @@ const envSchema = z.object({
           code: z.ZodIssueCode.custom,
           message: `${key} is required when STORAGE_PROVIDER=s3`,
           path: [key],
+        });
+      }
+    }
+  }
+
+  if (data.STORAGE_PROVIDER === 'gcs') {
+    for (const key of ['GCS_BUCKET', 'API_PUBLIC_URL'] as const) {
+      if (!data[key]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${key} is required when STORAGE_PROVIDER=gcs`,
+          path: [key],
+        });
+      }
+    }
+
+    if (data.API_PUBLIC_URL) {
+      const publicUrl = new URL(data.API_PUBLIC_URL);
+      if (
+        publicUrl.username ||
+        publicUrl.password ||
+        publicUrl.pathname !== '/' ||
+        publicUrl.search ||
+        publicUrl.hash
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'API_PUBLIC_URL debe contener solo el origen, sin credenciales, path, query ni hash',
+          path: ['API_PUBLIC_URL'],
         });
       }
     }
@@ -157,15 +208,19 @@ function buildEnv(parsed: ParsedEnv): Env {
   };
 }
 
-export function loadEnv(): Env {
-  if (cached) {
-    return cached;
-  }
-  const parsed = envSchema.safeParse(process.env);
+export function parseEnv(raw: NodeJS.ProcessEnv): Env {
+  const parsed = envSchema.safeParse(raw);
   if (!parsed.success) {
     console.error(parsed.error.flatten().fieldErrors);
     throw new Error('Invalid environment variables');
   }
-  cached = buildEnv(parsed.data);
+  return buildEnv(parsed.data);
+}
+
+export function loadEnv(): Env {
+  if (cached) {
+    return cached;
+  }
+  cached = parseEnv(process.env);
   return cached;
 }

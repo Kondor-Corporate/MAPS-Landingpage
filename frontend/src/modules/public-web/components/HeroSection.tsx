@@ -5,7 +5,7 @@ export function HeroSection() {
   return (
     <section
       id="inicio"
-      className="relative flex w-full min-h-[480px] flex-col justify-center overflow-hidden bg-white pt-4 sm:min-h-[520px] lg:min-h-[560px]"
+      className="relative flex w-full min-h-[480px] flex-col justify-center overflow-hidden bg-white pt-4 scroll-mt-[70px] sm:min-h-[520px] lg:min-h-[560px]"
     >
       <img
         src={heroBg}
@@ -46,7 +46,7 @@ export function HeroSection() {
               to="/login"
               className="inline-flex h-12 min-w-[160px] items-center justify-center rounded-lg border border-white/30 bg-white/10 px-6 text-base font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/20"
             >
-              Soy Productor
+              Acceso Productores
             </Link>
           </div>
 

@@ -1,8 +1,10 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
+import { API_BASE_URL } from '@/lib/apiConfig';
 
-export const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
+export const API_BASE = /^https?:\/\//.test(API_BASE_URL)
+  ? API_BASE_URL
+  : `*${API_BASE_URL}`;
 
 /**
  * Handlers por defecto para LoginPage y pruebas que necesitan API mínimo.
