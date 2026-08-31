@@ -92,3 +92,6 @@ tmp/
 *.ldb
 Arquitectura/**/*.bmp
 .tmp/
+.tmp/
+/tmp
+tmp/
