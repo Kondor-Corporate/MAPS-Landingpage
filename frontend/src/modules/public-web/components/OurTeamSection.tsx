@@ -11,6 +11,8 @@ function TeamMemberPhoto({ member }: { member: OurTeamMember }) {
         src={member.foto}
         alt={`${member.nombre} ${member.apellido}`}
         className="h-full w-full object-cover"
+        loading="lazy"
+        decoding="async"
       />
     );
   }

@@ -176,7 +176,7 @@ export function FindAdvisorMap() {
   };
 
   return (
-    <section id="mapa" className="grid min-w-0 grid-cols-1 lg:grid-cols-[704px_1fr]">
+    <section id="mapa" className="grid min-w-0 scroll-mt-[70px] grid-cols-1 lg:grid-cols-[704px_1fr]">
       <div className="flex min-w-0 items-center bg-white px-6 sm:px-10 lg:px-16 py-12 sm:py-16 lg:py-32">
         <div className="flex min-w-0 w-full max-w-[560px] flex-col gap-5">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-maps-brand-soft text-maps-brand">

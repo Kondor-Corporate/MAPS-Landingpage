@@ -1,26 +1,117 @@
+import { lazy, Suspense, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
-import { AdminProfilePage } from '@/modules/admin/pages/AdminProfilePage';
-import { AdminsPage } from '@/modules/admin/pages/AdminsPage';
-import { DashboardPage as AdminDashboardPage } from '@/modules/admin/pages/DashboardPage';
-import { InactiveProducersPage } from '@/modules/admin/pages/InactiveProducersPage';
-import { LibraryManagementPage } from '@/modules/admin/pages/LibraryManagementPage';
-import { NewsManagementPage } from '@/modules/admin/pages/NewsManagementPage';
-import { ProducersPage } from '@/modules/admin/pages/ProducersPage';
-import { LoginPage } from '@/modules/auth/pages/LoginPage';
-import { DashboardPage as IntranetDashboardPage } from '@/modules/intranet/pages/DashboardPage';
-import { DigitalLibraryPage } from '@/modules/intranet/pages/DigitalLibraryPage';
-import { IntranetNewsPage } from '@/modules/intranet/pages/IntranetNewsPage';
-import { MyProfilePage } from '@/modules/intranet/pages/MyProfilePage';
-import { ProducerProfileViewPage } from '@/modules/intranet/pages/ProducerProfileViewPage';
 import { HomePage } from '@/modules/public-web/pages/HomePage';
-import { NewsDetailPage } from '@/modules/public-web/pages/NewsDetailPage';
-import { NewsListPage } from '@/modules/public-web/pages/NewsListPage';
-import { ProducerProfilePage } from '@/modules/public-web/pages/ProducerProfilePage';
-import { AppLayout } from '@/shared/layouts/AppLayout';
 import { PublicLayout } from '@/shared/layouts/PublicLayout';
 import { ProtectedRoutes } from './ProtectedRoutes';
 import { PublicRoutes } from './PublicRoutes';
 import { RoleGuard } from './RoleGuard';
+import { RouteFallback } from './RouteFallback';
+
+const LoginPage = lazy(() =>
+  import('@/modules/auth/pages/LoginPage').then((module) => ({
+    default: module.LoginPage,
+  })),
+);
+
+const NewsListPage = lazy(() =>
+  import('@/modules/public-web/pages/NewsListPage').then((module) => ({
+    default: module.NewsListPage,
+  })),
+);
+
+const NewsDetailPage = lazy(() =>
+  import('@/modules/public-web/pages/NewsDetailPage').then((module) => ({
+    default: module.NewsDetailPage,
+  })),
+);
+
+const ProducerProfilePage = lazy(() =>
+  import('@/modules/public-web/pages/ProducerProfilePage').then((module) => ({
+    default: module.ProducerProfilePage,
+  })),
+);
+
+const AppLayout = lazy(() =>
+  import('@/shared/layouts/AppLayout').then((module) => ({
+    default: module.AppLayout,
+  })),
+);
+
+const AdminDashboardPage = lazy(() =>
+  import('@/modules/admin/pages/DashboardPage').then((module) => ({
+    default: module.DashboardPage,
+  })),
+);
+
+const AdminsPage = lazy(() =>
+  import('@/modules/admin/pages/AdminsPage').then((module) => ({
+    default: module.AdminsPage,
+  })),
+);
+
+const ProducersPage = lazy(() =>
+  import('@/modules/admin/pages/ProducersPage').then((module) => ({
+    default: module.ProducersPage,
+  })),
+);
+
+const InactiveProducersPage = lazy(() =>
+  import('@/modules/admin/pages/InactiveProducersPage').then((module) => ({
+    default: module.InactiveProducersPage,
+  })),
+);
+
+const NewsManagementPage = lazy(() =>
+  import('@/modules/admin/pages/NewsManagementPage').then((module) => ({
+    default: module.NewsManagementPage,
+  })),
+);
+
+const LibraryManagementPage = lazy(() =>
+  import('@/modules/admin/pages/LibraryManagementPage').then((module) => ({
+    default: module.LibraryManagementPage,
+  })),
+);
+
+const AdminProfilePage = lazy(() =>
+  import('@/modules/admin/pages/AdminProfilePage').then((module) => ({
+    default: module.AdminProfilePage,
+  })),
+);
+
+const IntranetDashboardPage = lazy(() =>
+  import('@/modules/intranet/pages/DashboardPage').then((module) => ({
+    default: module.DashboardPage,
+  })),
+);
+
+const DigitalLibraryPage = lazy(() =>
+  import('@/modules/intranet/pages/DigitalLibraryPage').then((module) => ({
+    default: module.DigitalLibraryPage,
+  })),
+);
+
+const IntranetNewsPage = lazy(() =>
+  import('@/modules/intranet/pages/IntranetNewsPage').then((module) => ({
+    default: module.IntranetNewsPage,
+  })),
+);
+
+const MyProfilePage = lazy(() =>
+  import('@/modules/intranet/pages/MyProfilePage').then((module) => ({
+    default: module.MyProfilePage,
+  })),
+);
+
+const ProducerProfileViewPage = lazy(() =>
+  import('@/modules/intranet/pages/ProducerProfileViewPage').then((module) => ({
+    default: module.ProducerProfileViewPage,
+  })),
+);
+
+function LazyRoute({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+}
 
 function UnauthorizedPage() {
   return (
@@ -42,16 +133,53 @@ const intranetRolePath = {
       children: [
         {
           element: (
-            <AppLayout>
-              <Outlet />
-            </AppLayout>
+            <LazyRoute>
+              <AppLayout>
+                <Outlet />
+              </AppLayout>
+            </LazyRoute>
           ),
           children: [
-            { path: 'dashboard', element: <IntranetDashboardPage /> },
-            { path: 'biblioteca', element: <DigitalLibraryPage /> },
-            { path: 'noticias', element: <IntranetNewsPage /> },
-            { path: 'mi-perfil', element: <MyProfilePage /> },
-            { path: 'perfil/:slug', element: <ProducerProfileViewPage /> },
+            {
+              path: 'dashboard',
+              element: (
+                <LazyRoute>
+                  <IntranetDashboardPage />
+                </LazyRoute>
+              ),
+            },
+            {
+              path: 'biblioteca',
+              element: (
+                <LazyRoute>
+                  <DigitalLibraryPage />
+                </LazyRoute>
+              ),
+            },
+            {
+              path: 'noticias',
+              element: (
+                <LazyRoute>
+                  <IntranetNewsPage />
+                </LazyRoute>
+              ),
+            },
+            {
+              path: 'mi-perfil',
+              element: (
+                <LazyRoute>
+                  <MyProfilePage />
+                </LazyRoute>
+              ),
+            },
+            {
+              path: 'perfil/:slug',
+              element: (
+                <LazyRoute>
+                  <ProducerProfileViewPage />
+                </LazyRoute>
+              ),
+            },
             { index: true, element: <Navigate to="dashboard" replace /> },
           ],
         },
@@ -71,9 +199,13 @@ const adminBranch = {
         {
           index: true,
           element: (
-            <AppLayout>
-              <AdminsPage />
-            </AppLayout>
+            <LazyRoute>
+              <AppLayout>
+                <LazyRoute>
+                  <AdminsPage />
+                </LazyRoute>
+              </AppLayout>
+            </LazyRoute>
           ),
         },
       ],
@@ -83,18 +215,69 @@ const adminBranch = {
       children: [
         {
           element: (
-            <AppLayout>
-              <Outlet />
-            </AppLayout>
+            <LazyRoute>
+              <AppLayout>
+                <Outlet />
+              </AppLayout>
+            </LazyRoute>
           ),
           children: [
-            { path: 'dashboard', element: <AdminDashboardPage /> },
-            { path: 'novedades', element: <IntranetNewsPage /> },
-            { path: 'productores', element: <ProducersPage /> },
-            { path: 'inactivos', element: <InactiveProducersPage /> },
-            { path: 'noticias', element: <NewsManagementPage /> },
-            { path: 'biblioteca', element: <LibraryManagementPage /> },
-            { path: 'mi-perfil', element: <AdminProfilePage /> },
+            {
+              path: 'dashboard',
+              element: (
+                <LazyRoute>
+                  <AdminDashboardPage />
+                </LazyRoute>
+              ),
+            },
+            {
+              path: 'novedades',
+              element: (
+                <LazyRoute>
+                  <IntranetNewsPage />
+                </LazyRoute>
+              ),
+            },
+            {
+              path: 'productores',
+              element: (
+                <LazyRoute>
+                  <ProducersPage />
+                </LazyRoute>
+              ),
+            },
+            {
+              path: 'inactivos',
+              element: (
+                <LazyRoute>
+                  <InactiveProducersPage />
+                </LazyRoute>
+              ),
+            },
+            {
+              path: 'noticias',
+              element: (
+                <LazyRoute>
+                  <NewsManagementPage />
+                </LazyRoute>
+              ),
+            },
+            {
+              path: 'biblioteca',
+              element: (
+                <LazyRoute>
+                  <LibraryManagementPage />
+                </LazyRoute>
+              ),
+            },
+            {
+              path: 'mi-perfil',
+              element: (
+                <LazyRoute>
+                  <AdminProfilePage />
+                </LazyRoute>
+              ),
+            },
             { index: true, element: <Navigate to="dashboard" replace /> },
           ],
         },
@@ -107,7 +290,16 @@ export const appRouter = createBrowserRouter([
   {
     path: '/login',
     element: <PublicRoutes />,
-    children: [{ index: true, element: <LoginPage /> }],
+    children: [
+      {
+        index: true,
+        element: (
+          <LazyRoute>
+            <LoginPage />
+          </LazyRoute>
+        ),
+      },
+    ],
   },
   { path: '/unauthorized', element: <UnauthorizedPage /> },
   {
@@ -119,9 +311,30 @@ export const appRouter = createBrowserRouter([
     ),
     children: [
       { index: true, element: <HomePage /> },
-      { path: 'noticias', element: <NewsListPage /> },
-      { path: 'noticias/:slug', element: <NewsDetailPage /> },
-      { path: 'productor/:slug', element: <ProducerProfilePage /> },
+      {
+        path: 'noticias',
+        element: (
+          <LazyRoute>
+            <NewsListPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'noticias/:slug',
+        element: (
+          <LazyRoute>
+            <NewsDetailPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'productor/:slug',
+        element: (
+          <LazyRoute>
+            <ProducerProfilePage />
+          </LazyRoute>
+        ),
+      },
     ],
   },
   intranetRolePath,
