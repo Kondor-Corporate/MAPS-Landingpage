@@ -10,6 +10,7 @@ export type NewsItem = {
   href: string;
   imageGradient: string;
   imageUrl?: string | null;
+  galeria?: string[];
   content?: string;
   description?: string | null;
   author?: string;

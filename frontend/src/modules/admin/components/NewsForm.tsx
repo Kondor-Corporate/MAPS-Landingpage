@@ -1,6 +1,7 @@
 /**
  * Formulario de alta/edición de Noticias en el panel admin.
- * Agrupa campos editoriales, audiencia, portada (URL) y acciones de guardado/publicación.
+ * Agrupa campos editoriales, audiencia, portada (upload), galería y acciones de guardado.
+ * Las imágenes se recolectan como operaciones pendientes y se aplican tras crear/editar.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -8,13 +9,12 @@ import {
   type NewsAudiencia,
   type NewsCategoria,
   type NewsEstado,
+  type NewsGaleriaImagen,
   type NewsInput,
 } from '@/modules/admin/types/news';
 import { NewsAudienceCard } from '@/modules/admin/components/NewsAudienceCard';
-import {
-  NewsImageUploader,
-  validateImageUrl,
-} from '@/modules/admin/components/NewsImageUploader';
+import { NewsGalleryUploader } from '@/modules/admin/components/NewsGalleryUploader';
+import { NewsImageUploader, type CoverCropValue } from '@/modules/admin/components/NewsImageUploader';
 import { NewsPublishActionsCard } from '@/modules/admin/components/NewsPublishActionsCard';
 import { NewsRichTextEditor } from '@/modules/admin/components/NewsRichTextEditor';
 import { MapsSelect } from '@/shared/components/MapsSelect';
@@ -25,8 +25,29 @@ export type NewsFormState = {
   audiencia: NewsAudiencia;
   cuerpo: string;
   imagenPortada: string | null;
+  portadaFile: File | null;
+  removePortada: boolean;
+  /**
+   * Encuadre elegido para la portada (posición + zoom). Se aplica en el
+   * frontend vía `object-position` para el preview del formulario.
+   * Pendiente: el backend todavía no persiste esta propiedad, por lo que no
+   * se respeta fuera de esta sesión de edición (cards públicas, otras
+   * sesiones de admin). Ver docs/worklog/MAPS-019-galeria-imagenes-noticias.md.
+   */
+  portadaCrop: CoverCropValue | null;
+  galeria: NewsGaleriaImagen[];
+  galeriaNuevas: File[];
+  galeriaEliminar: number[];
   estado: NewsEstado;
   ultimaModificacion: string;
+};
+
+/** Operaciones de imágenes pendientes que el padre aplica tras persistir el texto. */
+export type NewsImageOps = {
+  portadaFile: File | null;
+  removePortada: boolean;
+  galeriaNuevas: File[];
+  galeriaEliminar: number[];
 };
 
 export const EMPTY_FORM: NewsFormState = {
@@ -35,6 +56,12 @@ export const EMPTY_FORM: NewsFormState = {
   audiencia: 'PRODUCTORES',
   cuerpo: '',
   imagenPortada: null,
+  portadaFile: null,
+  removePortada: false,
+  portadaCrop: null,
+  galeria: [],
+  galeriaNuevas: [],
+  galeriaEliminar: [],
   estado: 'BORRADOR',
   ultimaModificacion: new Date().toISOString(),
 };
@@ -44,12 +71,12 @@ type Props = {
   state: NewsFormState;
   isSubmitting?: boolean;
   onChange: (next: NewsFormState) => void;
-  onSubmit: (input: NewsInput) => Promise<void>;
+  onSubmit: (input: NewsInput, images: NewsImageOps) => Promise<void>;
   onUnpublish?: () => Promise<void>;
   onCancelEdit?: () => void;
 };
 
-type Errors = Partial<Record<'titulo' | 'categoria' | 'cuerpo' | 'imagenPortada', string>>;
+type Errors = Partial<Record<'titulo' | 'categoria' | 'cuerpo', string>>;
 
 function validate(state: NewsFormState): Errors {
   const errors: Errors = {};
@@ -61,10 +88,6 @@ function validate(state: NewsFormState): Errors {
   }
   if (state.cuerpo.trim().length < 20) {
     errors.cuerpo = 'El cuerpo debe tener al menos 20 caracteres.';
-  }
-  if (state.imagenPortada) {
-    const imgErr = validateImageUrl(state.imagenPortada);
-    if (imgErr) errors.imagenPortada = imgErr;
   }
   return errors;
 }
@@ -104,15 +127,23 @@ export function NewsForm({
     actionLockRef.current = true;
     const now = new Date().toISOString();
     try {
-      await onSubmit({
-        titulo: state.titulo.trim(),
-        categoria: state.categoria as NewsCategoria,
-        audiencia: state.audiencia,
-        cuerpo: state.cuerpo.trim(),
-        imagenPortada: state.imagenPortada?.trim() || null,
-        estado,
-        fechaPublicacion: now,
-      });
+      await onSubmit(
+        {
+          titulo: state.titulo.trim(),
+          categoria: state.categoria as NewsCategoria,
+          audiencia: state.audiencia,
+          cuerpo: state.cuerpo.trim(),
+          estado,
+          fechaPublicacion: now,
+        },
+        {
+          portadaFile: state.portadaFile,
+          // Un archivo nuevo reemplaza; solo se quita si no hay reemplazo.
+          removePortada: state.removePortada && !state.portadaFile,
+          galeriaNuevas: state.galeriaNuevas,
+          galeriaEliminar: state.galeriaEliminar,
+        },
+      );
       setShowErrors(false);
     } finally {
       actionLockRef.current = false;
@@ -180,14 +211,34 @@ export function NewsForm({
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-maps-heading">Imagen de portada</span>
             <NewsImageUploader
-              value={state.imagenPortada}
-              onChange={(url) => patch({ imagenPortada: url })}
-              showError={showErrors}
+              previewUrl={state.removePortada ? null : state.imagenPortada}
+              pendingFile={state.portadaFile}
+              crop={state.portadaCrop}
+              disabled={isSubmitting}
+              onSelectFile={(file) => patch({ portadaFile: file, removePortada: false })}
+              onRemove={() => patch({ portadaFile: null, removePortada: true, portadaCrop: null })}
+              onCropChange={(crop) => patch({ portadaCrop: crop })}
             />
-            {showErrors && errors.imagenPortada ? (
-              <span className="text-xs text-rose-600">{errors.imagenPortada}</span>
-            ) : null}
           </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-maps-heading">
+            Galería de imágenes <span className="font-normal text-maps-muted">(opcional)</span>
+          </span>
+          <NewsGalleryUploader
+            persisted={state.galeria}
+            eliminar={state.galeriaEliminar}
+            nuevas={state.galeriaNuevas}
+            disabled={isSubmitting}
+            onAddFiles={(files) => patch({ galeriaNuevas: [...state.galeriaNuevas, ...files] })}
+            onRemovePersisted={(id) =>
+              patch({ galeriaEliminar: [...state.galeriaEliminar, id] })
+            }
+            onRemoveNueva={(index) =>
+              patch({ galeriaNuevas: state.galeriaNuevas.filter((_, i) => i !== index) })
+            }
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">

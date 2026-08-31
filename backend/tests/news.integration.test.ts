@@ -373,26 +373,16 @@ describe('news API (integración MAPS-014 Fase D)', () => {
         .expect(422);
     });
 
-    it('imagenUrl con data URL → 422', async () => {
+    it('imagenUrl en el body ya no se acepta (portada por upload) → 422', async () => {
+      // La portada dejó de enviarse por URL en el body; ahora se sube por
+      // `POST /news/:id/portada`. Al ser `.strict()`, incluirla es campo extra → 422.
       const { accessToken } = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
       await request(app)
         .post(BASE)
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
           ...validNewsBody(),
-          imagenUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==',
-        })
-        .expect(422);
-    });
-
-    it('imagenUrl http:// → 422', async () => {
-      const { accessToken } = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
-      await request(app)
-        .post(BASE)
-        .set('Authorization', `Bearer ${accessToken}`)
-        .send({
-          ...validNewsBody(),
-          imagenUrl: 'http://example.com/imagen.png',
+          imagenUrl: 'https://example.com/imagen.png',
         })
         .expect(422);
     });

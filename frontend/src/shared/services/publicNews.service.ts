@@ -14,6 +14,7 @@ export type ApiPublicNews = {
   contenido: string;
   categoria: string;
   imagenUrl: string | null;
+  galeria?: string[];
   publicadaEn: string | null;
 };
 

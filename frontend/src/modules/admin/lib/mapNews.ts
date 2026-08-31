@@ -3,9 +3,21 @@
  * Traduce audiencia/visibilidad, estados editoriales y filtros client-side.
  */
 import type { NewsFilters } from '@/modules/admin/hooks/useNewsFilters';
-import type { News, NewsAudiencia, NewsCategoria, NewsInput } from '@/modules/admin/types/news';
+import type {
+  News,
+  NewsAudiencia,
+  NewsCategoria,
+  NewsGaleriaImagen,
+  NewsInput,
+} from '@/modules/admin/types/news';
 
 export type ApiNewsVisibilidad = 'PUBLICA' | 'INTERNA';
+
+export type ApiNoticiaImagen = {
+  id: number;
+  url: string;
+  orden: number;
+};
 
 export type ApiNews = {
   id: number;
@@ -15,6 +27,7 @@ export type ApiNews = {
   contenido: string;
   categoria: NewsCategoria;
   imagenUrl: string | null;
+  galeria?: ApiNoticiaImagen[];
   publicada: boolean;
   publicadaEn: string | null;
   visibilidad: ApiNewsVisibilidad;
@@ -29,7 +42,6 @@ export type ApiNewsCreatePayload = {
   categoria: NewsCategoria;
   visibilidad: ApiNewsVisibilidad;
   descripcion?: string | null;
-  imagenUrl?: string | null;
   publicada?: boolean;
 };
 
@@ -59,6 +71,11 @@ function resolveUiEstado(publicada: boolean, publicadaEn: string | null): News['
   return 'BORRADOR';
 }
 
+function mapApiGaleria(galeria?: ApiNoticiaImagen[]): NewsGaleriaImagen[] {
+  if (!galeria) return [];
+  return galeria.map((img) => ({ id: img.id, url: img.url, orden: img.orden }));
+}
+
 export function mapApiNewsToUiNews(dto: ApiNews): News {
   return {
     id: String(dto.id),
@@ -68,6 +85,7 @@ export function mapApiNewsToUiNews(dto: ApiNews): News {
     estado: resolveUiEstado(dto.publicada, dto.publicadaEn),
     cuerpo: dto.contenido,
     imagenPortada: dto.imagenUrl,
+    galeria: mapApiGaleria(dto.galeria),
     fechaPublicacion: dto.publicadaEn ?? dto.createdAt,
     ultimaModificacion: dto.updatedAt,
   };
@@ -79,7 +97,6 @@ export function mapUiNewsToCreatePayload(input: NewsInput, publicada: boolean): 
     contenido: input.cuerpo,
     categoria: input.categoria,
     visibilidad: audienciaToVisibilidad(input.audiencia),
-    imagenUrl: input.imagenPortada?.trim() || null,
     publicada,
   };
 }

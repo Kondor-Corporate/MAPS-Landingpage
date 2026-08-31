@@ -8,6 +8,7 @@ import { Rol } from '@prisma/client';
 import { newsController } from '../../../controllers/news.controller.js';
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize } from '../../../middlewares/authorize.js';
+import { uploadNewsImageMiddleware } from '../../../middlewares/uploadNewsImage.js';
 import { validate } from '../../../middlewares/validate.js';
 import {
   createNewsSchema,
@@ -16,6 +17,7 @@ import {
   listNewsPublicQuerySchema,
   newsIdParamSchema,
   newsSlugParamSchema,
+  noticiaImagenParamSchema,
   updateNewsSchema,
 } from '../../../validations/news.schema.js';
 
@@ -80,4 +82,36 @@ newsRouter.delete(
   ...adminOnly,
   validate({ params: newsIdParamSchema }),
   newsController.remove,
+);
+
+// Portada por upload de archivo (jpg/jpeg/png). Reemplaza a la portada por URL.
+newsRouter.post(
+  '/:id/portada',
+  ...adminOnly,
+  validate({ params: newsIdParamSchema }),
+  uploadNewsImageMiddleware,
+  newsController.setPortada,
+);
+
+newsRouter.delete(
+  '/:id/portada',
+  ...adminOnly,
+  validate({ params: newsIdParamSchema }),
+  newsController.removePortada,
+);
+
+// Galería de imágenes adicionales (una por request, patrón certificaciones).
+newsRouter.post(
+  '/:id/imagenes',
+  ...adminOnly,
+  validate({ params: newsIdParamSchema }),
+  uploadNewsImageMiddleware,
+  newsController.addImagenGaleria,
+);
+
+newsRouter.delete(
+  '/:id/imagenes/:imagenId',
+  ...adminOnly,
+  validate({ params: noticiaImagenParamSchema }),
+  newsController.removeImagenGaleria,
 );

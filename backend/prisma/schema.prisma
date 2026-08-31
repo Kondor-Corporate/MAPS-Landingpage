@@ -142,10 +142,25 @@ model Noticia {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  autor Usuario @relation(fields: [autorId], references: [id])
+  autor    Usuario         @relation(fields: [autorId], references: [id])
+  imagenes NoticiaImagen[]
 
   @@index([autorId])
   @@index([publicada, visibilidad])
+}
+
+model NoticiaImagen {
+  id          Int      @id @default(autoincrement())
+  noticiaId   Int      @map("noticia_id")
+  url         String
+  orden       Int      @default(0)
+  mimeType    String   @map("mime_type")
+  tamanoBytes Int?     @map("tamano_bytes")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  noticia Noticia @relation(fields: [noticiaId], references: [id], onDelete: Cascade)
+
+  @@index([noticiaId])
 }
 
 model Biblioteca {
