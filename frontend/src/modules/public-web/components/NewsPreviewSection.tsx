@@ -37,7 +37,7 @@ export function NewsPreviewSection() {
   const handleOpen = (item: NewsItem) => openModal(item, news);
 
   return (
-    <section id="noticias" className="bg-maps-brand px-4 sm:px-6 lg:px-10 py-16 sm:py-20 lg:py-24">
+    <section id="noticias" className="scroll-mt-[70px] bg-maps-brand px-4 sm:px-6 lg:px-10 py-16 sm:py-20 lg:py-24">
       <div className="mx-auto flex max-w-[1200px] flex-col gap-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-col gap-2">

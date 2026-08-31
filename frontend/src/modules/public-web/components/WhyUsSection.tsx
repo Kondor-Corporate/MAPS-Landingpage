@@ -82,7 +82,7 @@ const features: Feature[] = [
 
 export function WhyUsSection() {
   return (
-    <section id="nosotros" className="bg-white px-4 sm:px-6 lg:px-10 py-16 sm:py-20 lg:py-24">
+    <section id="nosotros" className="scroll-mt-[70px] bg-white px-4 sm:px-6 lg:px-10 py-16 sm:py-20 lg:py-24">
       <div className="mx-auto flex max-w-[1200px] flex-col gap-12">
         <div className="flex flex-col items-center gap-4 text-center">
           <h2 className="text-2xl sm:text-3xl lg:text-[36px] font-bold leading-tight lg:leading-10 tracking-[-0.9px] text-maps-heading">
