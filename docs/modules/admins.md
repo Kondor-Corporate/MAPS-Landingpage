@@ -11,8 +11,9 @@ Documentacion viva del modulo Administradores.
 | Ruta frontend `/admin/admins` | Existente |
 | Acceso UI | Restringido a `SUPERADMIN` en router |
 | API backend `/api/v1/admins` | Pendiente |
-| CRUD administradores | Pendiente o no consolidado |
-| Perfil admin `/admin/mi-perfil` | UI/ruta existente, alcance a revisar |
+| CRUD administradores | Pendiente — no implementado (D1B, fuera de D1A) |
+| Perfil admin `/admin/mi-perfil` | Implementado como pantalla informativa de la sesión + cambio de contraseña propia |
+| Cambio de contraseña propia (ADMIN / SUPERADMIN) | Implementado (D1A) vía Auth: formulario compartido y `PATCH /api/v1/auth/me/password` |
 
 ---
 
@@ -36,9 +37,9 @@ Pendiente esperado:
 - Definir permisos `ADMIN` vs `SUPERADMIN`.
 - Definir si un admin puede crear otros admins o solo superadmin.
 - Definir cambio de estado activo/inactivo.
-- Definir actualizacion de password/perfil.
-- Agregar validaciones Zod.
-- Agregar tests de integracion.
+- CRUD y gestión de administradores (altas, edición, reset de password de **otro** admin). El cambio de **contraseña propia** ya está cubierto por Auth (D1A) y no forma parte de este CRUD.
+- Agregar validaciones Zod del módulo admins.
+- Agregar tests de integracion del módulo admins.
 
 ---
 
@@ -54,7 +55,9 @@ Rutas relacionadas:
 Archivos principales:
 
 - `frontend/src/modules/admin/pages/AdminsPage.tsx`
-- `frontend/src/modules/admin/pages/AdminProfilePage.tsx`
+- `frontend/src/modules/admin/pages/AdminProfilePage.tsx` (Mi perfil: datos de sesión + sección Seguridad)
+- `frontend/src/modules/auth/components/ChangePasswordForm.tsx`
+- `frontend/src/modules/auth/services/auth.service.ts`
 - `frontend/src/router/index.tsx`
 
 Regla actual del router:
@@ -69,11 +72,11 @@ Regla actual del router:
 Antes de implementar el modulo completo, definir:
 
 - Si `ADMIN` puede gestionar administradores o solo `SUPERADMIN`.
-- Campos editables de un administrador.
-- Flujo de creacion: password inicial, invitacion o reset.
+- Campos editables de un administrador (CRUD; no confundir con el cambio de contraseña propia ya disponible).
+- Flujo de creacion de **otros** administradores: password inicial, invitacion o reset (D1B).
 - Auditoria: quien creo/modifico a quien.
 - Si se requiere historial de actividad o last login visible.
-- Si `/admin/mi-perfil` edita datos reales o queda como pantalla informativa.
+- Si `/admin/mi-perfil` debe editar más datos de cuenta además de la contraseña propia. Hoy muestra usuario/rol y permite el cambio self-service.
 
 ---
 
@@ -84,13 +87,14 @@ Antes de implementar el modulo completo, definir:
 3. Confirmar acceso a la pantalla.
 4. Login como `ADMIN`.
 5. Intentar `/admin/admins` y confirmar denegacion/redireccion.
+6. Desde `/admin/mi-perfil` (ADMIN o SUPERADMIN), cambiar la contraseña propia. Debe pedir la actual, volver a `/login` y exigir la contraseña nueva.
 
 ---
 
 ## Pendientes conocidos
 
-- API CRUD para administradores.
-- Integracion frontend con API.
-- Tests de permisos.
-- Definir flujo operacional de altas/cambios de password.
+- API CRUD para administradores (D1B; no implementado).
+- Integracion frontend con API de gestión de admins.
+- Tests de permisos del CRUD de admins.
+- Definir flujo operacional de altas y reset de password de **otro** administrador.
 - Documentar contrato una vez definido.
