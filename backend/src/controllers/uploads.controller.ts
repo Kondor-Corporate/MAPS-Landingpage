@@ -4,7 +4,9 @@ import { getStorageAdapter, type StoredFileCategory } from '../lib/storage/index
 import { isStoredFilename } from '../lib/storage/types.js';
 
 function parseCategory(value: string): StoredFileCategory | null {
-  return value === 'certificaciones' || value === 'fotos' ? value : null;
+  return value === 'certificaciones' || value === 'fotos' || value === 'noticias'
+    ? value
+    : null;
 }
 
 export const getStoredFile: RequestHandler = async (req, res, next) => {

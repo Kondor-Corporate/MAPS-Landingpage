@@ -14,18 +14,8 @@ const categoriaNoticiaSchema = z.enum([
 
 const visibilidadSchema = z.enum(['PUBLICA', 'INTERNA']);
 
-const httpsUrlSchema = z
-  .string()
-  .trim()
-  .url({ message: 'URL inválida' })
-  .refine((u) => u.startsWith('https://'), { message: 'Debe comenzar con https://' })
-  .refine((u) => !u.startsWith('data:'), { message: 'No se permiten data URLs' });
-
-const imagenUrlSchema = z
-  .union([httpsUrlSchema, z.null()])
-  .optional()
-  .transform((v) => (v === undefined ? undefined : v));
-
+// La portada y las imágenes de galería se suben como archivo por endpoints dedicados
+// (`POST /news/:id/portada`, `POST /news/:id/imagenes`), no por el body de create/update.
 const newsCoreFields = {
   titulo: z.string().trim().min(5, { message: 'El título debe tener al menos 5 caracteres' }),
   contenido: z
@@ -35,7 +25,6 @@ const newsCoreFields = {
   descripcion: z.string().trim().optional().nullable(),
   categoria: categoriaNoticiaSchema,
   visibilidad: visibilidadSchema,
-  imagenUrl: imagenUrlSchema,
   publicada: z.boolean().optional(),
 };
 
@@ -57,6 +46,12 @@ export const newsIdParamSchema = z.object({
 
 /** @deprecated Usar `newsIdParamSchema`. */
 export const newsIdSchema = newsIdParamSchema;
+
+/** `id` de noticia + `imagenId` de galería en path. */
+export const noticiaImagenParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  imagenId: z.coerce.number().int().positive(),
+});
 
 /** Slug en path para detalle público. */
 export const newsSlugParamSchema = z.object({

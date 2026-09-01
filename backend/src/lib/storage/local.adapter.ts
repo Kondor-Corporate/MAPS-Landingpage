@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
@@ -6,6 +6,8 @@ import {
   fotoPublicUrl,
   getCertificacionesUploadDir,
   getFotosUploadDir,
+  getNoticiasUploadDir,
+  noticiaPublicUrl,
 } from '../uploadPaths.js';
 import type {
   StorageAdapter,
@@ -13,12 +15,19 @@ import type {
   UploadCertificacionResult,
   UploadFotoInput,
   UploadFotoResult,
+  UploadImagenNoticiaInput,
+  UploadImagenNoticiaResult,
 } from './types.js';
 
 const FOTO_EXTENSION_BY_MIME: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
+};
+
+const NOTICIA_EXTENSION_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
 };
 
 function filenameFromUrl(url: string): string | null {
@@ -67,6 +76,31 @@ export class LocalStorageAdapter implements StorageAdapter {
     const filename = filenameFromUrl(url);
     if (!filename) return;
     const filePath = path.join(getFotosUploadDir(), filename);
+    try {
+      unlinkSync(filePath);
+    } catch {
+      /* file may already be gone, or was an external URL we don't manage */
+    }
+  }
+
+  async uploadImagenNoticia(
+    input: UploadImagenNoticiaInput,
+  ): Promise<UploadImagenNoticiaResult> {
+    const ext = NOTICIA_EXTENSION_BY_MIME[input.mimeType] ?? 'jpg';
+    const filename = `${randomUUID()}.${ext}`;
+    const dest = path.join(getNoticiasUploadDir(), filename);
+    writeFileSync(dest, input.buffer);
+    return {
+      url: noticiaPublicUrl(filename),
+      mimeType: input.mimeType,
+      tamanoBytes: input.buffer.length,
+    };
+  }
+
+  async deleteImagenNoticia(url: string): Promise<void> {
+    const filename = filenameFromUrl(url);
+    if (!filename) return;
+    const filePath = path.join(getNoticiasUploadDir(), filename);
     try {
       unlinkSync(filePath);
     } catch {

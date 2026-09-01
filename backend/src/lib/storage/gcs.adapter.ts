@@ -10,16 +10,24 @@ import type {
   UploadCertificacionResult,
   UploadFotoInput,
   UploadFotoResult,
+  UploadImagenNoticiaInput,
+  UploadImagenNoticiaResult,
 } from './types.js';
 
 const API_ROUTE_PREFIX = '/api/v1/uploads';
 const CERT_CACHE_CONTROL = 'private, max-age=3600';
 const FOTO_CACHE_CONTROL = 'public, max-age=86400';
+const NOTICIA_CACHE_CONTROL = 'public, max-age=86400';
 
 const FOTO_EXTENSION_BY_MIME: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
+};
+
+const NOTICIA_EXTENSION_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
 };
 
 function isNotFoundError(error: unknown): boolean {
@@ -29,7 +37,9 @@ function isNotFoundError(error: unknown): boolean {
 }
 
 function cacheControlFor(category: StoredFileCategory): string {
-  return category === 'certificaciones' ? CERT_CACHE_CONTROL : FOTO_CACHE_CONTROL;
+  if (category === 'certificaciones') return CERT_CACHE_CONTROL;
+  if (category === 'noticias') return NOTICIA_CACHE_CONTROL;
+  return FOTO_CACHE_CONTROL;
 }
 
 export class GcsStorageAdapter implements StorageAdapter {
@@ -73,6 +83,23 @@ export class GcsStorageAdapter implements StorageAdapter {
 
   async deleteFoto(url: string): Promise<void> {
     await this.deleteFromManagedUrl(url, 'fotos');
+  }
+
+  async uploadImagenNoticia(
+    input: UploadImagenNoticiaInput,
+  ): Promise<UploadImagenNoticiaResult> {
+    const extension = NOTICIA_EXTENSION_BY_MIME[input.mimeType] ?? 'jpg';
+    const filename = `${randomUUID()}.${extension}`;
+    await this.save('noticias', filename, input.buffer, input.mimeType, NOTICIA_CACHE_CONTROL);
+    return {
+      url: this.publicUrl('noticias', filename),
+      mimeType: input.mimeType,
+      tamanoBytes: input.buffer.length,
+    };
+  }
+
+  async deleteImagenNoticia(url: string): Promise<void> {
+    await this.deleteFromManagedUrl(url, 'noticias');
   }
 
   async readPublicFile(
@@ -156,11 +183,19 @@ export class GcsStorageAdapter implements StorageAdapter {
       return null;
     }
 
-    const match = parsed.pathname.match(/^\/api\/v1\/uploads\/(certificaciones|fotos)\/([^/]+)$/);
+    const match = parsed.pathname.match(
+      /^\/api\/v1\/uploads\/(certificaciones|fotos|noticias)\/([^/]+)$/,
+    );
     if (!match) return null;
 
     const category = match[1];
-    if (category !== 'certificaciones' && category !== 'fotos') return null;
+    if (
+      category !== 'certificaciones' &&
+      category !== 'fotos' &&
+      category !== 'noticias'
+    ) {
+      return null;
+    }
     const filename = match[2];
     if (!filename) return null;
     return isStoredFilename(category, filename) ? { category, filename } : null;

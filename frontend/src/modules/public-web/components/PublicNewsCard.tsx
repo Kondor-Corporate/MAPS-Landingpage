@@ -31,12 +31,16 @@ export function PublicNewsCard({ item, onOpen }: PublicNewsCardProps) {
               {item.date}
             </time>
           </div>
-          <h3 className="line-clamp-2 text-xl font-bold leading-[25px] text-maps-heading">
+          <h3 className="line-clamp-2 min-h-[50px] text-xl font-bold leading-[25px] text-maps-heading">
             {item.title}
           </h3>
-          {item.description ? (
-            <p className="line-clamp-2 text-sm leading-6 text-maps-muted">{item.description}</p>
-          ) : null}
+          <p
+            className={`line-clamp-2 min-h-[48px] text-sm leading-6 text-maps-muted ${
+              item.description ? '' : 'invisible'
+            }`}
+          >
+            {item.description || 'placeholder'}
+          </p>
           <span className="mt-auto inline-flex items-center gap-2 text-sm font-bold text-maps-brand">
             Leer más
             <span aria-hidden>→</span>

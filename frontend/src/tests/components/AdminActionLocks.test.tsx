@@ -118,6 +118,7 @@ const NEWS: News = {
   estado: 'PUBLICADO',
   cuerpo: 'Contenido suficientemente largo para la noticia de prueba.',
   imagenPortada: null,
+  galeria: [],
   fechaPublicacion: '2026-01-01T00:00:00.000Z',
   ultimaModificacion: '2026-01-01T00:00:00.000Z',
 };

@@ -10,12 +10,49 @@ import {
   mapUiNewsToUpdatePayload,
 } from '@/modules/admin/lib/mapNews';
 import {
+  addImagenGaleria,
   createNews as createNewsApi,
   deleteNews as deleteNewsApi,
+  deletePortada,
   listNews,
+  removeImagenGaleria,
   updateNews as updateNewsApi,
+  uploadPortada,
 } from '@/modules/admin/services/news.service';
+import type { NewsImageOps } from '@/modules/admin/components/NewsForm';
 import type { News, NewsInput } from '@/modules/admin/types/news';
+
+/**
+ * Se lanza cuando el texto de la noticia ya se creó pero falló alguna operación
+ * de imágenes. Lleva la noticia creada para que el formulario pase a modo edición
+ * en vez de reintentar un `POST` y crear un duplicado.
+ */
+export class PartialCreateError extends Error {
+  constructor(
+    public readonly createdNews: News,
+    cause: unknown,
+  ) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.cause = cause;
+  }
+}
+
+/** Aplica secuencialmente las operaciones de imágenes tras persistir el texto. */
+async function applyImageOps(newsId: number, images?: NewsImageOps): Promise<void> {
+  if (!images) return;
+  if (images.portadaFile) {
+    await uploadPortada(newsId, images.portadaFile);
+  } else if (images.removePortada) {
+    await deletePortada(newsId);
+  }
+  for (const imagenId of images.galeriaEliminar) {
+    await removeImagenGaleria(newsId, imagenId);
+  }
+  // Secuencial para preservar el orden de subida en la galería.
+  for (const file of images.galeriaNuevas) {
+    await addImagenGaleria(newsId, file);
+  }
+}
 
 export function useAdminNews() {
   const [news, setNews] = useState<News[]>([]);
@@ -41,10 +78,18 @@ export function useAdminNews() {
   }, [refetch]);
 
   const createNews = useCallback(
-    async (input: NewsInput, publicada: boolean) => {
+    async (input: NewsInput, publicada: boolean, images?: NewsImageOps) => {
       setError(null);
       const payload = mapUiNewsToCreatePayload(input, publicada);
       const row = await createNewsApi(payload);
+      try {
+        await applyImageOps(row.id, images);
+      } catch (err) {
+        // El texto ya persistió: no relanzar como si nada se hubiera creado
+        // (evita que un reintento dispare un segundo POST y duplique la noticia).
+        await refetch();
+        throw new PartialCreateError(mapApiNewsToUiNews(row), err);
+      }
       await refetch();
       return mapApiNewsToUiNews(row);
     },
@@ -52,11 +97,12 @@ export function useAdminNews() {
   );
 
   const updateNews = useCallback(
-    async (id: string, input: NewsInput, publicada: boolean) => {
+    async (id: string, input: NewsInput, publicada: boolean, images?: NewsImageOps) => {
       setError(null);
       const numId = Number.parseInt(id, 10);
       const payload = mapUiNewsToUpdatePayload(input, publicada);
       const row = await updateNewsApi(numId, payload);
+      await applyImageOps(numId, images);
       await refetch();
       return mapApiNewsToUiNews(row);
     },

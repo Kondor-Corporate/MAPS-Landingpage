@@ -32,3 +32,17 @@ export function fotoPublicUrl(filename: string): string {
     `http://localhost:${env.PORT}`;
   return `${base}/uploads/fotos/${filename}`;
 }
+
+export function getNoticiasUploadDir(): string {
+  const dir = path.join(backendRoot, 'uploads', 'noticias');
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+export function noticiaPublicUrl(filename: string): string {
+  const env = loadEnv();
+  const base =
+    env.API_PUBLIC_URL?.replace(/\/$/, '') ??
+    `http://localhost:${env.PORT}`;
+  return `${base}/uploads/noticias/${filename}`;
+}

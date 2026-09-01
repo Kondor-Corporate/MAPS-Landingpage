@@ -48,6 +48,7 @@ export function mapApiPublicNewsToNewsItem(dto: ApiPublicNews, index = 0): NewsI
     href: `/noticias/${dto.slug}`,
     imageGradient: resolveGradient(dto, index),
     imageUrl: dto.imagenUrl,
+    galeria: dto.galeria ?? [],
     content: dto.contenido,
     description: dto.descripcion,
     publishedAt,

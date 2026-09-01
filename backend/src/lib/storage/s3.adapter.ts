@@ -11,12 +11,19 @@ import type {
   UploadCertificacionResult,
   UploadFotoInput,
   UploadFotoResult,
+  UploadImagenNoticiaInput,
+  UploadImagenNoticiaResult,
 } from './types.js';
 
 const FOTO_EXTENSION_BY_MIME: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
+};
+
+const NOTICIA_EXTENSION_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
 };
 
 function keyFromUrl(url: string, publicBase: string): string | null {
@@ -98,6 +105,41 @@ export class S3StorageAdapter implements StorageAdapter {
   }
 
   async deleteFoto(url: string): Promise<void> {
+    const key = keyFromUrl(url, this.publicBaseUrl);
+    if (!key) return;
+    try {
+      await this.client.send(
+        new DeleteObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+        }),
+      );
+    } catch {
+      /* file may already be gone, or was an external URL we don't manage */
+    }
+  }
+
+  async uploadImagenNoticia(
+    input: UploadImagenNoticiaInput,
+  ): Promise<UploadImagenNoticiaResult> {
+    const ext = NOTICIA_EXTENSION_BY_MIME[input.mimeType] ?? 'jpg';
+    const key = `noticias/${input.noticiaId}/${Date.now()}-${randomBytes(4).toString('hex')}.${ext}`;
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: input.buffer,
+        ContentType: input.mimeType,
+      }),
+    );
+    return {
+      url: `${this.publicBaseUrl}/${key}`,
+      mimeType: input.mimeType,
+      tamanoBytes: input.buffer.length,
+    };
+  }
+
+  async deleteImagenNoticia(url: string): Promise<void> {
     const key = keyFromUrl(url, this.publicBaseUrl);
     if (!key) return;
     try {

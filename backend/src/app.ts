@@ -7,7 +7,11 @@ import { fileURLToPath } from 'node:url';
 import { v1Router } from './api/v1/index.js';
 import { loadEnv } from './config/env.js';
 import { errorHandler } from './middlewares/errorHandler.js';
-import { getCertificacionesUploadDir, getFotosUploadDir } from './lib/uploadPaths.js';
+import {
+  getCertificacionesUploadDir,
+  getFotosUploadDir,
+  getNoticiasUploadDir,
+} from './lib/uploadPaths.js';
 
 const backendRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -46,6 +50,8 @@ export function createApp() {
   );
   getFotosUploadDir();
   app.use('/uploads/fotos', express.static(path.join(backendRoot, 'uploads', 'fotos')));
+  getNoticiasUploadDir();
+  app.use('/uploads/noticias', express.static(path.join(backendRoot, 'uploads', 'noticias')));
   app.use('/api/v1', v1Router);
   app.use(errorHandler);
   return app;

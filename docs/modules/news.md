@@ -28,14 +28,26 @@ Prisma — modelo `Noticia`:
 | `descripcion` | `String?` | Bajada/resumen opcional |
 | `contenido` | `String` | Cuerpo; mín. 20 caracteres en create |
 | `categoria` | `CategoriaNoticia` | Requerida |
-| `imagenUrl` | `String?` | URL `https://` opcional |
+| `imagenUrl` | `String?` | Portada; poblada por **upload** (`POST /news/:id/portada`), ya no por URL en el body (MAPS-019) |
 | `publicada` | `Boolean` | Default `false` |
 | `publicadaEn` | `DateTime?` | Set al publicar si estaba vacío |
 | `visibilidad` | `Visibilidad` | `PUBLICA` \| `INTERNA` |
 | `autorId` | `Int` | FK → `Usuario`; set en POST desde JWT |
 | `createdAt` / `updatedAt` | `DateTime` | Auditoría básica |
 
-Migración: `backend/prisma/migrations/20260701120000_noticia_categoria/`
+Prisma — modelo `NoticiaImagen` (galería, MAPS-019; patrón `Certificacion`):
+
+| Campo | Tipo | Notas |
+|-------|------|-------|
+| `id` | `Int` | PK autoincrement |
+| `noticiaId` | `Int` | FK → `Noticia`, `onDelete: Cascade` |
+| `url` | `String` | URL gestionada por `StorageAdapter` |
+| `orden` | `Int` | Orden en el carrusel (asc); asignado por count al agregar |
+| `mimeType` | `String` | `image/jpeg` \| `image/png` |
+| `tamanoBytes` | `Int?` | Tamaño del archivo |
+| `createdAt` | `DateTime` | |
+
+Migraciones: `backend/prisma/migrations/20260701120000_noticia_categoria/`, `.../20260831184410_noticia_imagenes/`.
 
 Seed demo: 6 noticias en `backend/prisma/seed.ts` (PUBLICA/INTERNA, publicadas y borrador).
 
@@ -93,9 +105,22 @@ Prefijo: `/api/v1/news`. Envelope: `{ data, message, error }`.
 | `GET` | `/news/:id` | JWT | ADMIN, SUPERADMIN | Detalle admin por id |
 | `POST` | `/news` | JWT | ADMIN, SUPERADMIN | Crear noticia; default borrador |
 | `PATCH` | `/news/:id` | JWT | ADMIN, SUPERADMIN | Actualizar; publicar/despublicar vía `publicada` |
-| `DELETE` | `/news/:id` | JWT | ADMIN, SUPERADMIN | Eliminación física |
+| `DELETE` | `/news/:id` | JWT | ADMIN, SUPERADMIN | Eliminación física (borra archivos de storage + galería en cascada) |
+| `POST` | `/news/:id/portada` | JWT | ADMIN, SUPERADMIN | Sube/reemplaza portada (multipart `file`, jpg/jpeg/png, 10 MB) |
+| `DELETE` | `/news/:id/portada` | JWT | ADMIN, SUPERADMIN | Quita la portada (`imagenUrl=null`) |
+| `POST` | `/news/:id/imagenes` | JWT | ADMIN, SUPERADMIN | Agrega una imagen a la galería (tope 10) |
+| `DELETE` | `/news/:id/imagenes/:imagenId` | JWT | ADMIN, SUPERADMIN | Elimina una imagen de la galería |
 
-Archivos: `backend/src/api/v1/routes/news.routes.ts`, `news.controller.ts`, `news.service.ts`, `validations/news.schema.ts`.
+El detalle (`GET /news/:id` y `GET /news/public/:slug`) incluye `galeria` (admin: `{id,url,orden}[]`; público: `string[]` de URLs). Los **listados** no incluyen galería.
+
+Archivos: `backend/src/api/v1/routes/news.routes.ts`, `news.controller.ts`, `news.service.ts`, `validations/news.schema.ts`, `middlewares/uploadNewsImage.ts`, `lib/storage/*`.
+
+### Imágenes y storage (MAPS-019)
+
+- Portada y galería se suben como **archivo** (`.jpg/.jpeg/.png`, máx. 10 MB) vía `StorageAdapter` (`backend/src/lib/storage/`), categoría `noticias`.
+- Provider según `STORAGE_PROVIDER` (`local` por defecto; `gcs`/`s3` disponibles). El dominio de Noticias **no** se acopla a GCP.
+- **PENDIENTE — Integración Google Cloud Storage:** provisión de bucket/credenciales y `STORAGE_PROVIDER=gcs` queda para otro desarrollador; el código ya está listo sin cambios adicionales.
+- La galería se muestra como **carrusel** solo en la vista completa (`NewsImageCarousel` en `NewsArticleContent`); nunca en cards/listados/preview.
 
 ---
 
@@ -105,9 +130,9 @@ Archivos: `backend/src/api/v1/routes/news.routes.ts`, `news.controller.ts`, `new
 - Intranet autenticada ve solo `INTERNA` + publicada.
 - Admin ve todas (borradores incluidos) vía `GET /news`.
 - Slug automático desde título con sufijo numérico en conflicto.
-- `imagenUrl` opcional; debe ser `https://`; se rechazan data URLs.
+- Portada (`imagenUrl`) opcional; se sube como archivo y la resuelve el backend (MAPS-019). Ya no se acepta `imagenUrl` en el body de create/update.
+- Galería opcional (0..10 imágenes); una noticia puede tener solo portada, o portada + galería.
 - `autorId` asignado server-side en POST; no editable en body.
-- Storage/upload de imágenes **fuera de alcance** — solo URL externa.
 
 ---
 

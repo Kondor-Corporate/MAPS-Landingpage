@@ -2,10 +2,28 @@
  * Lógica de negocio y acceso Prisma para Noticias.
  * Centraliza filtros por audiencia, reglas de publicación, DTOs y operaciones CRUD.
  */
-import { Prisma, type CategoriaNoticia, type Noticia, type Visibilidad } from '@prisma/client';
+import {
+  Prisma,
+  type CategoriaNoticia,
+  type Noticia,
+  type NoticiaImagen,
+  type Visibilidad,
+} from '@prisma/client';
 import { AppError } from '../lib/errors.js';
 import { ensureUniqueNewsSlug, slugifyTitulo } from '../lib/newsSlug.js';
 import { prisma } from '../lib/prisma.js';
+import { getStorageAdapter } from '../lib/storage/index.js';
+
+/** Tope de imágenes de galería por noticia (portada aparte). */
+export const MAX_GALERIA_IMAGENES = 10;
+
+const galeriaOrderBy = [{ orden: 'asc' as const }, { id: 'asc' as const }];
+
+export type NoticiaImagenDto = {
+  id: number;
+  url: string;
+  orden: number;
+};
 
 export type NewsAdminDto = {
   id: number;
@@ -15,6 +33,7 @@ export type NewsAdminDto = {
   contenido: string;
   categoria: CategoriaNoticia;
   imagenUrl: string | null;
+  galeria: NoticiaImagenDto[];
   publicada: boolean;
   publicadaEn: Date | null;
   visibilidad: Visibilidad;
@@ -30,6 +49,7 @@ export type NewsPublicDto = {
   contenido: string;
   categoria: CategoriaNoticia;
   imagenUrl: string | null;
+  galeria: string[];
   publicadaEn: Date | null;
 };
 
@@ -53,14 +73,17 @@ export type CreateNewsInput = {
   descripcion?: string | null;
   categoria: CategoriaNoticia;
   visibilidad: Visibilidad;
-  imagenUrl?: string | null;
   publicada?: boolean;
 };
 
 export type UpdateNewsInput = Partial<CreateNewsInput>;
 
+function toNoticiaImagenDto(row: NoticiaImagen): NoticiaImagenDto {
+  return { id: row.id, url: row.url, orden: row.orden };
+}
+
 /** DTO admin: expone todos los campos, incluidos borradores y metadatos editoriales. */
-function toNewsAdminDto(row: Noticia): NewsAdminDto {
+function toNewsAdminDto(row: Noticia, imagenes: NoticiaImagen[] = []): NewsAdminDto {
   return {
     id: row.id,
     titulo: row.titulo,
@@ -69,6 +92,7 @@ function toNewsAdminDto(row: Noticia): NewsAdminDto {
     contenido: row.contenido,
     categoria: row.categoria,
     imagenUrl: row.imagenUrl,
+    galeria: imagenes.map(toNoticiaImagenDto),
     publicada: row.publicada,
     publicadaEn: row.publicadaEn,
     visibilidad: row.visibilidad,
@@ -79,7 +103,7 @@ function toNewsAdminDto(row: Noticia): NewsAdminDto {
 }
 
 /** DTO de lectura pública/intranet: sin id ni flags internos de publicación. */
-function toNewsPublicDto(row: Noticia): NewsPublicDto {
+function toNewsPublicDto(row: Noticia, imagenes: NoticiaImagen[] = []): NewsPublicDto {
   return {
     slug: row.slug,
     titulo: row.titulo,
@@ -87,6 +111,7 @@ function toNewsPublicDto(row: Noticia): NewsPublicDto {
     contenido: row.contenido,
     categoria: row.categoria,
     imagenUrl: row.imagenUrl,
+    galeria: imagenes.map((img) => img.url),
     publicadaEn: row.publicadaEn,
   };
 }
@@ -146,12 +171,18 @@ export const newsService = {
       ...(pagination ?? {}),
     });
 
-    return rows.map(toNewsAdminDto);
+    // Listados (cards) no incluyen galería: solo portada.
+    return rows.map((row) => toNewsAdminDto(row));
   },
 
   async getAdminNewsById(id: number): Promise<NewsAdminDto | null> {
-    const row = await prisma.noticia.findUnique({ where: { id } });
-    return row ? toNewsAdminDto(row) : null;
+    const row = await prisma.noticia.findUnique({
+      where: { id },
+      include: { imagenes: { orderBy: galeriaOrderBy } },
+    });
+    if (!row) return null;
+    const { imagenes, ...noticia } = row;
+    return toNewsAdminDto(noticia, imagenes);
   },
 
   async createNews(input: CreateNewsInput, actorUserId: number): Promise<NewsAdminDto> {
@@ -168,7 +199,7 @@ export const newsService = {
         contenido: input.contenido.trim(),
         categoria: input.categoria,
         visibilidad: input.visibilidad,
-        imagenUrl: input.imagenUrl ?? null,
+        // La portada se sube por separado vía `setPortada`; una noticia nueva nace sin imagen.
         publicada,
         publicadaEn,
         autorId: actorUserId,
@@ -193,7 +224,6 @@ export const newsService = {
     }
     if (input.categoria !== undefined) data.categoria = input.categoria;
     if (input.visibilidad !== undefined) data.visibilidad = input.visibilidad;
-    if (input.imagenUrl !== undefined) data.imagenUrl = input.imagenUrl;
 
     if (input.publicada !== undefined) {
       data.publicada = input.publicada;
@@ -206,12 +236,90 @@ export const newsService = {
     const row = await prisma.noticia.update({
       where: { id },
       data,
+      include: { imagenes: { orderBy: galeriaOrderBy } },
     });
 
-    return toNewsAdminDto(row);
+    const { imagenes, ...noticia } = row;
+    return toNewsAdminDto(noticia, imagenes);
   },
 
   async deleteNews(id: number): Promise<void> {
+    const current = await prisma.noticia.findUnique({
+      where: { id },
+      select: { id: true, imagenUrl: true, imagenes: { select: { url: true } } },
+    });
+    if (!current) {
+      throw new AppError(404, 'Noticia no encontrada');
+    }
+
+    // El cascade borra las filas NoticiaImagen; los archivos del storage se limpian aquí.
+    const storage = getStorageAdapter();
+    const urls = current.imagenes.map((img) => img.url);
+    if (current.imagenUrl) urls.push(current.imagenUrl);
+    await Promise.all(
+      urls.map((url) => storage.deleteImagenNoticia(url).catch(() => undefined)),
+    );
+
+    await prisma.noticia.delete({ where: { id } });
+  },
+
+  async setPortada(id: number, file: Express.Multer.File): Promise<NewsAdminDto> {
+    if (!file?.buffer) {
+      throw new AppError(400, 'Imagen requerida');
+    }
+    const current = await prisma.noticia.findUnique({ where: { id } });
+    if (!current) {
+      throw new AppError(404, 'Noticia no encontrada');
+    }
+
+    const storage = getStorageAdapter();
+    const uploaded = await storage.uploadImagenNoticia({
+      buffer: file.buffer,
+      mimeType: file.mimetype,
+      noticiaId: id,
+    });
+
+    // Reemplaza la portada anterior gestionada (no-op si era una URL externa legacy).
+    if (current.imagenUrl) {
+      await storage.deleteImagenNoticia(current.imagenUrl).catch(() => undefined);
+    }
+
+    const row = await prisma.noticia.update({
+      where: { id },
+      data: { imagenUrl: uploaded.url },
+      include: { imagenes: { orderBy: galeriaOrderBy } },
+    });
+    const { imagenes, ...noticia } = row;
+    return toNewsAdminDto(noticia, imagenes);
+  },
+
+  async removePortada(id: number): Promise<NewsAdminDto> {
+    const current = await prisma.noticia.findUnique({ where: { id } });
+    if (!current) {
+      throw new AppError(404, 'Noticia no encontrada');
+    }
+
+    if (current.imagenUrl) {
+      const storage = getStorageAdapter();
+      await storage.deleteImagenNoticia(current.imagenUrl).catch(() => undefined);
+    }
+
+    const row = await prisma.noticia.update({
+      where: { id },
+      data: { imagenUrl: null },
+      include: { imagenes: { orderBy: galeriaOrderBy } },
+    });
+    const { imagenes, ...noticia } = row;
+    return toNewsAdminDto(noticia, imagenes);
+  },
+
+  async addImagenGaleria(
+    id: number,
+    file: Express.Multer.File,
+  ): Promise<NoticiaImagenDto> {
+    if (!file?.buffer) {
+      throw new AppError(400, 'Imagen requerida');
+    }
     const current = await prisma.noticia.findUnique({
       where: { id },
       select: { id: true },
@@ -220,7 +328,46 @@ export const newsService = {
       throw new AppError(404, 'Noticia no encontrada');
     }
 
-    await prisma.noticia.delete({ where: { id } });
+    const count = await prisma.noticiaImagen.count({ where: { noticiaId: id } });
+    if (count >= MAX_GALERIA_IMAGENES) {
+      throw new AppError(
+        400,
+        `La galería admite un máximo de ${MAX_GALERIA_IMAGENES} imágenes`,
+      );
+    }
+
+    const storage = getStorageAdapter();
+    const uploaded = await storage.uploadImagenNoticia({
+      buffer: file.buffer,
+      mimeType: file.mimetype,
+      noticiaId: id,
+    });
+
+    const img = await prisma.noticiaImagen.create({
+      data: {
+        noticiaId: id,
+        url: uploaded.url,
+        orden: count,
+        mimeType: uploaded.mimeType,
+        tamanoBytes: uploaded.tamanoBytes,
+      },
+    });
+
+    return toNoticiaImagenDto(img);
+  },
+
+  async removeImagenGaleria(id: number, imagenId: number): Promise<void> {
+    const img = await prisma.noticiaImagen.findFirst({
+      where: { id: imagenId, noticiaId: id },
+    });
+    if (!img) {
+      throw new AppError(404, 'Imagen no encontrada');
+    }
+
+    const storage = getStorageAdapter();
+    await storage.deleteImagenNoticia(img.url).catch(() => undefined);
+
+    await prisma.noticiaImagen.delete({ where: { id: imagenId } });
   },
 
   async listPublicNews(query: ListNewsPagedQuery): Promise<NewsPublicDto[]> {
@@ -236,7 +383,8 @@ export const newsService = {
       take,
     });
 
-    return rows.map(toNewsPublicDto);
+    // Listados (cards) no incluyen galería: solo portada.
+    return rows.map((row) => toNewsPublicDto(row));
   },
 
   async getPublicNewsBySlug(slug: string): Promise<NewsPublicDto | null> {
@@ -246,9 +394,12 @@ export const newsService = {
         publicada: true,
         visibilidad: 'PUBLICA',
       },
+      include: { imagenes: { orderBy: galeriaOrderBy } },
     });
 
-    return row ? toNewsPublicDto(row) : null;
+    if (!row) return null;
+    const { imagenes, ...noticia } = row;
+    return toNewsPublicDto(noticia, imagenes);
   },
 
   async listIntranetNews(query: ListNewsPagedQuery): Promise<NewsPublicDto[]> {
@@ -265,6 +416,7 @@ export const newsService = {
       take,
     });
 
-    return rows.map(toNewsPublicDto);
+    // Listados (cards) no incluyen galería: solo portada.
+    return rows.map((row) => toNewsPublicDto(row));
   },
 };
