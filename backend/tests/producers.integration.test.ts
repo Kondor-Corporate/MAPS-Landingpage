@@ -422,6 +422,19 @@ describe('producers API (integración)', () => {
         })
         .expect(403);
     });
+
+    it('un SUPERADMIN no puede usar el endpoint self-service de productor', async () => {
+      const superToken = await loginUsuarioPassword(app, 'superadmin', 'Super1234!');
+      await request(app)
+        .patch(`${BASE}/me/password`)
+        .set('Authorization', `Bearer ${superToken}`)
+        .send({
+          currentPassword: 'Super1234!',
+          newPassword: 'NuevaClave456',
+          confirmPassword: 'NuevaClave456',
+        })
+        .expect(403);
+    });
   });
 
   // ─── Restablecimiento administrativo (PATCH /producers/:id/password) ──────────

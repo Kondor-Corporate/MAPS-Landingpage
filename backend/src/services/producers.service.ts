@@ -463,38 +463,6 @@ export const producersService = {
     return row;
   },
 
-  /** Cambio self-service: el productor autenticado cambia su propia contraseña. */
-  async changeMyPassword(
-    usuarioId: number,
-    input: { currentPassword: string; newPassword: string },
-  ): Promise<void> {
-    const user = await prisma.usuario.findUnique({
-      where: { id: usuarioId },
-      select: { id: true, passwordHash: true },
-    });
-    if (!user) {
-      throw new AppError(404, 'Usuario no encontrado');
-    }
-
-    const currentOk = await bcrypt.compare(input.currentPassword, user.passwordHash);
-    if (!currentOk) {
-      // 400 (no 401): el token sigue siendo válido; el interceptor axios no debe forzar logout.
-      throw new AppError(400, 'Contraseña actual incorrecta');
-    }
-
-    const passwordHash = await bcrypt.hash(input.newPassword, 12);
-    await prisma.$transaction([
-      prisma.usuario.update({
-        where: { id: usuarioId },
-        data: {
-          passwordHash,
-          tokenVersion: { increment: 1 },
-        },
-      }),
-      prisma.sesionToken.deleteMany({ where: { usuarioId } }),
-    ]);
-  },
-
   /** Restablecimiento admin: no requiere la contraseña actual del productor. */
   async resetPassword(productorId: number, input: { newPassword: string }): Promise<void> {
     const current = await prisma.productor.findUnique({

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { passwordSchema } from '../lib/passwordPolicy.js';
 
 export const loginSchema = z.object({
   usuario: z.string().min(1),
@@ -23,3 +24,16 @@ export const logoutBodySchema = refreshBodySchema;
 /** @deprecated Alias mantenido para compatibilidad durante la transición. Usar refreshBodySchema. */
 export const refreshSchema = z.object({ refreshToken: z.string().min(1) });
 export const logoutSchema = logoutBodySchema;
+
+/** Cambio self-service: cualquier Usuario autenticado cambia su propia contraseña. */
+export const changeMyPasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1),
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1),
+  })
+  .strict()
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: 'La confirmación no coincide',
+    path: ['confirmPassword'],
+  });
