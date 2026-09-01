@@ -187,4 +187,40 @@ export const authService = {
 
     await prisma.sesionToken.delete({ where: { id: session.id } });
   },
+
+  /** Cambio self-service: el usuario autenticado cambia su propia contraseña. */
+  async changeMyPassword(
+    usuarioId: number,
+    input: { currentPassword: string; newPassword: string },
+  ): Promise<void> {
+    const user = await prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: { id: true, passwordHash: true },
+    });
+    if (!user) {
+      throw new AppError(404, 'Usuario no encontrado');
+    }
+
+    const currentOk = await bcrypt.compare(input.currentPassword, user.passwordHash);
+    if (!currentOk) {
+      // 400 (no 401): el token sigue siendo válido; el interceptor axios no debe forzar logout.
+      throw new AppError(400, 'Contraseña actual incorrecta');
+    }
+
+    if (input.newPassword === input.currentPassword) {
+      throw new AppError(400, 'La nueva contraseña debe ser distinta de la actual');
+    }
+
+    const passwordHash = await bcrypt.hash(input.newPassword, 12);
+    await prisma.$transaction([
+      prisma.usuario.update({
+        where: { id: usuarioId },
+        data: {
+          passwordHash,
+          tokenVersion: { increment: 1 },
+        },
+      }),
+      prisma.sesionToken.deleteMany({ where: { usuarioId } }),
+    ]);
+  },
 };

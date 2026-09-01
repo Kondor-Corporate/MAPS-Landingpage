@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { PRODUCER_SPECIALTY_KEYS } from '../constants/producerSpecialties.js';
-import { passwordSchema } from '../lib/passwordPolicy.js';
 
 export const redesSocialesSchema = z
   .array(
@@ -64,16 +63,3 @@ export const uploadCertificacionBodySchema = z.object({
   certificacionNombre: z.string().trim().optional(),
   nombre: z.string().trim().optional(),
 });
-
-/** Cambio self-service: requiere la contraseña actual (MAPS-016). */
-export const changeMyPasswordSchema = z
-  .object({
-    currentPassword: z.string().min(1),
-    newPassword: passwordSchema,
-    confirmPassword: z.string().min(1),
-  })
-  .strict()
-  .refine((d) => d.newPassword === d.confirmPassword, {
-    message: 'La confirmación no coincide',
-    path: ['confirmPassword'],
-  });

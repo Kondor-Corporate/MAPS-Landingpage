@@ -29,9 +29,3 @@ export type UpdateMyProfileBody = {
 };
 
 export type PublicProducerProfile = ProfileViewModel;
-
-export type ChangeMyPasswordBody = {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-};

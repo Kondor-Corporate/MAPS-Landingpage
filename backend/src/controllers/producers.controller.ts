@@ -460,26 +460,6 @@ export const producersController = {
 
   }) satisfies RequestHandler,
 
-  changeMyPassword: (async (req, res, next) => {
-
-    try {
-
-      const usuarioId = getUserId(req);
-
-      const body = req.body as { currentPassword: string; newPassword: string };
-
-      await producersService.changeMyPassword(usuarioId, body);
-
-      res.json({ data: null, message: 'Contraseña actualizada', error: null });
-
-    } catch (err) {
-
-      next(err);
-
-    }
-
-  }) satisfies RequestHandler,
-
   resetPassword: (async (req, res, next) => {
 
     try {

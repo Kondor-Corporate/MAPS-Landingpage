@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
-import { ChangePasswordForm } from '@/modules/intranet/components/ChangePasswordForm';
+import { ChangePasswordForm } from '@/modules/auth/components/ChangePasswordForm';
+import { changeMyPassword } from '@/modules/auth/services/auth.service';
 import { ProducerProfileForm } from '@/modules/intranet/components/ProducerProfileForm';
 import { ProfileCertificationsList } from '@/shared/components/profile/ProfileCertificationsList';
 import { ProfileHeaderCard } from '@/shared/components/profile/ProfileHeaderCard';
@@ -10,7 +11,6 @@ import { ProfileSpecialtiesGrid } from '@/shared/components/profile/ProfileSpeci
 import { ProfileStatsCards } from '@/shared/components/profile/ProfileStatsCards';
 import { ProfileTrajectorySection } from '@/shared/components/profile/ProfileTrajectorySection';
 import { useProducerProfile } from '@/modules/intranet/hooks/useProducerProfile';
-import { useLogout } from '@/modules/auth/hooks/useLogout';
 import { useAuthStore } from '@/store/authStore';
 
 export function ProducerProfileViewPage() {
@@ -40,11 +40,11 @@ function ProducerProfileViewInner({
     updateProfile,
     uploadCertificacion,
     deleteCertificacion,
-    changePassword,
     uploadFoto,
     refetch,
   } = useProducerProfile();
-  const logout = useLogout();
+  const navigate = useNavigate();
+  const storeLogout = useAuthStore((s) => s.logout);
   const [editOpen, setEditOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -144,9 +144,10 @@ function ProducerProfileViewInner({
       <ChangePasswordForm
         open={changePasswordOpen}
         onClose={() => setChangePasswordOpen(false)}
-        changePassword={changePassword}
+        changePassword={changeMyPassword}
         onSaved={() => {
-          void logout();
+          storeLogout();
+          void navigate('/login', { replace: true });
         }}
       />
 

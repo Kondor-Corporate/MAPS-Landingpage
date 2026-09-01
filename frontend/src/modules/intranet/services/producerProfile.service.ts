@@ -6,7 +6,6 @@ import {
 } from '@/shared/lib/coordinates';
 import type { ProducerCertificacion } from '@/shared/types/producerProfile';
 import type {
-  ChangeMyPasswordBody,
   ProducerProfile,
   UpdateMyProfileBody,
 } from '@/modules/intranet/types/producerProfile';
@@ -68,10 +67,6 @@ export async function uploadMyCertificacion(
 
 export async function deleteMyCertificacion(certId: number): Promise<void> {
   await api.delete(`/producers/me/certificaciones/${certId}`);
-}
-
-export async function changeMyPassword(body: ChangeMyPasswordBody): Promise<void> {
-  await api.patch('/producers/me/password', body);
 }
 
 export async function uploadMyFoto(file: File): Promise<ProducerProfile> {

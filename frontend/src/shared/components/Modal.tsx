@@ -8,6 +8,8 @@ type ModalProps = {
   maxWidth?: string;
   closeButtonVariant?: 'light' | 'dark';
   ariaLabel?: string;
+  /** Por defecto `true`. Si es `false`, no se renderiza el botón X (el overlay y Escape siguen igual). */
+  showCloseButton?: boolean;
 };
 
 export function Modal({
@@ -17,6 +19,7 @@ export function Modal({
   maxWidth = 'max-w-5xl',
   closeButtonVariant = 'light',
   ariaLabel = 'Contenido emergente',
+  showCloseButton = true,
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -89,31 +92,33 @@ export function Modal({
         aria-label={ariaLabel}
         className={`relative flex max-h-[calc(100dvh-1rem)] w-full flex-col overflow-hidden rounded-xl bg-white shadow-2xl sm:max-h-[min(90vh,880px)] sm:rounded-2xl ${maxWidth}`}
       >
-        <button
-          ref={closeButtonRef}
-          type="button"
-          onClick={onClose}
-          className={`absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-maps-brand/30 ${closeButtonClass}`}
-          aria-label="Cerrar modal"
-          title="Cerrar"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 20 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden
+        {showCloseButton ? (
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={onClose}
+            className={`absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-maps-brand/30 ${closeButtonClass}`}
+            aria-label="Cerrar modal"
+            title="Cerrar"
           >
-            <path
-              d="M15 5L5 15M5 5L15 15"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 20 20"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden
+            >
+              <path
+                d="M15 5L5 15M5 5L15 15"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        ) : null}
         <div className="maps-modal-scroll min-h-0 flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>

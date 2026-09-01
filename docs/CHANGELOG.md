@@ -13,13 +13,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/) y versionado s
 ### Added
 
 - Alta de productores con contraseña inicial individual definida por el administrador (`POST /api/v1/producers`), en reemplazo de la contraseña global compartida.
-- Cambio de contraseña self-service para el productor autenticado desde su perfil privado (`PATCH /api/v1/producers/me/password`), validando la contraseña actual.
+- Cambio de contraseña self-service canónico para cualquier `Usuario` autenticado (`PATCH /api/v1/auth/me/password`): PRODUCTOR, ADMIN y SUPERADMIN. Requiere contraseña actual, política existente y nueva distinta de la actual (D1A).
+- Alias temporal `PATCH /api/v1/producers/me/password` conservado solo para `PRODUCTOR`, apuntando a la misma lógica y al mismo rate limiter de Auth.
 - Restablecimiento de contraseña por administrador (`PATCH /api/v1/producers/:id/password`), sin requerir la contraseña anterior, exclusivo para roles admin.
 - Columna "Usuario" (email de acceso) en la tabla de productores del dashboard admin, con accion "Restablecer contraseña" en el menu de la fila.
 - Boton "Cambiar contraseña" en el header del perfil privado del productor, que abre el cambio de contraseña como modal (antes requeria scrollear a una seccion fija).
 - Subida de foto de perfil propia haciendo click en el avatar (`POST /api/v1/producers/me/foto`, JPG/PNG/WEBP hasta 5MB), reutilizando el storage adapter ya usado para certificaciones (local o S3).
 - Validacion de contraseña en tiempo real (mientras se escribe) y boton de mostrar/ocultar en los tres formularios de contraseña (alta admin, reset admin, cambio self-service).
-- Tests de integracion backend para alta con password individual, cambio self-service, reset admin y subida de foto de perfil (`backend/tests/producers.integration.test.ts`, `backend/tests/producersProfile.integration.test.ts`).
+- Tests de integracion backend para alta con password individual, alias self-service de productor, reset admin y subida de foto de perfil (`backend/tests/producers.integration.test.ts`, `backend/tests/producersProfile.integration.test.ts`).
+- Tests de integracion del cambio self-service canónico en Auth para PRODUCTOR, ADMIN y SUPERADMIN (`backend/tests/auth.integration.test.ts`).
 - Dockerizacion fullstack de desarrollo con servicios `frontend`, `backend` y `db`.
 - Documentacion viva del modulo Auth/Routing en `docs/modules/auth.md`.
 - Indice general de documentacion en `docs/README.md`.
@@ -33,6 +35,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/) y versionado s
 
 ### Changed
 
+- El cambio de contraseña propia deja de ser un flujo del dominio Productor: vive en Auth (service, schema, limiter y formulario compartido). Productor, Admin y Superadmin usan el mismo formulario; tras el éxito se limpia el auth store y se vuelve a login, sin `POST /auth/logout` (D1A).
 - Tabla de productores del dashboard admin: la columna "DNI" fue reemplazada por "Usuario" (email de acceso); el buscador admin ya no filtra por DNI.
 - `DEFAULT_PRODUCER_PASSWORD` pasa a ser opcional y queda acotada a `prisma/seed.ts`; ya no participa del alta real de productores.
 - "Editar perfil" (intranet) ya no tiene un campo de texto "URL foto"; la foto se gestiona exclusivamente subiendo una imagen desde el avatar.
@@ -47,12 +50,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/) y versionado s
 
 ### Removed
 
-- N/A
+- Formulario `frontend/src/modules/intranet/components/ChangePasswordForm.tsx`; el cambio self-service usa `frontend/src/modules/auth/components/ChangePasswordForm.tsx` (D1A).
 
 ### Security
 
 - Se elimina el uso de una contraseña global compartida entre productores (`DEFAULT_PRODUCER_PASSWORD`) para el alta real; cada productor recibe una contraseña individual definida por el admin.
-- Cambio y restablecimiento de contraseña revocan las sesiones activas (`SesionToken`) del usuario afectado, invalidando de inmediato cualquier refresh token emitido con la contraseña anterior.
+- Cambio self-service (`PATCH /auth/me/password`) y restablecimiento admin revocan las sesiones activas (`SesionToken`) del usuario afectado e incrementan `tokenVersion`, invalidando refresh y access tokens emitidos con la contraseña anterior. El controller limpia la cookie `maps_refresh` solo tras un cambio exitoso.
+- Rate limiter de cambio de contraseña claveado por `req.user.sub` (no por IP); canónico y alias comparten la misma instancia/cupo.
 - Ningun endpoint de `/api/v1/producers` expone `passwordHash` en sus respuestas.
 
 ---

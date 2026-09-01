@@ -138,4 +138,32 @@ export const authController: Record<string, RequestHandler> = {
       next(err);
     }
   },
+
+  changeMyPassword: async (req, res, next) => {
+    if (!req.user) {
+      next(new AppError(401, 'No autenticado'));
+      return;
+    }
+
+    const usuarioId = Number.parseInt(req.user.sub, 10);
+    if (Number.isNaN(usuarioId)) {
+      next(new AppError(401, 'Token inválido'));
+      return;
+    }
+
+    const body = req.body as { currentPassword: string; newPassword: string };
+
+    try {
+      await authService.changeMyPassword(usuarioId, body);
+      const env = loadEnv();
+      res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieClearOptions(env));
+      res.json({
+        data: null,
+        message: 'Contraseña actualizada',
+        error: null,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
