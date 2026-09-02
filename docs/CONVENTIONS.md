@@ -14,6 +14,7 @@ Para evitar que documentos historicos se interpreten como estado actual, usar es
 | Indice de documentacion | [`README.md`](./README.md) |
 | Estado actual de un modulo | `docs/modules/*.md` |
 | Arquitectura viva | `docs/ARCHITECTURE.md` |
+| Staging GCP | `docs/GCP_STAGING_RUNBOOK.md` |
 | Flujo de contribucion, ramas, commits y PRs | `docs/CONTRIBUTING.md` |
 | Testing y comandos de verificacion | `docs/TESTING.md` |
 | Migraciones Prisma y seed | `docs/MIGRATIONS.md` |
@@ -47,12 +48,13 @@ Si un cambio afecta alguno de esos temas, actualizar el documento correspondient
 
 ## Tipos de documento
 
-### 1. Work-log — `MAPS-XXX-slug.md`
+### 1. Work-log — `docs/worklog/MAPS-XXX-slug.md`
 
 Bitácora **retrospectiva** de una feature ya implementada. Se escribe al cerrar el PR, mientras el contexto está fresco.
 
-**Plantilla:** `_TEMPLATE-worklog.md`
-**Ejemplos existentes:** `MAPS-004-auth-routing-polish.md`
+**Ubicación real:** `docs/worklog/`
+**Plantilla:** `docs/worklog/_TEMPLATE-worklog.md`
+**Ejemplos existentes:** `docs/worklog/MAPS-004-auth-routing-polish.md`, `docs/worklog/D1A-cambio-self-password.md`
 
 #### Cuándo crear uno
 
@@ -67,12 +69,15 @@ Bitácora **retrospectiva** de una feature ya implementada. Se escribe al cerrar
 
 ---
 
-### 2. Technical Design Document (TDD) — `MAPS-XXX-tdd-slug.md`
+### 2. Technical Design Document (TDD) — `docs/tdd/MAPS-XXX-tdd-slug.md`
 
 Propuesta **prospectiva** de cómo resolver algo, escrita **antes** de implementar. Se discute en PR, se aprueba, y recién ahí se codea.
 
-**Plantilla:** `_TEMPLATE-tdd.md`
-**Ejemplos existentes:** `MAPS-005-docker-db-foundation.md` (formato similar, con secciones de Alcance / Decisiones).
+**Ubicación real:** `docs/tdd/`
+**Plantilla:** `docs/tdd/_TEMPLATE-tdd.md`
+**Ejemplos existentes:** `docs/tdd/MAPS-012-tdd-biblioteca-digital-api.md`, `docs/tdd/MAPS-016-tdd-credenciales-productores.md`
+
+Los documentos históricos en esas carpetas conservan valor aunque su estado ya no sea vigente. No reescribirlos para simular que se crearon con el proceso actual.
 
 #### Cuándo crear uno
 
@@ -98,8 +103,8 @@ Si la tarea cumple **al menos una** de estas:
 
 | Tipo | Patrón | Ejemplo |
 |------|--------|---------|
-| Work-log | `MAPS-XXX-slug-corto.md` | `MAPS-009-seccion-productores-admin.md` |
-| TDD | `MAPS-XXX-tdd-slug-corto.md` | `MAPS-012-tdd-integracion-backend-productores.md` |
+| Work-log | `docs/worklog/MAPS-XXX-slug-corto.md` | `docs/worklog/MAPS-009-seccion-productores-admin.md` |
+| TDD | `docs/tdd/MAPS-XXX-tdd-slug-corto.md` | `docs/tdd/MAPS-012-tdd-biblioteca-digital-api.md` |
 
 - **Ticket:** el código de la rama (`feature/MAPS-007-…` → `MAPS-007`).
 - **Slug:** 2–4 palabras en kebab-case que resuman el alcance.
@@ -127,22 +132,24 @@ Los TDDs llevan un campo `Estado` en su metadata. Los work-logs no — un work-l
 ## Flujo recomendado para una feature grande
 
 ```
-1. Escribir TDD             → docs/MAPS-XXX-tdd-slug.md       (Estado: Borrador)
+1. Escribir TDD             → docs/tdd/MAPS-XXX-tdd-slug.md     (Estado: Borrador)
 2. PR del TDD               → review en GitHub                  (Estado: En revisión)
 3. Mergear TDD              →                                   (Estado: Aprobado)
 4. Implementar (1+ PRs)     → cada PR cita el TDD
-5. Cerrar última PR         → escribir work-log                 → docs/MAPS-XXX-slug.md
+5. Cerrar última PR         → escribir work-log                 → docs/worklog/MAPS-XXX-slug.md
 6. Actualizar TDD           → linkear PRs y work-log            (Estado: Implementado)
 ```
 
-Para features chicas que no necesitan TDD: directo work-log al cerrar el PR.
+Para features chicas que no necesitan TDD: directo work-log en `docs/worklog/` al cerrar el PR.
+
+Los TDD/worklogs anteriores a esta convención de paths no se renombran. Siguen siendo historial válido.
 
 ---
 
 ## Cómo usar las plantillas
 
-1. Copiar `_TEMPLATE-worklog.md` o `_TEMPLATE-tdd.md`.
-2. Renombrar siguiendo el patrón de la tabla.
+1. Copiar `docs/worklog/_TEMPLATE-worklog.md` o `docs/tdd/_TEMPLATE-tdd.md`.
+2. Renombrar en la misma carpeta (`docs/worklog/` o `docs/tdd/`) siguiendo el patrón de la tabla.
 3. Completar todas las secciones (las que no apliquen, marcar `N/A` — no borrarlas para mantener consistencia visual entre documentos).
 4. Pegar el contenido también como descripción del PR en GitHub (es el mismo formato).
 5. Commitear el archivo en el mismo PR que documenta.
