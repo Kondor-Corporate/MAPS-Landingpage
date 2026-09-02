@@ -38,7 +38,7 @@ La documentacion se separa en cuatro capas. No mezclarlas:
 - [`modules/library.md`](./modules/library.md): Biblioteca Digital, ramos, API e integracion admin/productor.
 - [`modules/producers.md`](./modules/producers.md): productores, perfiles, mapa publico y certificaciones.
 - [`modules/news.md`](./modules/news.md): noticias, API e integracion admin/publico/intranet.
-- [`modules/admins.md`](./modules/admins.md): administradores, permisos y pendientes de API.
+- [`modules/admins.md`](./modules/admins.md): administradores (API y pantalla `/admin/admins`, D1B).
 - [`modules/public-web.md`](./modules/public-web.md): landing, mapa publico y perfil publico.
 
 El detalle de endpoints y contratos vive solo aqui. La Knowledge Base no duplica estos documentos.

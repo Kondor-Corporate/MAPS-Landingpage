@@ -26,7 +26,7 @@ Fuera de alcance actual: ecommerce y cotizador.
 | Noticias | Implementado | `/api/v1/news` |
 | Landing publica | Parcial | Mapa y noticias por API; equipo institucional estático (`OurTeamSection`, no API); CTA al mapa (`#mapa`); contacto sin backend |
 | Portal SELF | Pendiente / deshabilitado | Sin URL configurada (`SELF_PORTAL_URL = null`) |
-| Admins | Parcial | Perfil + cambio de contraseña propia (D1A); CRUD de administradores pendiente (D1B) |
+| Admins | Implementado | `/api/v1/admins` (gestión ADMIN por SUPERADMIN, D1B); self-service de contraseña propia (D1A) |
 | E2E browser | Pendiente | N/A |
 
 Los documentos historicos en `docs/tdd/` y `docs/worklog/` explican como se llego a este estado, pero no reemplazan esta tabla ni la documentacion viva en `docs/`.
@@ -344,7 +344,7 @@ Arquitectura completa: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 - [`docs/modules/library.md`](./docs/modules/library.md): biblioteca digital.
 - [`docs/modules/public-web.md`](./docs/modules/public-web.md): landing, mapa publico y perfil publico.
 - [`docs/modules/news.md`](./docs/modules/news.md): noticias, API e integracion admin/publico/intranet.
-- [`docs/modules/admins.md`](./docs/modules/admins.md): administradores y pendientes de API.
+- [`docs/modules/admins.md`](./docs/modules/admins.md): administradores (gestión ADMIN por SUPERADMIN, D1B).
 
 ---
 

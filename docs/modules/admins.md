@@ -1,100 +1,145 @@
 # Administradores
 
-Documentacion viva del modulo Administradores.
+Documentación viva del módulo Administradores.
+
+Complementa el [TDD D1B](../tdd/D1B-tdd-gestion-administradores.md) y el
+[worklog D1B](../worklog/D1B-gestion-administradores.md). El cambio de contraseña
+**propia** vive en Auth ([D1A](../worklog/D1A-cambio-self-password.md)).
 
 ---
 
 ## Estado actual
 
-| Area | Estado |
+| Área | Estado |
 |------|--------|
-| Ruta frontend `/admin/admins` | Existente |
-| Acceso UI | Restringido a `SUPERADMIN` en router |
-| API backend `/api/v1/admins` | Pendiente |
-| CRUD administradores | Pendiente — no implementado (D1B, fuera de D1A) |
-| Perfil admin `/admin/mi-perfil` | Implementado como pantalla informativa de la sesión + cambio de contraseña propia |
-| Cambio de contraseña propia (ADMIN / SUPERADMIN) | Implementado (D1A) vía Auth: formulario compartido y `PATCH /api/v1/auth/me/password` |
+| Ruta frontend `/admin/admins` | Implementada — pantalla operativa (D1B) |
+| Acceso UI | Exclusivo `SUPERADMIN` (`RoleGuard` + ítem de sidebar) |
+| API backend `/api/v1/admins` | Implementada — cinco endpoints, solo `SUPERADMIN` |
+| Colección administrable | Solo `Usuario` con `rol = ADMIN`. Sin tabla `Admin` |
+| SUPERADMIN | Fuera del CRUD. Card informativa “Cuenta principal” (auth store) |
+| Perfil `/admin/mi-perfil` | Informativo de sesión + cambio de contraseña propia (D1A) |
+| Delete físico / edición de rol | No existen |
+| Break-glass SUPERADMIN (GCP) | Fuera de D1B; no implementado en esta app |
+
+---
+
+## Modelo y reglas de negocio
+
+El recurso es `Usuario`. No hay entidad `Admin` ni migración Prisma.
+
+- La aplicación **no** crea, promueve, degrada, desactiva, resetea ni elimina cuentas `SUPERADMIN`.
+- Normalmente hay **un** SUPERADMIN funcional (seed local / bootstrap GCP). **No** hay constraint física de cantidad en la base.
+- D1B opera exclusivamente `rol = ADMIN`: alta, edición de `usuario`, activar/desactivar, reset administrativo de password.
+- Un `ADMIN` no tiene fila `Productor`.
+- No hay delete físico. No hay cambio de rol desde la UI ni la API.
+- D1A (`PATCH /api/v1/auth/me/password`) sigue siendo el cambio de **contraseña propia** (pide la actual). El reset D1B es de **otro** ADMIN y no pide la actual.
+- Provisionamiento del SUPERADMIN: seed / job bootstrap GCP. El procedimiento break-glass queda **fuera de D1B**.
 
 ---
 
 ## Backend
 
-Ruta montada:
+Base: `/api/v1/admins`.
 
-```text
-/api/v1/admins
+Cadena: `authenticate` → `authorize(Rol.SUPERADMIN)` → `validate` → controller → `adminsService` → Prisma.
+
+Anónimo → `401`. `PRODUCTOR` y `ADMIN` → `403`.
+
+| Método | Ruta | Body / query | Respuesta |
+|--------|------|----------------|-----------|
+| `GET` | `/admins` | Query opcional `activo=true\|false` | `200 { data: AdminDto[], message: 'OK' }` |
+| `POST` | `/admins` | `{ usuario, password, confirmPassword }` (strict) | `201 { data, message: 'Administrador creado' }` |
+| `PATCH` | `/admins/:id` | `{ usuario }` | `200 { data, message: 'Administrador actualizado' }` |
+| `PATCH` | `/admins/:id/activo` | `{ activo }` | `200` desactivado / reactivado |
+| `PATCH` | `/admins/:id/password` | `{ newPassword, confirmPassword }` | `200 { data: null, message: 'Contraseña restablecida' }` |
+
+No hay `GET /admins/:id` ni `DELETE`.
+
+`:id` = `Usuario.id` (`Int`). No UUID.
+
+### AdminDto
+
+```ts
+{
+  id: number;
+  usuario: string;
+  activo: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
 ```
 
-Estado:
+No viajan: `rol`, `updatedAt`, `creadoPor`, `passwordHash`, `tokenVersion`, sesiones, `Productor`.
 
-- `adminsRouter` existe.
-- No hay endpoints funcionales implementados en la ruta actual.
-- El modelo base para administradores usa `Usuario` con rol `ADMIN` o `SUPERADMIN`.
+Alta: persiste `rol = ADMIN`, `activo = true`, `creadoPorId` = SUPERADMIN caller (en DB, no en el DTO).
 
-Pendiente esperado:
+`usuario`: trim, sin espacios internos, minúsculas, 3–191, no se exige email. Unicidad global (cualquier rol) → `409 El usuario ya está registrado` (chequeo Prisma insensitive + `P2002`).
 
-- Definir contrato REST.
-- Definir permisos `ADMIN` vs `SUPERADMIN`.
-- Definir si un admin puede crear otros admins o solo superadmin.
-- Definir cambio de estado activo/inactivo.
-- CRUD y gestión de administradores (altas, edición, reset de password de **otro** admin). El cambio de **contraseña propia** ya está cubierto por Auth (D1A) y no forma parte de este CRUD.
-- Agregar validaciones Zod del módulo admins.
-- Agregar tests de integracion del módulo admins.
+`:id` no entero → `422`. Inexistente o `rol ≠ ADMIN` → `404 Administrador no encontrado`.
+
+### Sesiones
+
+Cambio **real** de `usuario`, desactivar (`true → false`) y reset: transacción `tokenVersion++` + `sesionToken.deleteMany` del objetivo. No se limpia la cookie del SUPERADMIN caller.
+
+Mismo `usuario` normalizado o mismo `activo` pedido: `200` **no-op** (sin writes de sesión).
+
+Reactivar: solo `activo = true`. No restaura tokens viejos.
+
+Reset: no usa `passwordChangeLimiter`. bcrypt coste **12**. Política compartida (`passwordSchema`).
+
+El frontend de D1B llama `GET /admins` **sin** query; el filtro `?activo=` existe para tests y usos recortados.
+
+Archivos: `backend/src/api/v1/routes/admins.routes.ts`, `controllers/admins.controller.ts`, `services/admins.service.ts`, `validations/admin.schema.ts`. Tests: `backend/tests/admins.integration.test.ts`.
 
 ---
 
 ## Frontend
 
-Rutas relacionadas:
+Ruta: `/admin/admins` (una sola pantalla; no hay `/admin/admins/inactivos`).
 
-```text
-/admin/admins
-/admin/mi-perfil
-```
+Router y sidebar ya restringían a `SUPERADMIN`; D1B no cambió permisos.
+
+### Cuenta principal
+
+Card informativa **arriba** del listado, datos del auth store (`usuario`, `rol`). Texto: Cuenta principal / usuario de sesión / Superadministrador / Activo. Sin editar, reset, desactivar ni menú. No consulta `GET /admins`. Otros SUPERADMIN (si existieran) no aparecen.
+
+### Listado
+
+`AdminsDashboard`: búsqueda y filtro Todos/Activos/Inactivos **client-side**; paginación `TablePagination` 8/16/32; tabla desktop + cards mobile.
+
+Columnas: Usuario, Estado, Último acceso (`relativeTimeFromNow` o **Nunca**), Creado, Acciones.
+
+Menú: Editar usuario, Restablecer contraseña, Desactivar/Reactivar. Sin ver perfil, eliminar ni cambiar rol.
+
+Componentes propios `Admin*` (no se reutilizan `ProducerTable` / `ProducerFormModal` / etc.). Primitivas shared: `Modal`, `PasswordField`, `TablePagination`, `getApiErrorMessage`, `passwordPolicyError`, `MapsFeedbackToast`.
+
+Hook `useAdminAdmins`: create/update/setActivo refetchean el listado; reset no. IDs `number`.
+
+Feedback de éxito: toast flotante (textos fijos: Administrador creado / Usuario actualizado / Administrador desactivado / Administrador reactivado / Contraseña restablecida) y highlight breve de fila/card si sigue visible.
 
 Archivos principales:
 
 - `frontend/src/modules/admin/pages/AdminsPage.tsx`
-- `frontend/src/modules/admin/pages/AdminProfilePage.tsx` (Mi perfil: datos de sesión + sección Seguridad)
-- `frontend/src/modules/auth/components/ChangePasswordForm.tsx`
-- `frontend/src/modules/auth/services/auth.service.ts`
-- `frontend/src/router/index.tsx`
-
-Regla actual del router:
-
-- `/admin/admins` requiere `SUPERADMIN`.
-- Las rutas generales de `/admin/*` requieren `ADMIN` o `SUPERADMIN`.
+- `frontend/src/modules/admin/components/AdminsDashboard.tsx`
+- `frontend/src/modules/admin/hooks/useAdminAdmins.ts`
+- `frontend/src/modules/admin/services/admins.service.ts`
+- `frontend/src/modules/admin/types/admin.ts`
 
 ---
 
-## Decisiones pendientes
+## Verificación
 
-Antes de implementar el modulo completo, definir:
-
-- Si `ADMIN` puede gestionar administradores o solo `SUPERADMIN`.
-- Campos editables de un administrador (CRUD; no confundir con el cambio de contraseña propia ya disponible).
-- Flujo de creacion de **otros** administradores: password inicial, invitacion o reset (D1B).
-- Auditoria: quien creo/modifico a quien.
-- Si se requiere historial de actividad o last login visible.
-- Si `/admin/mi-perfil` debe editar más datos de cuenta además de la contraseña propia. Hoy muestra usuario/rol y permite el cambio self-service.
+1. Login `SUPERADMIN` → `/admin/admins`: card propia + listado de ADMIN.
+2. Login `ADMIN` o `PRODUCTOR` → no ven el ítem; `/admin/admins` → unauthorized.
+3. Alta, edición de usuario, activar/desactivar y reset contra el contrato de arriba.
+4. `/admin/mi-perfil` sigue cambiando solo la contraseña propia (D1A).
 
 ---
 
-## Verificacion actual
+## Pendientes fuera de D1B
 
-1. Login como `SUPERADMIN`.
-2. Abrir `/admin/admins`.
-3. Confirmar acceso a la pantalla.
-4. Login como `ADMIN`.
-5. Intentar `/admin/admins` y confirmar denegacion/redireccion.
-6. Desde `/admin/mi-perfil` (ADMIN o SUPERADMIN), cambiar la contraseña propia. Debe pedir la actual, volver a `/login` y exigir la contraseña nueva.
-
----
-
-## Pendientes conocidos
-
-- API CRUD para administradores (D1B; no implementado).
-- Integracion frontend con API de gestión de admins.
-- Tests de permisos del CRUD de admins.
-- Definir flujo operacional de altas y reset de password de **otro** administrador.
-- Documentar contrato una vez definido.
+- Break-glass SUPERADMIN en GCP (no está en esta app).
+- Login case-sensitive vs `usuario` persistido en minúsculas (Auth).
+- Helper compartido `revokeUsuarioSessions` (Auth / Productores / Admins).
+- Runner de tests frontend (D5).
+- Forgot-password, MFA, auditoría rica, constraint DB de un solo SUPERADMIN.

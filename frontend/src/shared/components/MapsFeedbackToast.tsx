@@ -13,9 +13,16 @@ type ToastProps = {
   message: string;
   variant: MapsFeedbackVariant;
   onDismiss: () => void;
+  leaving?: boolean;
 };
 
-export function MapsFeedbackToast({ message, variant, onDismiss }: ToastProps) {
+const EXIT_MS = 180;
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+export function MapsFeedbackToast({ message, variant, onDismiss, leaving = false }: ToastProps) {
   const isSuccess = variant === 'success';
 
   return (
@@ -23,7 +30,8 @@ export function MapsFeedbackToast({ message, variant, onDismiss }: ToastProps) {
       role="status"
       aria-live="polite"
       className={[
-        'maps-feedback-toast pointer-events-auto flex max-w-sm items-start gap-3 rounded-xl border px-4 py-3 shadow-floating',
+        'pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl border px-4 py-3 shadow-floating',
+        leaving ? 'maps-feedback-toast-leave' : 'maps-feedback-toast',
         isSuccess
           ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
           : 'border-rose-200 bg-rose-50 text-rose-900',
@@ -94,14 +102,46 @@ type HostProps = {
 };
 
 export function MapsFeedbackToastHost({ toast, onDismiss }: HostProps) {
-  if (!toast) return null;
+  const [visible, setVisible] = useState<ToastState | null>(toast);
+  const [leaving, setLeaving] = useState(false);
+  const visibleRef = useRef<ToastState | null>(toast);
+
+  useEffect(() => {
+    if (toast) {
+      visibleRef.current = toast;
+      setVisible(toast);
+      setLeaving(false);
+      return;
+    }
+
+    if (!visibleRef.current) return undefined;
+
+    if (prefersReducedMotion()) {
+      visibleRef.current = null;
+      setVisible(null);
+      setLeaving(false);
+      return;
+    }
+
+    setLeaving(true);
+    const timeoutId = window.setTimeout(() => {
+      visibleRef.current = null;
+      setVisible(null);
+      setLeaving(false);
+    }, EXIT_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [toast]);
+
+  if (!visible) return null;
 
   return (
-    <div className="pointer-events-none fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-2">
+    <div className="pointer-events-none fixed inset-x-4 bottom-4 z-[100] flex flex-col items-stretch sm:inset-x-auto sm:bottom-6 sm:right-6 sm:items-end">
       <MapsFeedbackToast
-        key={toast.id}
-        message={toast.message}
-        variant={toast.variant}
+        key={visible.id}
+        message={visible.message}
+        variant={visible.variant}
+        leaving={leaving}
         onDismiss={onDismiss}
       />
     </div>

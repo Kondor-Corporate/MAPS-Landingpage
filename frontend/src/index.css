@@ -57,8 +57,48 @@ html {
   }
 }
 
+@keyframes maps-feedback-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
 .maps-feedback-toast {
   animation: maps-feedback-enter 0.22s ease-out;
+}
+
+.maps-feedback-toast-leave {
+  animation: maps-feedback-exit 0.18s ease-in forwards;
+}
+
+@keyframes maps-admin-row-highlight {
+  from {
+    background-color: rgba(0, 164, 192, 0.14);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.maps-admin-row-highlight {
+  animation: maps-admin-row-highlight 1s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .maps-feedback-toast,
+  .maps-feedback-toast-leave {
+    animation: none;
+  }
+
+  .maps-admin-row-highlight {
+    animation: none;
+    background-color: rgba(0, 164, 192, 0.08);
+  }
 }
 
 @keyframes maps-select-enter {
