@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
 import {
-  changeMyPassword,
   deleteMyCertificacion,
   getMyProducerProfile,
   updateMyProducerProfile,
@@ -9,7 +8,6 @@ import {
   uploadMyFoto,
 } from '@/modules/intranet/services/producerProfile.service';
 import type {
-  ChangeMyPasswordBody,
   ProducerProfile,
   UpdateMyProfileBody,
 } from '@/modules/intranet/types/producerProfile';
@@ -62,10 +60,6 @@ export function useProducerProfile() {
     [refetch],
   );
 
-  const changePassword = useCallback(async (body: ChangeMyPasswordBody) => {
-    await changeMyPassword(body);
-  }, []);
-
   const uploadFoto = useCallback(async (file: File) => {
     const updated = await uploadMyFoto(file);
     setProfile(updated);
@@ -80,7 +74,6 @@ export function useProducerProfile() {
     updateProfile,
     uploadCertificacion,
     deleteCertificacion,
-    changePassword,
     uploadFoto,
   };
 }

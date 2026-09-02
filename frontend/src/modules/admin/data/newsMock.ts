@@ -25,6 +25,7 @@ export const newsMock: News[] = [
     cuerpo:
       'Comunicamos los nuevos topes de cobertura para la cartera de Vida vigentes a partir del próximo período. Revisar la circular adjunta antes de cotizar nuevas pólizas.',
     imagenPortada: thumb('maps-vida-2024'),
+    galeria: [],
     fechaPublicacion: isoDaysAgo(206),
     ultimaModificacion: isoDaysAgo(206),
   },
@@ -37,6 +38,7 @@ export const newsMock: News[] = [
     cuerpo:
       'Se confirma la convención anual de productores en Cancún del 4 al 9 de noviembre. Cupos limitados según ranking de producción 2023.',
     imagenPortada: thumb('maps-cancun-evento'),
+    galeria: [],
     fechaPublicacion: isoDaysAgo(210),
     ultimaModificacion: isoDaysAgo(2),
   },
@@ -49,6 +51,7 @@ export const newsMock: News[] = [
     cuerpo:
       'A partir de esta semana, todas las pólizas emitidas desde SELF se sincronizan automáticamente con el módulo de facturación. Documentación completa en la biblioteca digital.',
     imagenPortada: thumb('maps-self-facturacion'),
+    galeria: [],
     fechaPublicacion: isoDaysAgo(14),
     ultimaModificacion: isoDaysAgo(14),
   },
@@ -61,6 +64,7 @@ export const newsMock: News[] = [
     cuerpo:
       'Actualización del esquema de comisiones para los ramos Auto y Hogar. La nueva grilla aplica a producción nueva desde el 1 del próximo mes.',
     imagenPortada: thumb('maps-circular-comisiones'),
+    galeria: [],
     fechaPublicacion: isoDaysAgo(40),
     ultimaModificacion: isoDaysAgo(38),
   },
@@ -73,6 +77,7 @@ export const newsMock: News[] = [
     cuerpo:
       'Sumamos sucursales en Bariloche y Neuquén para reforzar la red comercial en la Patagonia. Los productores zonales ya están operativos en SELF.',
     imagenPortada: thumb('maps-sur-expansion'),
+    galeria: [],
     fechaPublicacion: isoDaysAgo(72),
     ultimaModificacion: isoDaysAgo(70),
   },
@@ -85,6 +90,7 @@ export const newsMock: News[] = [
     cuerpo:
       'Borrador del nuevo horario de atención de la mesa de ayuda. Pendiente de aprobación por dirección antes de publicar.',
     imagenPortada: null,
+    galeria: [],
     fechaPublicacion: isoDaysAgo(0, 4),
     ultimaModificacion: isoDaysAgo(0, 4),
   },
@@ -97,6 +103,7 @@ export const newsMock: News[] = [
     cuerpo:
       'Webinar abierto sobre tendencias de IA en suscripción y siniestros. Cupo: 200 productores; se transmite también por el canal interno.',
     imagenPortada: thumb('maps-webinar-ia'),
+    galeria: [],
     fechaPublicacion: isoDaysAgo(5),
     ultimaModificacion: isoDaysAgo(5),
   },

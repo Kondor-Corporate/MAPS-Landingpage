@@ -2,6 +2,9 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { authController } from '../../../controllers/auth.controller.js';
 import { authenticate } from '../../../middlewares/authenticate.js';
+import { passwordChangeLimiter } from '../../../middlewares/passwordChangeLimiter.js';
+import { validate } from '../../../middlewares/validate.js';
+import { changeMyPasswordSchema } from '../../../validations/auth.schema.js';
 
 export const authRouter = Router();
 
@@ -26,3 +29,10 @@ const loginLimiter = rateLimit({
 authRouter.post('/login', loginLimiter, authController.login);
 authRouter.post('/refresh', authController.refresh);
 authRouter.post('/logout', authenticate, authController.logout);
+authRouter.patch(
+  '/me/password',
+  authenticate,
+  passwordChangeLimiter,
+  validate({ body: changeMyPasswordSchema }),
+  authController.changeMyPassword,
+);

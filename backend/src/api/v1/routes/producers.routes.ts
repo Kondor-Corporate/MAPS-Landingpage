@@ -2,6 +2,8 @@ import { Router } from 'express';
 
 import { Rol } from '@prisma/client';
 
+import { authController } from '../../../controllers/auth.controller.js';
+
 import { producersController } from '../../../controllers/producers.controller.js';
 
 import { authenticate } from '../../../middlewares/authenticate.js';
@@ -12,15 +14,17 @@ import { uploadCertificacionMiddleware } from '../../../middlewares/uploadCertif
 
 import { uploadFotoMiddleware } from '../../../middlewares/uploadFoto.js';
 
+import { passwordChangeLimiter } from '../../../middlewares/passwordChangeLimiter.js';
+
 import { validate } from '../../../middlewares/validate.js';
+
+import { changeMyPasswordSchema } from '../../../validations/auth.schema.js';
 
 import {
 
   bySlugParamSchema,
 
   certIdParamSchema,
-
-  changeMyPasswordSchema,
 
   updateMyProfileSchema,
 
@@ -122,9 +126,11 @@ producersRouter.patch(
 
   ...productorOnly,
 
+  passwordChangeLimiter,
+
   validate({ body: changeMyPasswordSchema }),
 
-  producersController.changeMyPassword,
+  authController.changeMyPassword,
 
 );
 

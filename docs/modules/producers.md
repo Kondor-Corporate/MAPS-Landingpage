@@ -16,6 +16,7 @@ Historial relacionado:
 - API admin productores: `docs/worklog/MAPS-009-admin-api-productores.md`.
 - Perfil productor y slug: `docs/worklog/MAPS-013-vista-perfil-productor.md`.
 - Credenciales administradas por admin: `docs/worklog/MAPS-016-credenciales-productores.md`.
+- Self-service de contraseña movido a Auth: `docs/worklog/D1A-cambio-self-password.md`.
 
 ---
 
@@ -31,8 +32,8 @@ Historial relacionado:
 | Mapa publico | Implementado |
 | Certificaciones PDF | Implementado con storage local/S3-compatible |
 | Credenciales individuales por productor (alta con password propia) | Implementado (MAPS-016) |
-| Cambio de contraseña self-service (perfil productor) | Implementado (MAPS-016) |
-| Restablecimiento de contraseña por admin | Implementado (MAPS-016) |
+| Cambio de contraseña self-service | Canónico en Auth (`PATCH /api/v1/auth/me/password`, D1A). El productor lo usa desde su perfil; `PATCH /producers/me/password` queda como alias temporal solo para `PRODUCTOR` |
+| Restablecimiento de contraseña por admin | Implementado (MAPS-016) — sigue en este dominio |
 | Paginacion/busqueda server-side | Pendiente |
 | Primer login por invitación (email) | Pendiente — hoy el admin define la password inicial directamente |
 
@@ -92,7 +93,7 @@ Requiere rol `PRODUCTOR`.
 |--------|------|-------------|
 | `GET` | `/producers/me` | Perfil propio |
 | `PATCH` | `/producers/me` | Edita campos permitidos del perfil propio |
-| `PATCH` | `/producers/me/password` | Cambia la contraseña propia (requiere `currentPassword`) |
+| `PATCH` | `/producers/me/password` | **Alias temporal** del cambio self-service. Solo `PRODUCTOR`. La lógica ya no pertenece a este dominio: delega en `authController.changeMyPassword` y el limiter/schema de Auth. El endpoint canónico es `PATCH /api/v1/auth/me/password` (cualquier `Usuario` autenticado; ver `docs/modules/auth.md`) |
 | `POST` | `/producers/me/foto` | Sube/reemplaza la foto de perfil propia (JPG/PNG/WEBP, máx. 5MB) |
 | `POST` | `/producers/me/certificaciones` | Sube certificacion PDF |
 | `DELETE` | `/producers/me/certificaciones/:certId` | Elimina certificacion propia |
@@ -164,7 +165,8 @@ Archivos principales:
 - `frontend/src/modules/intranet/hooks/useProducerProfile.ts`
 - `frontend/src/modules/intranet/services/producerProfile.service.ts`
 - `frontend/src/modules/intranet/components/ProducerProfileForm.tsx`
-- `frontend/src/modules/intranet/components/ChangePasswordForm.tsx` (MAPS-016)
+- `frontend/src/modules/auth/components/ChangePasswordForm.tsx` (formulario compartido de Auth; ya no vive en intranet)
+- `frontend/src/modules/auth/services/auth.service.ts` (`PATCH /auth/me/password`)
 - `frontend/src/shared/components/profile/`
 
 ### Web publica
@@ -214,6 +216,7 @@ Las certificaciones son PDFs asociados a productores. La foto de perfil (JPG/PNG
 Storage:
 
 - `local`: disco en `backend/uploads/certificaciones` y `backend/uploads/fotos`.
+- `gcs`: Cloud Storage privado (staging). El navegador no accede al bucket; el backend hace stream.
 - `s3`: bucket S3-compatible (prefijos `certificaciones/` y `fotos/`).
 
 Variables relacionadas:
@@ -252,8 +255,8 @@ Productor:
 3. Confirmar redireccion a `/intranet/perfil/:slug`.
 4. Editar campos permitidos.
 5. Subir/eliminar certificacion PDF.
-6. En la seccion "Seguridad", cambiar la contraseña (pide la actual).
-7. Cerrar sesion y volver a loguear con la contraseña nueva; la anterior debe fallar.
+6. En la seccion "Seguridad", cambiar la contraseña (pide la actual). El formulario es el de Auth y llama `PATCH /auth/me/password`.
+7. Tras el éxito la SPA limpia el auth store y vuelve a `/login` (no llama `POST /auth/logout`). Volver a entrar con la contraseña nueva; la anterior debe fallar.
 
 Publico:
 
@@ -271,5 +274,4 @@ Publico:
 - Auditoria/historial de cambios de contraseña (solo queda `Usuario.updatedAt`).
 - E2E admin/productor/publico.
 - Mejor manejo operacional de geocoding.
-- Upload de foto de perfil.
 - Definir politica final para storage productivo.

@@ -22,13 +22,27 @@ export type UploadFotoResult = {
   url: string;
 };
 
-export type StoredFileCategory = 'certificaciones' | 'fotos';
+export type UploadImagenNoticiaInput = {
+  buffer: Buffer;
+  mimeType: string;
+  noticiaId: number;
+};
+
+export type UploadImagenNoticiaResult = {
+  url: string;
+  mimeType: string;
+  tamanoBytes: number;
+};
+
+export type StoredFileCategory = 'certificaciones' | 'fotos' | 'noticias';
 
 const STORED_FILE_PATTERNS: Record<StoredFileCategory, RegExp> = {
   certificaciones:
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.pdf$/i,
   fotos:
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:jpg|png|webp)$/i,
+  noticias:
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:jpg|jpeg|png)$/i,
 };
 
 export function isStoredFilename(
@@ -50,6 +64,8 @@ export interface StorageAdapter {
   deleteCertificacion(url: string): Promise<void>;
   uploadFoto(input: UploadFotoInput): Promise<UploadFotoResult>;
   deleteFoto(url: string): Promise<void>;
+  uploadImagenNoticia(input: UploadImagenNoticiaInput): Promise<UploadImagenNoticiaResult>;
+  deleteImagenNoticia(url: string): Promise<void>;
   /**
    * Solo los proveedores privados que sirven archivos mediante el API implementan
    * lectura por stream. Local conserva express.static y S3 conserva sus URLs directas.

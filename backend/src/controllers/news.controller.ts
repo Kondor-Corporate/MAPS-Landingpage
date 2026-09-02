@@ -135,4 +135,53 @@ export const newsController = {
       next(err);
     }
   }) satisfies RequestHandler,
+
+  setPortada: (async (req, res, next) => {
+    try {
+      const id = Number.parseInt(req.params.id, 10);
+      const file = req.file;
+      if (!file) {
+        throw new AppError(400, 'Imagen requerida');
+      }
+      const updated = await newsService.setPortada(id, file);
+      res.json({ data: updated, message: 'OK', error: null });
+    } catch (err) {
+      next(err);
+    }
+  }) satisfies RequestHandler,
+
+  removePortada: (async (req, res, next) => {
+    try {
+      const id = Number.parseInt(req.params.id, 10);
+      const updated = await newsService.removePortada(id);
+      res.json({ data: updated, message: 'OK', error: null });
+    } catch (err) {
+      next(err);
+    }
+  }) satisfies RequestHandler,
+
+  addImagenGaleria: (async (req, res, next) => {
+    try {
+      const id = Number.parseInt(req.params.id, 10);
+      const file = req.file;
+      if (!file) {
+        throw new AppError(400, 'Imagen requerida');
+      }
+      const imagen = await newsService.addImagenGaleria(id, file);
+      res.status(201).json({ data: imagen, message: 'OK', error: null });
+    } catch (err) {
+      next(err);
+    }
+  }) satisfies RequestHandler,
+
+  removeImagenGaleria: (async (req, res, next) => {
+    try {
+      const id = Number.parseInt(req.params.id, 10);
+      const imagenId = Number.parseInt(req.params.imagenId, 10);
+      await newsService.removeImagenGaleria(id, imagenId);
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  }) satisfies RequestHandler,
 };

@@ -18,7 +18,7 @@ import {
 
 import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
 
-import { useAdminNews } from '@/modules/admin/hooks/useAdminNews';
+import { PartialCreateError, useAdminNews } from '@/modules/admin/hooks/useAdminNews';
 
 import { useNewsFilters } from '@/modules/admin/hooks/useNewsFilters';
 
@@ -26,7 +26,17 @@ import { NewsHeader } from '@/modules/admin/components/NewsHeader';
 
 import { NewsTabs, type NewsTab } from '@/modules/admin/components/NewsTabs';
 
-import { EMPTY_FORM, NewsForm, type NewsFormState } from '@/modules/admin/components/NewsForm';
+import {
+
+  EMPTY_FORM,
+
+  NewsForm,
+
+  type NewsFormState,
+
+  type NewsImageOps,
+
+} from '@/modules/admin/components/NewsForm';
 
 import { RecentNewsTable } from '@/modules/admin/components/RecentNewsTable';
 
@@ -53,6 +63,18 @@ function newsToFormState(n: News): NewsFormState {
     cuerpo: n.cuerpo,
 
     imagenPortada: n.imagenPortada,
+
+    portadaFile: null,
+
+    removePortada: false,
+
+    portadaCrop: null,
+
+    galeria: n.galeria,
+
+    galeriaNuevas: [],
+
+    galeriaEliminar: [],
 
     estado: n.estado,
 
@@ -212,7 +234,7 @@ export function NewsManagementDashboard() {
 
 
 
-  async function handleSubmit(input: NewsInput) {
+  async function handleSubmit(input: NewsInput, images: NewsImageOps) {
     setFormSubmitting(true);
     setFormError(null);
     setActionError(null);
@@ -221,7 +243,7 @@ export function NewsManagementDashboard() {
 
     try {
       if (editing) {
-        const updated = await updateNews(editing.id, input, publicada);
+        const updated = await updateNews(editing.id, input, publicada, images);
         resetFormAfterSuccess(updated.ultimaModificacion);
         if (publicada) {
           showSuccess('Noticia publicada');
@@ -231,7 +253,7 @@ export function NewsManagementDashboard() {
           showSuccess('Cambios guardados');
         }
       } else {
-        await createNews(input, publicada);
+        await createNews(input, publicada, images);
         setPage(1);
         resetFormAfterSuccess();
         showSuccess(publicada ? 'Noticia publicada' : 'Noticia creada correctamente');
@@ -240,6 +262,20 @@ export function NewsManagementDashboard() {
       const msg = getApiErrorMessage(err);
       setFormError(msg);
       showError('No se pudo completar la acción');
+      if (err instanceof PartialCreateError) {
+        // El texto ya se creó pero falló una imagen: pasar a edición sobre esa
+        // noticia para que reintentar la actualice en vez de duplicarla.
+        const created = err.createdNews;
+        setEditing(created);
+        setPage(1);
+        setFormState((prev) => ({
+          ...newsToFormState(created),
+          portadaFile: prev.portadaFile,
+          removePortada: prev.removePortada,
+          galeriaNuevas: prev.galeriaNuevas,
+          galeriaEliminar: prev.galeriaEliminar,
+        }));
+      }
       throw err;
     } finally {
       setFormSubmitting(false);

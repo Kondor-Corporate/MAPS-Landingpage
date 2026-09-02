@@ -25,6 +25,8 @@ export const useNews = create<NewsState>((set) => ({
     const created: News = {
       id: generateId(),
       ...input,
+      imagenPortada: null,
+      galeria: [],
       ultimaModificacion: now,
     };
     set((state) => ({ news: [created, ...state.news] }));

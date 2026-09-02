@@ -8,6 +8,12 @@ export type NewsEstado = 'BORRADOR' | 'PUBLICADO' | 'DESPUBLICADA';
 
 export type NewsCategoria = 'NOVEDAD' | 'EVENTO' | 'CIRCULAR' | 'PRODUCTO' | 'COMUNICADO';
 
+export type NewsGaleriaImagen = {
+  id: number;
+  url: string;
+  orden: number;
+};
+
 export type News = {
   id: string;
   titulo: string;
@@ -16,11 +22,13 @@ export type News = {
   estado: NewsEstado;
   cuerpo: string;
   imagenPortada: string | null;
+  galeria: NewsGaleriaImagen[];
   fechaPublicacion: string;
   ultimaModificacion: string;
 };
 
-export type NewsInput = Omit<News, 'id' | 'ultimaModificacion'>;
+// El texto se envía por JSON; portada y galería se suben aparte como archivos.
+export type NewsInput = Omit<News, 'id' | 'ultimaModificacion' | 'imagenPortada' | 'galeria'>;
 
 export const CATEGORIA_OPTIONS: { value: NewsCategoria; label: string }[] = [
   { value: 'NOVEDAD', label: 'Novedad' },

@@ -1,97 +1,212 @@
 /**
- * Campo de portada por URL https (MAPS-014).
- * Valida formato en cliente; el upload real queda pendiente para una fase de storage.
+ * Selector de portada por archivo (MAPS-019).
+ * Preview compacto con drag & drop, acciones en fila (Cambiar/Reencuadrar/Eliminar)
+ * y editor de encuadre (posición + zoom) aplicado vía `object-position` en el preview.
+ * La subida real la orquesta el formulario tras crear/editar la noticia.
  */
-import { useEffect, useMemo, useState } from 'react';
-import { ImagePlus, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Crop, ImagePlus, RefreshCw, Trash2 } from 'lucide-react';
+import { NewsCoverCropModal, type CoverCropValue } from '@/modules/admin/components/NewsCoverCropModal';
 
-type Props = {
-  value: string | null;
-  onChange: (url: string | null) => void;
-  showError?: boolean;
-};
+export const NEWS_IMAGE_ACCEPT = 'image/jpeg,image/png';
+export const NEWS_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png']);
 
-function validateImageUrl(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith('data:')) return 'No se permiten data URLs.';
-  if (!trimmed.startsWith('https://')) return 'Debe comenzar con https://';
-  try {
-    new URL(trimmed);
-    return null;
-  } catch {
-    return 'URL inválida.';
+/** Valida tipo y tamaño en cliente; devuelve mensaje de error o null. */
+export function validateNewsImageFile(file: File): string | null {
+  if (!ALLOWED_MIME_TYPES.has(file.type)) {
+    return 'La imagen debe ser JPG, JPEG o PNG.';
   }
+  if (file.size > NEWS_IMAGE_MAX_BYTES) {
+    return 'El archivo supera el tamaño máximo de 10 MB.';
+  }
+  return null;
 }
 
-export function NewsImageUploader({ value, onChange, showError = false }: Props) {
-  const [draft, setDraft] = useState(value ?? '');
+export type { CoverCropValue };
+
+type Props = {
+  /** URL de portada ya persistida (se muestra si no hay archivo pendiente). */
+  previewUrl: string | null;
+  /** Archivo seleccionado aún no subido (create, o reemplazo en edit). */
+  pendingFile: File | null;
+  /** Encuadre elegido para la portada (pendiente de soporte en backend). */
+  crop: CoverCropValue | null;
+  disabled?: boolean;
+  onSelectFile: (file: File) => void;
+  onRemove: () => void;
+  onCropChange: (crop: CoverCropValue | null) => void;
+};
+
+export function NewsImageUploader({
+  previewUrl,
+  pendingFile,
+  crop,
+  disabled = false,
+  onSelectFile,
+  onRemove,
+  onCropChange,
+}: Props) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isCropOpen, setIsCropOpen] = useState(false);
 
   useEffect(() => {
-    setDraft(value ?? '');
-  }, [value]);
-
-  const validationError = useMemo(() => validateImageUrl(draft), [draft]);
-  const displayUrl = value && !validationError ? value : null;
-
-  function commitUrl(next: string) {
-    setDraft(next);
-    const err = validateImageUrl(next);
-    if (err) {
-      onChange(null);
+    if (!pendingFile) {
+      setPendingUrl(null);
       return;
     }
-    onChange(next.trim() || null);
+    const url = URL.createObjectURL(pendingFile);
+    setPendingUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pendingFile]);
+
+  const displayUrl = pendingUrl ?? previewUrl;
+
+  function acceptFile(file: File) {
+    const validationError = validateNewsImageFile(file);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setError(null);
+    onCropChange(null);
+    onSelectFile(file);
   }
 
-  if (displayUrl) {
-    return (
-      <div className="flex flex-col gap-2">
-        <div className="relative h-24 w-full overflow-hidden rounded-lg border border-maps-border bg-maps-surface">
-          <img src={displayUrl} alt="Portada de la noticia" className="h-full w-full object-cover" />
-          <button
-            type="button"
-            onClick={() => {
-              setDraft('');
-              onChange(null);
-            }}
-            className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-maps-muted shadow-card transition hover:text-rose-600"
-            aria-label="Quitar imagen"
-          >
-            <X size={14} strokeWidth={2} />
-          </button>
-        </div>
-        <input
-          type="url"
-          value={draft}
-          onChange={(e) => commitUrl(e.target.value)}
-          placeholder="https://..."
-          className="rounded-lg border border-maps-border bg-white px-3 py-2 text-xs text-maps-heading placeholder:text-maps-muted-soft focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
-        />
-      </div>
-    );
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite volver a elegir el mismo archivo
+    if (!file) return;
+    acceptFile(file);
+  }
+
+  function handleRemove() {
+    setError(null);
+    onCropChange(null);
+    onRemove();
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (disabled) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) acceptFile(file);
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    if (!disabled) setIsDragOver(true);
+  }
+
+  function handleDragLeave() {
+    setIsDragOver(false);
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
-        <span className="flex h-[42px] shrink-0 items-center justify-center rounded-lg border border-dashed border-maps-border bg-white px-3 text-maps-muted">
-          <ImagePlus size={16} strokeWidth={1.75} />
-        </span>
-        <input
-          type="url"
-          value={draft}
-          onChange={(e) => commitUrl(e.target.value)}
-          placeholder="https://ejemplo.com/imagen.jpg"
-          className="h-[42px] min-w-0 flex-1 rounded-lg border border-dashed border-maps-border bg-white px-3 text-sm text-maps-heading placeholder:text-maps-muted-soft focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
-        />
-      </div>
-      {showError && validationError ? (
-        <span className="text-xs text-rose-600">{validationError}</span>
-      ) : null}
-      <span className="text-[11px] text-maps-muted">URL opcional. Solo https://</span>
+    <div className="flex flex-col gap-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept={NEWS_IMAGE_ACCEPT}
+        disabled={disabled}
+        onChange={handleChange}
+        className="hidden"
+        aria-label="Seleccionar imagen de portada"
+      />
+
+      {displayUrl ? (
+        <div className="flex flex-col gap-2">
+          <div
+            className={`relative h-[180px] w-full max-w-[420px] overflow-hidden rounded-xl border bg-maps-surface transition ${
+              isDragOver ? 'border-maps-brand ring-2 ring-maps-brand/20' : 'border-maps-border'
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <img
+              src={displayUrl}
+              alt="Portada de la noticia"
+              className="h-full w-full object-cover"
+              style={{ objectPosition: crop?.objectPosition ?? '50% 50%' }}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={disabled}
+              title="Cambiar imagen"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-maps-border bg-white px-2.5 py-1.5 text-xs font-semibold text-maps-body transition hover:bg-maps-surface disabled:opacity-60"
+            >
+              <RefreshCw size={13} strokeWidth={2} />
+              Cambiar
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsCropOpen(true)}
+              disabled={disabled}
+              title="Reencuadrar imagen"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-maps-border bg-white px-2.5 py-1.5 text-xs font-semibold text-maps-body transition hover:bg-maps-surface disabled:opacity-60"
+            >
+              <Crop size={13} strokeWidth={2} />
+              Reencuadrar
+            </button>
+            <button
+              type="button"
+              onClick={handleRemove}
+              disabled={disabled}
+              title="Eliminar imagen"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-maps-border bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
+            >
+              <Trash2 size={13} strokeWidth={2} />
+              Eliminar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          className={`h-[140px] w-full max-w-[420px] rounded-xl border border-dashed transition ${
+            isDragOver ? 'border-maps-brand bg-maps-brand-soft/40' : 'border-maps-border bg-white'
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={disabled}
+            className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-maps-muted transition hover:text-maps-brand disabled:opacity-60"
+          >
+            <ImagePlus size={20} strokeWidth={1.75} />
+            <span className="text-sm font-medium">Seleccionar imagen</span>
+            <span className="text-[11px]">JPG, JPEG o PNG</span>
+          </button>
+        </div>
+      )}
+
+      {error ? (
+        <span className="text-xs text-rose-600">{error}</span>
+      ) : (
+        <span className="text-[11px] text-maps-muted">JPG, JPEG o PNG · máximo 10 MB</span>
+      )}
+
+      <NewsCoverCropModal
+        isOpen={isCropOpen}
+        imageUrl={displayUrl}
+        initialValue={crop}
+        onCancel={() => setIsCropOpen(false)}
+        onSave={(value) => {
+          onCropChange(value);
+          setIsCropOpen(false);
+        }}
+      />
     </div>
   );
 }
-
-export { validateImageUrl };

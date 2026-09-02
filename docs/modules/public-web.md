@@ -124,7 +124,7 @@ Detalle completo del modulo: [`news.md`](./news.md).
 
 Landing:
 
-1. Abrir `http://localhost:5173`.
+1. Abrir `http://127.0.0.1:5173`.
 2. Confirmar hero, secciones institucionales y CTA.
 3. Confirmar que no hay errores de consola relevantes.
 

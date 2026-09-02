@@ -1,12 +1,19 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
-import { ChangePasswordForm } from '@/modules/intranet/components/ChangePasswordForm';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  ChangePasswordForm,
+  PASSWORD_CHANGE_SUCCESS_REDIRECT_MS,
+} from '@/modules/auth/components/ChangePasswordForm';
 
 /**
- * MAPS-016: no ejecuta todavía (sin runner de tests wireado en el frontend,
+ * MAPS-016 / D1A: no ejecuta todavía (sin runner de tests wireado en el frontend,
  * ver docs/TESTING.md). Escrito siguiendo el patrón de `LoginPage.test.tsx`.
  */
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function renderModal(overrides: Partial<React.ComponentProps<typeof ChangePasswordForm>> = {}) {
   const changePassword = vi.fn().mockResolvedValue(undefined);
@@ -62,8 +69,52 @@ describe('ChangePasswordForm', () => {
     expect(changePassword).not.toHaveBeenCalled();
   });
 
-  it('submit exitoso llama a changePassword, onSaved y onClose', async () => {
+  it('en el estado formulario el botón cerrar del modal está visible', () => {
+    renderModal();
+    expect(screen.getByRole('button', { name: /cerrar modal/i })).toBeInTheDocument();
+  });
+
+  it('durante el envío el botón cerrar sigue visible', async () => {
+    let resolveChange!: () => void;
+    const changePassword = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveChange = resolve;
+        }),
+    );
     const user = userEvent.setup();
+    renderModal({ changePassword });
+
+    await user.type(screen.getByLabelText(/contraseña actual/i), 'Temporal123');
+    await user.type(screen.getByLabelText(/^nueva contraseña/i), 'NuevaClave456');
+    await user.type(screen.getByLabelText(/confirmar nueva contraseña/i), 'NuevaClave456');
+    await user.click(screen.getByRole('button', { name: /^cambiar contraseña$/i }));
+
+    expect(screen.getByText('Guardando…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /cerrar modal/i })).toBeInTheDocument();
+    resolveChange();
+  });
+
+  it('escribir varios caracteres mantiene el foco en el input activo', async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    const current = screen.getByLabelText(/contraseña actual/i);
+    await user.type(current, 'Temporal123');
+    expect(current).toHaveFocus();
+
+    const next = screen.getByLabelText(/^nueva contraseña/i);
+    await user.type(next, 'NuevaClave456');
+    expect(next).toHaveFocus();
+
+    const confirm = screen.getByLabelText(/confirmar nueva contraseña/i);
+    await user.type(confirm, 'NuevaClave456');
+    expect(confirm).toHaveFocus();
+  });
+
+  it('tras éxito muestra confirmación, no llama onSaved de inmediato y luego lo hace una sola vez', async () => {
+    vi.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const { changePassword, onSaved, onClose } = renderModal();
 
     await user.type(screen.getByLabelText(/contraseña actual/i), 'Temporal123');
@@ -76,8 +127,23 @@ describe('ChangePasswordForm', () => {
       newPassword: 'NuevaClave456',
       confirmPassword: 'NuevaClave456',
     });
-    await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(onClose).toHaveBeenCalled();
+
+    expect(await screen.findByText('Contraseña actualizada')).toBeInTheDocument();
+    expect(screen.getByText(/por seguridad, tenés que iniciar sesión nuevamente/i)).toBeInTheDocument();
+    expect(screen.getByText(/redirigiendo al inicio de sesión/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/contraseña actual/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^cambiar contraseña$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^cancelar$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /cerrar modal/i })).not.toBeInTheDocument();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(PASSWORD_CHANGE_SUCCESS_REDIRECT_MS - 1);
+    expect(onSaved).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('muestra error si la contraseña actual es incorrecta (400 del backend) y no cierra el modal', async () => {
