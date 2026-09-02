@@ -2,7 +2,7 @@
 
 Estrategia de pruebas y verificaciones del proyecto MAPS Asesores.
 
-Este documento describe el estado actual. Si se agregan nuevos niveles de prueba, actualizarlo en el mismo PR.
+Este documento describe el estado **actual y ejecutable**. Si se agregan runners o niveles nuevos, actualizarlo en el mismo PR.
 
 ---
 
@@ -19,7 +19,7 @@ npm run build
 npm test
 ```
 
-Frontend:
+Frontend (calidad; **no hay runner de tests**):
 
 ```bash
 cd frontend
@@ -47,8 +47,8 @@ Checklist orientativo tras levantar el entorno local o Docker:
 
 | # | Verificacion | Como |
 |---|--------------|------|
-| 1 | Frontend responde | Abrir `http://localhost:5173` |
-| 2 | Backend health | `GET http://localhost:3000/api/v1/health` → 200 |
+| 1 | Frontend responde | Abrir `http://127.0.0.1:5173` (URL canonica local) |
+| 2 | Backend health | `GET http://127.0.0.1:3000/api/v1/health` → 200 |
 | 3 | DB conectada | Health OK + login no falla por error de conexion |
 | 4 | Login admin seed | `admin` / `Admin1234!` → dashboard admin |
 | 5 | Mapa publico | `/#mapa` muestra marcadores (requiere seed) |
@@ -57,39 +57,23 @@ Checklist orientativo tras levantar el entorno local o Docker:
 
 Si el health responde pero login o listados fallan con errores SQL, probablemente faltaron `migrate deploy` y/o `db:seed`.
 
+No mezclar `localhost` y `127.0.0.1` al abrir el frontend: las cookies de refresh no se comparten entre ambos hosts.
+
 ---
 
 ## Backend
 
-Stack:
+Stack ejecutable:
 
-- Vitest.
-- Supertest.
-- Express app en memoria via `createApp()`.
+- Vitest (`npm test` / `npm run test:watch`).
+- Supertest contra la app Express via `createApp()`.
 - PostgreSQL real via `DATABASE_URL`.
 
-Tests principales:
-
-| Archivo | Cobertura |
-|---------|-----------|
-| `backend/tests/auth.integration.test.ts` | Login, refresh, logout y errores auth |
-| `backend/tests/producers.integration.test.ts` | CRUD admin de productores, permisos y validaciones |
-| `backend/tests/producersProfile.integration.test.ts` | Perfil productor, slug y datos de perfil |
-| `backend/tests/producersMap.integration.test.ts` | API publica de mapa |
-| `backend/tests/authorize-validate.middleware.test.ts` | Middlewares RBAC y Zod |
-
-Comando:
+Hay suites de integracion (auth, productores, perfil, mapa, noticias, geocode, middlewares) y suites unitarias (storage/GCS, env, bootstrap, schemas). La lista de archivos cambia con cada feature: **no tratar este documento como inventario**. La fuente es `backend/tests/` y el comando `npm test`.
 
 ```bash
 cd backend
 npm test
-```
-
-Modo watch:
-
-```bash
-cd backend
-npm run test:watch
 ```
 
 ### Base de datos para tests
@@ -110,22 +94,11 @@ En local, evitar correr tests contra una base con datos importantes. Para desarr
 
 ## Frontend
 
-Stack:
+**No hay runner operativo.** `frontend/package.json` no declara script `test` ni dependencias de Vitest / React Testing Library.
 
-- Vitest.
-- React Testing Library donde aplica.
-- Tests unitarios/de integracion de store, router, componentes y cliente HTTP.
+Existen archivos `frontend/src/tests/**/*.test.*`. Son fundacion de tests, no una suite ejecutable. No afirmar que Vitest o RTL corren en local ni en CI.
 
-Tests existentes:
-
-| Carpeta | Cobertura |
-|---------|-----------|
-| `frontend/src/tests/store/` | Store de autenticacion |
-| `frontend/src/tests/router/` | Guards y routing |
-| `frontend/src/tests/lib/` | Cliente Axios e interceptores |
-| `frontend/src/tests/components/` | Componentes/paginas relevantes |
-
-Comandos de calidad:
+Calidad que si se ejecuta:
 
 ```bash
 cd frontend
@@ -134,34 +107,17 @@ npm run lint
 npm run build
 ```
 
-Si se agrega un script de test frontend formal, documentarlo aca y sumarlo al checklist de PR.
+Activar el runner, cablear CI y decidir el destino de esos archivos queda en **D5** (testing / deuda). No se instalo en D1A.
 
 ---
 
 ## CI
 
-Workflow:
+Workflow: `.github/workflows/ci.yml` (Node 22).
 
-- `.github/workflows/ci.yml`
+Backend: `npm ci` → Prisma migrate/seed → typecheck → lint → build → `npm test`.
 
-El pipeline ejecuta:
-
-Backend:
-
-1. `npm ci`
-2. `npx prisma migrate deploy`
-3. `npx prisma db seed`
-4. `npm run typecheck`
-5. `npm run lint`
-6. `npm run build`
-7. `npm test`
-
-Frontend:
-
-1. `npm ci`
-2. `npm run typecheck`
-3. `npm run lint`
-4. `npm run build`
+Frontend: `npm ci` → typecheck → lint → build. **Sin** `npm test`.
 
 ---
 
@@ -169,21 +125,7 @@ Frontend:
 
 Estado actual: pendiente.
 
-Cuando se incorpore E2E, la recomendacion es usar Playwright con un entorno aislado:
-
-- Base de datos de test separada.
-- Compose especifico o perfil de compose para E2E.
-- Seed minimo y determinista.
-- Limpieza de datos entre suites.
-- Selectores accesibles (`getByRole`, `getByText`) antes que selectores fragiles.
-
-Flujos candidatos:
-
-- Login admin -> dashboard -> logout.
-- Login productor -> intranet -> perfil propio.
-- Admin crea productor -> aparece en listado.
-- Productor publico aparece en mapa/perfil por slug.
-- Biblioteca visible para productor y CRUD para admin.
+Cuando se incorpore, la recomendacion es Playwright con entorno aislado (DB de test, seed minimo, limpieza entre suites, selectores accesibles). Flujos candidatos: login admin/productor, CRUD productor, mapa/perfil, biblioteca, noticias.
 
 ---
 
@@ -192,7 +134,7 @@ Flujos candidatos:
 Elegir segun alcance:
 
 - Cambios backend: typecheck, lint, build y tests backend.
-- Cambios frontend: typecheck, lint y build frontend.
+- Cambios frontend: typecheck, lint y build frontend (no hay `npm test` frontend).
 - Cambios de schema Prisma: migracion, `migrate deploy` y seed.
 - Cambios Docker: `docker compose up -d --build` y healthchecks.
 - Cambios UI: verificacion manual en navegador y captura si corresponde.

@@ -18,15 +18,15 @@ Fuera de alcance actual: ecommerce y cotizador.
 
 | Modulo | Estado | Backend/API |
 |--------|--------|-------------|
-| Auth y routing | Implementado | `/api/v1/auth` |
+| Auth y routing | Implementado | `/api/v1/auth` (incluye cambio self-service de contraseña, D1A) |
 | Productores admin | Implementado | `/api/v1/producers` |
 | Perfil productor | Implementado | `/api/v1/producers/me`, `/api/v1/producers/by-slug/:slug` |
 | Mapa publico | Implementado | `/api/v1/producers/map` |
 | Biblioteca digital | Implementado para ramos | `/api/v1/library/ramos` |
 | Noticias | Implementado | `/api/v1/news` |
-| Landing publica | Parcial | TeamSection real (API mapa); CTA al mapa (#mapa); contacto sin backend |
+| Landing publica | Parcial | Mapa y noticias por API; equipo institucional estático (`OurTeamSection`, no API); CTA al mapa (`#mapa`); contacto sin backend |
 | Portal SELF | Pendiente / deshabilitado | Sin URL configurada (`SELF_PORTAL_URL = null`) |
-| Admins | UI/ruta existente | API pendiente |
+| Admins | Parcial | Perfil + cambio de contraseña propia (D1A); CRUD de administradores pendiente (D1B) |
 | E2E browser | Pendiente | N/A |
 
 Los documentos historicos en `docs/tdd/` y `docs/worklog/` explican como se llego a este estado, pero no reemplazan esta tabla ni la documentacion viva en `docs/`.
@@ -48,7 +48,7 @@ Los documentos historicos en `docs/tdd/` y `docs/worklog/` explican como se lleg
 
 ### Backend
 
-- Node.js 20+.
+- Node.js 22+ (`engines.node` del backend: `>=22`).
 - Express.
 - TypeScript.
 - Prisma.
@@ -64,12 +64,18 @@ Los documentos historicos en `docs/tdd/` y `docs/worklog/` explican como se lleg
 - Backend Node en contenedor.
 - Frontend Vite dev server en contenedor.
 
+### Staging GCP
+
+Hay un entorno de **staging operativo** en Google Cloud (Cloud Run frontend/backend, Cloud SQL PostgreSQL, GCS privado). Contrato y operación: [`docs/GCP_STAGING_RUNBOOK.md`](./docs/GCP_STAGING_RUNBOOK.md).
+
+Producción no está documentada como desplegada.
+
 ---
 
 ## Requisitos
 
 - Docker Desktop.
-- Node.js 20+ si vas a correr comandos fuera de Docker.
+- Node.js 22+ si vas a correr comandos fuera de Docker (alineado con `backend/package.json` `engines` y con las imágenes Docker).
 - npm.
 
 Verificar:
@@ -332,6 +338,7 @@ Arquitectura completa: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 - [`docs/TESTING.md`](./docs/TESTING.md): testing y CI.
 - [`docs/MIGRATIONS.md`](./docs/MIGRATIONS.md): Prisma, migraciones y seed.
 - [`docs/CHANGELOG.md`](./docs/CHANGELOG.md): cambios relevantes.
+- [`docs/GCP_STAGING_RUNBOOK.md`](./docs/GCP_STAGING_RUNBOOK.md): contrato y operación de staging en GCP.
 - [`docs/modules/auth.md`](./docs/modules/auth.md): auth, routing y roles.
 - [`docs/modules/producers.md`](./docs/modules/producers.md): productores, perfiles, mapa y certificaciones.
 - [`docs/modules/library.md`](./docs/modules/library.md): biblioteca digital.
@@ -368,7 +375,7 @@ Detalle: [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md).
 | `JWT_EXPIRES_IN` | Duracion del access token (ej. `15m`). |
 | `REFRESH_SECRET` | Firma del refresh token. Minimo 32 caracteres en produccion. |
 | `REFRESH_EXPIRES_IN` | Duracion del refresh token (ej. `30d`). |
-| `STORAGE_PROVIDER` | `local` (disco en `backend/uploads/certificaciones/`) o `s3` (produccion). |
+| `STORAGE_PROVIDER` | `local` (disco), `gcs` (staging GCP) o `s3`. |
 | `API_PUBLIC_URL` | Base publica del backend para URLs de descarga de certificaciones (ej. `http://localhost:3000`). |
 | `NOMINATIM_USER_AGENT` | Identificacion de la app ante Nominatim (ToS de OpenStreetMap). Usado por geocoding server-side. |
 | `DEFAULT_PRODUCER_PASSWORD` | Solo para `prisma/seed.ts`. El alta real de productores exige `password` individual (MAPS-016). |

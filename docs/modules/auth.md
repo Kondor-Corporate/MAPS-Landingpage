@@ -23,7 +23,7 @@ El modulo de autenticacion permite que productores, administradores y superadmin
 | Frontend | React, React Router, Zustand, Axios |
 | Backend | Express, JWT, cookie-parser, Zod, Prisma |
 | Seguridad | Cookies httpOnly, RBAC, rate limit en login, CORS con credenciales |
-| Tests | Vitest + Supertest en backend; tests de router/store en frontend |
+| Tests | Vitest + Supertest en backend. Archivos `*.test.*` de frontend existen; el runner no está cableado (D5) |
 
 ---
 
@@ -144,14 +144,14 @@ JWT_SECRET=dev_access_secret_change_me_32_chars_minimum
 JWT_EXPIRES_IN=15m
 REFRESH_SECRET=dev_refresh_secret_change_me_32_chars_minimum
 REFRESH_EXPIRES_IN=30d
-FRONTEND_ORIGIN=http://localhost:5173
+FRONTEND_ORIGIN=http://127.0.0.1:5173,http://localhost:5173
 ALLOW_REFRESH_BODY=false
 ```
 
 Frontend:
 
 ```env
-VITE_API_BASE_URL=http://localhost:3000/api/v1
+VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1
 ```
 
 ---
@@ -160,7 +160,7 @@ VITE_API_BASE_URL=http://localhost:3000/api/v1
 
 1. Levantar servicios y base de datos.
 2. Aplicar migraciones y seed.
-3. Abrir `http://localhost:5173`.
+3. Abrir `http://127.0.0.1:5173`.
 4. Login con usuario seed `admin` / `Admin1234!`.
 5. Verificar redireccion a `/admin/dashboard`.
 6. Logout y confirmar retorno a `/login`.
@@ -171,7 +171,7 @@ VITE_API_BASE_URL=http://localhost:3000/api/v1
 API:
 
 ```bash
-curl -s -X POST http://localhost:3000/api/v1/auth/login \
+curl -s -X POST http://127.0.0.1:3000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d "{\"usuario\":\"admin\",\"password\":\"Admin1234!\"}"
 ```
@@ -188,9 +188,7 @@ Backend:
 
 Frontend:
 
-- `frontend/src/tests/store/authStore.test.ts`
-- `frontend/src/tests/router/guards.test.tsx`
-- `frontend/src/tests/lib/axios.test.ts`
+- Existen archivos en `frontend/src/tests/` (store, guards, axios, `ChangePasswordForm`). No hay runner Vitest en `frontend/package.json`; no se ejecutan en CI. Pendiente D5.
 
 ---
 

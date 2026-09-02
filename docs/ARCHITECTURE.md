@@ -13,11 +13,14 @@ MAPS es un monorepo full-stack compuesto por:
 | Capa | Ubicacion | Stack |
 |------|-----------|-------|
 | Frontend | `frontend/` | React, Vite, TypeScript, Tailwind, React Router, Zustand, Axios |
-| Backend | `backend/` | Node.js, Express, TypeScript, Prisma, PostgreSQL |
+| Backend | `backend/` | Node.js 22+, Express, TypeScript, Prisma, PostgreSQL |
 | Base de datos | `backend/prisma/` | Prisma schema + migraciones SQL |
 | Infra local | `docker-compose.yml` | PostgreSQL, backend y frontend de desarrollo |
+| Staging | GCP (`maps-staging-landing-page`) | Cloud Run + Cloud SQL + GCS — ver [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md) |
 
 No se usan npm workspaces: `frontend/` y `backend/` tienen `package.json` y `package-lock.json` independientes.
+
+Runtime: el backend declara `engines.node: ">=22"`. Imagenes Docker y CI usan Node 22.
 
 ---
 
@@ -36,9 +39,34 @@ Relaciones:
 - `frontend` depende de `backend` saludable.
 - `backend` depende de `db` saludable.
 - `backend` usa `DATABASE_URL` con host Docker `db`.
-- El navegador consume la API via `http://localhost:3000/api/v1`.
+- El navegador consume la API via `http://127.0.0.1:3000/api/v1`.
+
+URL canonica local del frontend: `http://127.0.0.1:5173`. No mezclar `localhost` y `127.0.0.1`: el navegador los trata como sitios distintos para cookies HttpOnly (`SameSite=Lax`). Detalle en el README raiz.
 
 El compose esta orientado a desarrollo. No incluye TLS, reverse proxy productivo ni migraciones automaticas al arranque.
+
+---
+
+## Topologia staging GCP
+
+Staging **existe y esta operativo**. Este documento no copia el runbook: solo ubica las piezas.
+
+| Pieza | Rol |
+|-------|-----|
+| Cloud Run frontend | SPA publica; Nginx proxea `/api/*` al backend |
+| Cloud Run backend | API Express; invocable publicamente en este staging |
+| Cloud SQL PostgreSQL | Base de staging; no se seedéa con datos demo |
+| Cloud Storage (GCS) | Bucket privado; el navegador no accede directo |
+| Job migrate | `prisma migrate deploy` (target Docker `jobs`) |
+| Job bootstrap | Crea el primer `SUPERADMIN` (sin seed demo) |
+| Secret Manager | Secretos de aplicacion (no se documentan valores) |
+| IAM | Service accounts dedicadas por rol |
+
+Proyecto GCP: `maps-staging-landing-page`. Region: `southamerica-east1`.
+
+Local y staging son entornos distintos: Compose + seed demo vs Cloud Run + migrate/bootstrap. Contrato operativo: [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md).
+
+Produccion no esta documentada como desplegada.
 
 ---
 
@@ -167,6 +195,7 @@ Backend:
 - Sesiones persistidas como hash en `SesionToken`.
 - `authenticate` valida access token.
 - `authorize` restringe por rol.
+- Cambio self-service de contraseña: `PATCH /api/v1/auth/me/password` para cualquier `Usuario` autenticado (D1A). Revoca `SesionToken` e incrementa `tokenVersion`.
 
 Frontend:
 
@@ -207,12 +236,12 @@ Las migraciones deben versionarse en Git. Para el flujo detallado, ver `docs/MIG
 
 | Modulo | Estado actual resumido |
 |--------|------------------------|
-| [Auth/routing](./modules/auth.md) | Implementado |
+| [Auth/routing](./modules/auth.md) | Implementado (incluye self-service de contraseña, D1A) |
 | [Productores](./modules/producers.md) | CRUD admin, perfil productor, mapa publico y certificaciones |
 | [Biblioteca](./modules/library.md) | API real de ramos e integracion frontend |
 | [Web publica/mapa](./modules/public-web.md) | Landing, mapa y perfil publico conectados a productores |
 | [Noticias](./modules/news.md) | API real; admin, Home, intranet conectados |
-| [Admins](./modules/admins.md) | UI/ruta existente; API pendiente |
+| [Admins](./modules/admins.md) | Perfil + cambio de contraseña propia; CRUD API pendiente (D1B) |
 
 Los detalles de cada modulo deben vivir en `docs/modules/*.md`.
 
@@ -225,7 +254,7 @@ Backend valida variables en `backend/src/config/env.ts`.
 Frontend usa variables `VITE_*`, principalmente:
 
 ```env
-VITE_API_BASE_URL=http://localhost:3000/api/v1
+VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1
 ```
 
 En Docker desarrollo, Compose define los defaults. En ejecucion local host, usar `backend/.env` y `frontend/.env`.
@@ -239,3 +268,4 @@ En Docker desarrollo, Compose define los defaults. En ejecucion local host, usar
 - Promover a `shared/` solo lo que realmente se reutiliza entre modulos.
 - No usar TDDs/work-logs como fuente de verdad del estado actual.
 - Documentar cambios de arquitectura en este archivo cuando afecten a mas de un modulo.
+- El detalle de provision y variables de staging vive en [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md), no aqui.

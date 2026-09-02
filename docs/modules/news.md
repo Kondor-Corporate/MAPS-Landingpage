@@ -119,7 +119,7 @@ Archivos: `backend/src/api/v1/routes/news.routes.ts`, `news.controller.ts`, `new
 
 - Portada y galería se suben como **archivo** (`.jpg/.jpeg/.png`, máx. 10 MB) vía `StorageAdapter` (`backend/src/lib/storage/`), categoría `noticias`.
 - Provider según `STORAGE_PROVIDER` (`local` por defecto; `gcs`/`s3` disponibles). El dominio de Noticias **no** se acopla a GCP.
-- **PENDIENTE — Integración Google Cloud Storage:** provisión de bucket/credenciales y `STORAGE_PROVIDER=gcs` queda para otro desarrollador; el código ya está listo sin cambios adicionales.
+- En staging, `STORAGE_PROVIDER=gcs` está en uso. El dominio Noticias no se acopla a un proveedor concreto.
 - La galería se muestra como **carrusel** solo en la vista completa (`NewsImageCarousel` en `NewsArticleContent`); nunca en cards/listados/preview.
 
 ---
@@ -187,7 +187,7 @@ Servicios compartidos:
 
 | Deuda | Detalle |
 |-------|---------|
-| Upload / storage | Portadas por URL; sin S3 ni upload real |
+| Upload / storage | Portada y galería por archivo (MAPS-019). Política productiva de bucket ya operativa en staging GCS |
 | SEO `/noticias/:slug` | Sin página dedicada; modal + API slug |
 | E2E | Sin Playwright editorial |
 | Tests frontend unitarios | Pendiente toolchain CI |

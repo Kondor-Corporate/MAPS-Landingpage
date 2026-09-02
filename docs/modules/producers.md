@@ -216,6 +216,7 @@ Las certificaciones son PDFs asociados a productores. La foto de perfil (JPG/PNG
 Storage:
 
 - `local`: disco en `backend/uploads/certificaciones` y `backend/uploads/fotos`.
+- `gcs`: Cloud Storage privado (staging). El navegador no accede al bucket; el backend hace stream.
 - `s3`: bucket S3-compatible (prefijos `certificaciones/` y `fotos/`).
 
 Variables relacionadas:
@@ -273,5 +274,4 @@ Publico:
 - Auditoria/historial de cambios de contraseña (solo queda `Usuario.updatedAt`).
 - E2E admin/productor/publico.
 - Mejor manejo operacional de geocoding.
-- Upload de foto de perfil.
 - Definir politica final para storage productivo.

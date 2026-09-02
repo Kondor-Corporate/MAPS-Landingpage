@@ -1,8 +1,34 @@
-# MAPS — preparación de staging en GCP
+# MAPS — runbook de staging en GCP
 
-Este documento describe el contrato de despliegue preparado en el repositorio. No
-autoriza ni ejecuta comandos de Google Cloud. Los nombres, URLs e IDs definitivos se
-deben resolver al crear el entorno `maps-staging`.
+Contrato operativo del entorno de staging. No autoriza ni ejecuta comandos de
+Google Cloud desde este documento. No inventariar ni copiar secretos.
+
+## Estado actual de staging
+
+El entorno **está provisionado y operativo**. Ya se usó para QA real.
+
+Estado conocido: operativo según la última validación manual conocida.
+Última revisión documental: 2026-09-01.
+Esa fecha no es una comprobación live de GCP.
+
+Datos no sensibles conocidos (sin inventario de URLs ni secretos):
+
+| Dato | Valor |
+|------|--------|
+| Proyecto GCP | `maps-staging-landing-page` |
+| Región | `southamerica-east1` |
+| Frontend | Cloud Run operativo |
+| Backend | Cloud Run operativo |
+| Base de datos | Cloud SQL PostgreSQL operativo |
+| Assets | GCS privado |
+| Jobs | migrate y bootstrap utilizados |
+| Secretos | Secret Manager (mecanismo; sin valores aquí) |
+| IAM | Service accounts dedicadas |
+| Observabilidad | Monitoring y alertas configurados |
+
+Este runbook sigue siendo la fuente del **contrato** (imágenes, variables, IAM
+conceptual, secuencia reproducible). No es un inventario de URLs internas ni
+credenciales. Producción no se documenta aquí como desplegada.
 
 ## Topología
 
@@ -181,7 +207,10 @@ Aplicar privilegios al recurso específico y evitar roles de proyecto amplios.
 - Hacer privado el backend exigiría esa autenticación entre servicios y queda
   fuera de esta versión.
 
-## Secuencia futura reproducible
+## Secuencia reproducible
+
+Útil para reprovisionar o para onboarding de quien opera GCP. El entorno actual
+ya recorrió esta secuencia.
 
 1. Crear recursos e identidades de staging.
 2. Construir `runner`, `jobs` y frontend.
@@ -202,5 +231,4 @@ Aplicar privilegios al recurso específico y evitar roles de proyecto amplios.
 El E2E real de subida, descarga y eliminación en GCS se realizará después como
 smoke test del staging. Los tests frontend preparados siguen sin runner instalado
 y todavía no se ejecutan en CI; CI sí ejecuta typecheck, lint y build con Node 22.
-
-Ninguno de estos pasos de GCP forma parte de esta fase de código.
+El cableado del runner frontend queda fuera de este runbook (D5).
