@@ -1,10 +1,12 @@
 # D1A — Cambio self-service de contraseña en Auth
 
-Documentación de la feature D1A dentro del proyecto MAPS Asesores. Complementa el [README técnico](./README.md) y el [README raíz](../README.md).
+Documentación de la feature D1A dentro del proyecto MAPS Asesores.
+Complementa el [índice de docs](../README.md) y el
+[README raíz](../../README.md).
 
 **Identificador:** D1A (no es un ticket `MAPS-XXX`; la rama es `feat/d1a-admin-self-password`). No reutiliza IDs históricos 015–018.
 
-**Estado:** Implementación funcional cerrada; listo para QA/cierre.
+**Estado:** HECHO — mergeado en `development`. QA manual correcto en PRODUCTOR, ADMIN y SUPERADMIN.
 
 ---
 
