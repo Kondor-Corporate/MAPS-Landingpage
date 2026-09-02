@@ -186,7 +186,7 @@ El sistema usa tres roles:
 |-----|------------------|
 | `PRODUCTOR` | `/intranet/*` |
 | `ADMIN` | `/admin/*` |
-| `SUPERADMIN` | `/admin/*` con permisos adicionales |
+| `SUPERADMIN` | `/admin/*` con permisos adicionales, incluida la gestión de cuentas `ADMIN` (`/admin/admins`) |
 
 Backend:
 
@@ -196,6 +196,7 @@ Backend:
 - `authenticate` valida access token.
 - `authorize` restringe por rol.
 - Cambio self-service de contraseña: `PATCH /api/v1/auth/me/password` para cualquier `Usuario` autenticado (D1A). Revoca `SesionToken` e incrementa `tokenVersion`.
+- Gestión de administradores: `SUPERADMIN` opera cuentas `ADMIN` en `/api/v1/admins` (D1B). Detalle: [`modules/admins.md`](./modules/admins.md).
 
 Frontend:
 
@@ -241,7 +242,7 @@ Las migraciones deben versionarse en Git. Para el flujo detallado, ver `docs/MIG
 | [Biblioteca](./modules/library.md) | API real de ramos e integracion frontend |
 | [Web publica/mapa](./modules/public-web.md) | Landing, mapa y perfil publico conectados a productores |
 | [Noticias](./modules/news.md) | API real; admin, Home, intranet conectados |
-| [Admins](./modules/admins.md) | Perfil + cambio de contraseña propia; CRUD API pendiente (D1B) |
+| [Admins](./modules/admins.md) | Gestión de cuentas ADMIN por SUPERADMIN (`/admin/admins`, `/api/v1/admins`); perfil + self-service D1A |
 
 Los detalles de cada modulo deben vivir en `docs/modules/*.md`.
 

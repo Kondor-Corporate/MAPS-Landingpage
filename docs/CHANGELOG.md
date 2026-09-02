@@ -27,6 +27,7 @@ Entregas posteriores a la etapa documentada antigua (docs vivos + Docker + auth 
 - Validacion de contraseña en tiempo real (mientras se escribe) y boton de mostrar/ocultar en los tres formularios de contraseña (alta admin, reset admin, cambio self-service).
 - Tests de integracion backend para alta con password individual, alias self-service de productor, reset admin y subida de foto de perfil (`backend/tests/producers.integration.test.ts`, `backend/tests/producersProfile.integration.test.ts`).
 - Tests de integracion del cambio self-service canónico en Auth para PRODUCTOR, ADMIN y SUPERADMIN (`backend/tests/auth.integration.test.ts`).
+- Gestión de cuentas `ADMIN` por `SUPERADMIN` (D1B, 2026-09-02): API `/api/v1/admins` (listado, alta, edición de usuario, activar/desactivar, reset de password), pantalla `/admin/admins` (card “Cuenta principal”, filtros client-side, tabla/cards, toasts) y tests de integración (`backend/tests/admins.integration.test.ts`).
 - Dockerizacion fullstack de desarrollo con servicios `frontend`, `backend` y `db`.
 - Documentacion viva del modulo Auth/Routing en `docs/modules/auth.md`.
 - Indice general de documentacion en `docs/README.md`.
@@ -64,6 +65,7 @@ Entregas posteriores a la etapa documentada antigua (docs vivos + Docker + auth 
 
 - Se elimina el uso de una contraseña global compartida entre productores (`DEFAULT_PRODUCER_PASSWORD`) para el alta real; cada productor recibe una contraseña individual definida por el admin.
 - Cambio self-service (`PATCH /auth/me/password`) y restablecimiento admin revocan las sesiones activas (`SesionToken`) del usuario afectado e incrementan `tokenVersion`, invalidando refresh y access tokens emitidos con la contraseña anterior. El controller limpia la cookie `maps_refresh` solo tras un cambio exitoso.
+- Reset y cambio real de `usuario` de un `ADMIN`, y su desactivación (D1B), revocan las sesiones de **esa** cuenta (`tokenVersion++` + `SesionToken`); no limpian la cookie del SUPERADMIN caller. Reactivar y no-ops de mismo usuario/estado no revocan.
 - Rate limiter de cambio de contraseña claveado por `req.user.sub` (no por IP); canónico y alias comparten la misma instancia/cupo.
 - Ningun endpoint de `/api/v1/producers` expone `passwordHash` en sus respuestas.
 
