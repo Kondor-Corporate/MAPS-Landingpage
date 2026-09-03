@@ -115,6 +115,35 @@ enlaces de descarga. La URL usa un UUID v4 no predecible, el bucket permanece
 privado y el acceso público ocurre exclusivamente mediante el backend.
 `Cache-Control: private` evita cachés compartidas, pero no es autorización.
 
+## Redis / Memorystore (rate limiting y caché de geocoding)
+
+MAPS-020 agrega un store distribuido compartido por el rate limiting de
+`/geocode`, `/geocode/reverse`, `/producers/map` y la caché de resultados de
+geocoding. En staging/producción es un recurso nuevo a provisionar
+(Memorystore for Redis, tier básico, sin acceso público, en la misma VPC que
+el backend Cloud Run vía conector serverless VPC access).
+
+- Redis **no es un punto único de falla**: si no está disponible, el backend
+  degrada solo (fail-open) a un `MemoryStore` local por instancia para rate
+  limiting y a consultar Nominatim directamente sin caché. Nunca se responde
+  429/503 únicamente por la caída de Redis. El detalle de la degradación en 3
+  niveles está en `docs/tdd/MAPS-020-tdd-rate-limiting-geocoding-mapa.md`.
+- `REDIS_URL` es **opcional** en dev/test (sin ella, todo corre en memoria) y
+  **obligatoria** en staging/producción para que el rate limiting y la caché
+  sean efectivos entre instancias.
+- IAM conceptual: el backend necesita conectividad de red a la instancia de
+  Memorystore (misma VPC / conector serverless); Memorystore no usa IAM de
+  objeto como GCS, el control de acceso es de red.
+
+### Prerequisito: verificación de `TRUST_PROXY` (Fase 0 de MAPS-020)
+
+El rate limiting por IP depende de que Express calcule correctamente `req.ip`
+detrás de Nginx. Antes de habilitar los limiters por IP en staging, verificar
+con tráfico real (no solo revisar el código) que `TRUST_PROXY=1` resuelve al
+IP real del cliente y no al IP del proxy interno, usando un endpoint de
+diagnóstico temporal (removido antes de dejar el cambio en main). No dejar
+logging permanente de IPs completas.
+
 ## Variables del frontend
 
 ### Build
@@ -144,6 +173,9 @@ Configuración normal:
   sin credenciales, path ni barra final, porque `/api` llega por Nginx.
 - `NOMINATIM_USER_AGENT`
 - `TZ`
+- `REDIS_URL`: obligatoria en staging/producción (ver sección Redis/Memorystore).
+  No es secreto por sí sola (sin credenciales embebidas, Memorystore controla
+  acceso por red), pero se gestiona igual vía Secret Manager por convención.
 
 Secretos:
 
