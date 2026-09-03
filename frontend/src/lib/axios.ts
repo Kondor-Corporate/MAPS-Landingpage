@@ -21,7 +21,11 @@ let refreshLock: Promise<string> | null = null;
 let sessionInvalidationStarted = false;
 
 function isAuthEndpoint(url?: string) {
-  return url?.includes('/auth/login') || url?.includes('/auth/refresh');
+  return (
+    url?.includes('/auth/login') ||
+    url?.includes('/auth/refresh') ||
+    url?.includes('/auth/logout')
+  );
 }
 
 /** Un fallo con respuesta 4xx de refresh confirma que la sesión ya no es válida. */
