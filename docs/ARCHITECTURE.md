@@ -112,7 +112,7 @@ frontend/src/
 1. Una pagina o componente usa un hook/servicio del modulo.
 2. El servicio HTTP llama a la API con `api` o cliente publico Axios.
 3. `frontend/src/lib/axios.ts` agrega `Authorization` si hay access token.
-4. Ante `401`, el interceptor intenta `POST /auth/refresh`.
+4. Ante `401`, el interceptor intenta `POST /auth/refresh` (excepto en `/auth/login`, `/auth/refresh` y `/auth/logout`).
 5. El estado de sesion vive en `frontend/src/store/authStore.ts`.
 
 ---
@@ -195,6 +195,7 @@ Backend:
 - Sesiones persistidas como hash en `SesionToken`.
 - `authenticate` valida access token.
 - `authorize` restringe por rol.
+- Logout de producto (`POST /api/v1/auth/logout`, D2A): **sin** `authenticate`; identifica la sesion solo por refresh (cookie `maps_refresh` con prioridad sobre body); revoca esa fila `SesionToken` tras validar firma/tipo con `jwt.verify(..., { ignoreExpiration: true })`; idempotente; no incrementa `tokenVersion`. El access ya emitido puede seguir valido hasta su `exp` natural (~15 min).
 - Cambio self-service de contraseña: `PATCH /api/v1/auth/me/password` para cualquier `Usuario` autenticado (D1A). Revoca `SesionToken` e incrementa `tokenVersion`.
 - Gestión de administradores: `SUPERADMIN` opera cuentas `ADMIN` en `/api/v1/admins` (D1B). Detalle: [`modules/admins.md`](./modules/admins.md).
 
@@ -237,7 +238,7 @@ Las migraciones deben versionarse en Git. Para el flujo detallado, ver `docs/MIG
 
 | Modulo | Estado actual resumido |
 |--------|------------------------|
-| [Auth/routing](./modules/auth.md) | Implementado (incluye self-service de contraseña, D1A) |
+| [Auth/routing](./modules/auth.md) | Implementado (self-service D1A; logout robusto D2A) |
 | [Productores](./modules/producers.md) | CRUD admin, perfil productor, mapa publico y certificaciones |
 | [Biblioteca](./modules/library.md) | API real de ramos e integracion frontend |
 | [Web publica/mapa](./modules/public-web.md) | Landing, mapa y perfil publico conectados a productores |
