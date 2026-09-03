@@ -101,33 +101,29 @@ export const authController: Record<string, RequestHandler> = {
   },
 
   logout: async (req, res, next) => {
-    const bodyParsed = logoutBodySchema.safeParse(req.body);
-    if (!bodyParsed.success) {
-      res.status(400).json({
-        data: null,
-        message: 'Datos de entrada inválidos',
-        error: bodyParsed.error.flatten(),
-      });
-      return;
-    }
-
-    if (!req.user) {
-      next(new AppError(401, 'No autenticado'));
-      return;
-    }
-
     const env = loadEnv();
-    const refreshToken = resolveRefreshToken(req, env.allowRefreshBody);
-    if (!refreshToken) {
-      const msg = env.allowRefreshBody
-        ? 'Refresh token requerido'
-        : 'Refresh token requerido (cookie httpOnly)';
-      next(new AppError(401, msg));
-      return;
+    const fromCookie = (req.cookies as Record<string, string | undefined>)[REFRESH_COOKIE_NAME];
+
+    let refreshToken: string | undefined;
+    if (fromCookie) {
+      refreshToken = fromCookie;
+    } else if (env.allowRefreshBody) {
+      const bodyParsed = logoutBodySchema.safeParse(req.body ?? {});
+      if (!bodyParsed.success) {
+        res.status(400).json({
+          data: null,
+          message: 'Datos de entrada inválidos',
+          error: bodyParsed.error.flatten(),
+        });
+        return;
+      }
+      refreshToken = bodyParsed.data.refreshToken;
     }
 
     try {
-      await authService.logout(req.user.sub, refreshToken);
+      if (refreshToken) {
+        await authService.logout(refreshToken);
+      }
       res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieClearOptions(env));
       res.json({
         data: null,
@@ -135,6 +131,7 @@ export const authController: Record<string, RequestHandler> = {
         error: null,
       });
     } catch (err) {
+      res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieClearOptions(env));
       next(err);
     }
   },

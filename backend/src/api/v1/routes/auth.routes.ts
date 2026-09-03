@@ -28,7 +28,7 @@ const loginLimiter = rateLimit({
 
 authRouter.post('/login', loginLimiter, authController.login);
 authRouter.post('/refresh', authController.refresh);
-authRouter.post('/logout', authenticate, authController.logout);
+authRouter.post('/logout', authController.logout);
 authRouter.patch(
   '/me/password',
   authenticate,

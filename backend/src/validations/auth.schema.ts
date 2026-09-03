@@ -17,9 +17,16 @@ export const refreshBodySchema = z.object({
 });
 
 /**
- * Body de POST /logout. Mismo esquema que refresh.
+ * Body de POST /logout.
+ * `{}` es válido. `refreshToken: ""` se trata como ausente para no devolver 400
+ * ni bloquear una cookie `maps_refresh` válida (D2A).
  */
-export const logoutBodySchema = refreshBodySchema;
+export const logoutBodySchema = z.object({
+  refreshToken: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+});
 
 /** @deprecated Alias mantenido para compatibilidad durante la transición. Usar refreshBodySchema. */
 export const refreshSchema = z.object({ refreshToken: z.string().min(1) });
