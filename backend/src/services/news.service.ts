@@ -13,6 +13,7 @@ import { AppError } from '../lib/errors.js';
 import { ensureUniqueNewsSlug, slugifyTitulo } from '../lib/newsSlug.js';
 import { prisma } from '../lib/prisma.js';
 import { getStorageAdapter } from '../lib/storage/index.js';
+import { assertAllowedUploadContent } from '../lib/uploadContentValidation.js';
 
 /** Tope de imágenes de galería por noticia (portada aparte). */
 export const MAX_GALERIA_IMAGENES = 10;
@@ -272,10 +273,12 @@ export const newsService = {
       throw new AppError(404, 'Noticia no encontrada');
     }
 
+    const detectedMime = assertAllowedUploadContent(file.buffer, 'noticia');
+
     const storage = getStorageAdapter();
     const uploaded = await storage.uploadImagenNoticia({
       buffer: file.buffer,
-      mimeType: file.mimetype,
+      mimeType: detectedMime,
       noticiaId: id,
     });
 
@@ -336,10 +339,12 @@ export const newsService = {
       );
     }
 
+    const detectedMime = assertAllowedUploadContent(file.buffer, 'noticia');
+
     const storage = getStorageAdapter();
     const uploaded = await storage.uploadImagenNoticia({
       buffer: file.buffer,
-      mimeType: file.mimetype,
+      mimeType: detectedMime,
       noticiaId: id,
     });
 

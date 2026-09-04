@@ -19,6 +19,7 @@ import {
 } from '../lib/producerProfileMapper.js';
 import { prisma } from '../lib/prisma.js';
 import { getStorageAdapter } from '../lib/storage/index.js';
+import { assertAllowedUploadContent } from '../lib/uploadContentValidation.js';
 
 const usuarioListSelect = {
   id: true,
@@ -124,10 +125,12 @@ async function addCertificacion(
     throw new AppError(400, 'Archivo PDF requerido');
   }
 
+  const detectedMime = assertAllowedUploadContent(file.buffer, 'certificacion');
+
   const storage = getStorageAdapter();
   const uploaded = await storage.uploadCertificacion({
     buffer: file.buffer,
-    mimeType: file.mimetype,
+    mimeType: detectedMime,
     productorId,
   });
 
@@ -174,10 +177,12 @@ async function replaceFoto(
     throw new AppError(400, 'Imagen requerida');
   }
 
+  const detectedMime = assertAllowedUploadContent(file.buffer, 'foto');
+
   const storage = getStorageAdapter();
   const uploaded = await storage.uploadFoto({
     buffer: file.buffer,
-    mimeType: file.mimetype,
+    mimeType: detectedMime,
     productorId,
   });
 
