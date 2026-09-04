@@ -27,6 +27,8 @@ Entregas posteriores a la etapa documentada antigua (docs vivos + Docker + auth 
 - Validacion de contraseña en tiempo real (mientras se escribe) y boton de mostrar/ocultar en los tres formularios de contraseña (alta admin, reset admin, cambio self-service).
 - Tests de integracion backend para alta con password individual, alias self-service de productor, reset admin y subida de foto de perfil (`backend/tests/producers.integration.test.ts`, `backend/tests/producersProfile.integration.test.ts`).
 - Tests de integracion del cambio self-service canónico en Auth para PRODUCTOR, ADMIN y SUPERADMIN (`backend/tests/auth.integration.test.ts`).
+- Gestión de cuentas `ADMIN` por `SUPERADMIN` (D1B, 2026-09-02): API `/api/v1/admins` (listado, alta, edición de usuario, activar/desactivar, reset de password), pantalla `/admin/admins` (card “Cuenta principal”, filtros client-side, tabla/cards, toasts) y tests de integración (`backend/tests/admins.integration.test.ts`).
+- Logout robusto de producto (D2A, rama `fix/d2-auth-session-hardening`): `POST /api/v1/auth/logout` sin `authenticate`, revocacion por refresh (cookie prioritaria), idempotente, validacion criptografica previa a BD, tests ampliados en `backend/tests/auth.integration.test.ts`; interceptor Axios excluye `/auth/logout` del retry automatico.
 - Dockerizacion fullstack de desarrollo con servicios `frontend`, `backend` y `db`.
 - Documentacion viva del modulo Auth/Routing en `docs/modules/auth.md`.
 - Indice general de documentacion en `docs/README.md`.
@@ -44,6 +46,7 @@ Entregas posteriores a la etapa documentada antigua (docs vivos + Docker + auth 
 - Web pública: copy y flujo de conversión, footer/SEO básico de landing, sección institucional "Nuestro equipo" con datos estáticos (`OurTeamSection`; no es la red de asesores del mapa).
 - Estabilización QA posterior a noticias/mapa/credenciales: cookies/host canónico local, biblioteca demo y pulido de intranet/admin.
 - El cambio de contraseña propia deja de ser un flujo del dominio Productor: vive en Auth (service, schema, limiter y formulario compartido). Productor, Admin y Superadmin usan el mismo formulario; tras el éxito se limpia el auth store y se vuelve a login, sin `POST /auth/logout` (D1A).
+- `POST /api/v1/auth/logout` deja de exigir access token ni middleware `authenticate`: la sesion se identifica solo por refresh (cookie `maps_refresh` con prioridad; body solo si `allowRefreshBody`). Logout idempotente con limpieza de cookie; revocacion server-side via SHA-256 + `SesionToken.deleteMany({ tokenHash })` tras `jwt.verify(..., { ignoreExpiration: true })` y `typ === 'refresh'` (D2A).
 - Tabla de productores del dashboard admin: la columna "DNI" fue reemplazada por "Usuario" (email de acceso); el buscador admin ya no filtra por DNI.
 - `DEFAULT_PRODUCER_PASSWORD` pasa a ser opcional y queda acotada a `prisma/seed.ts`; ya no participa del alta real de productores.
 - "Editar perfil" (intranet) ya no tiene un campo de texto "URL foto"; la foto se gestiona exclusivamente subiendo una imagen desde el avatar.
@@ -64,7 +67,9 @@ Entregas posteriores a la etapa documentada antigua (docs vivos + Docker + auth 
 
 - Se elimina el uso de una contraseña global compartida entre productores (`DEFAULT_PRODUCER_PASSWORD`) para el alta real; cada productor recibe una contraseña individual definida por el admin.
 - Cambio self-service (`PATCH /auth/me/password`) y restablecimiento admin revocan las sesiones activas (`SesionToken`) del usuario afectado e incrementan `tokenVersion`, invalidando refresh y access tokens emitidos con la contraseña anterior. El controller limpia la cookie `maps_refresh` solo tras un cambio exitoso.
+- Reset y cambio real de `usuario` de un `ADMIN`, y su desactivación (D1B), revocan las sesiones de **esa** cuenta (`tokenVersion++` + `SesionToken`); no limpian la cookie del SUPERADMIN caller. Reactivar y no-ops de mismo usuario/estado no revocan.
 - Rate limiter de cambio de contraseña claveado por `req.user.sub` (no por IP); canónico y alias comparten la misma instancia/cupo.
+- Logout de producto (`POST /auth/logout`, D2A) revoca la sesion refresh actual (hash en `SesionToken`) sin incrementar `tokenVersion` ni cerrar otras sesiones del mismo usuario. Tokens arbitrarios no provocan consultas BD. Si falla la revocacion en BD, el endpoint responde `500` pero limpia la cookie local. **Limitacion:** el access token ya emitido sigue valido hasta su expiracion natural (`JWT_EXPIRES_IN`, ~15 min habitual). Refresh rotation / reuse detection queda como deuda D2C (diferida).
 - Ningun endpoint de `/api/v1/producers` expone `passwordHash` en sus respuestas.
 
 ---

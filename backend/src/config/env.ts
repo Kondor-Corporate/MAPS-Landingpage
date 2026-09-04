@@ -110,6 +110,13 @@ export const envSchema = z.object({
     .string()
     .min(1)
     .default('maps-landingpage-dev/1.0 (contact@kondor.local)'),
+
+  /**
+   * Redis/Memorystore compartido por rate limiting distribuido y caché de geocoding.
+   * Opcional: si no está definida, los limiters usan `MemoryStore` local y la caché
+   * de geocoding queda deshabilitada (comportamiento esperado en dev/test).
+   */
+  REDIS_URL: z.string().url().optional(),
 }).superRefine((data, ctx) => {
   for (const origin of parseFrontendOrigins(data.FRONTEND_ORIGIN)) {
     const urlCheck = z.string().url().safeParse(origin);

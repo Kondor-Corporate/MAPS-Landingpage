@@ -35,7 +35,7 @@ Las rutas estan definidas en `backend/src/api/v1/routes/auth.routes.ts` y montad
 |--------|------|-------------|
 | `POST` | `/login` | Valida credenciales, emite access token y setea cookie de refresh |
 | `POST` | `/refresh` | Renueva el access token usando la cookie `maps_refresh` |
-| `POST` | `/logout` | Revoca sesion y limpia cookie de refresh |
+| `POST` | `/logout` | Revoca la sesion refresh actual e idempotentemente limpia cookie `maps_refresh` (D2A) |
 | `PATCH` | `/me/password` | Cambio self-service de contraseña del usuario autenticado |
 
 ### Login
@@ -57,9 +57,51 @@ La respuesta no expone `passwordHash` ni devuelve refresh token en el body en el
 
 El refresh token viaja en cookie httpOnly `maps_refresh`. En produccion, el body `refreshToken` solo deberia aceptarse si `ALLOW_REFRESH_BODY=true`.
 
-### Logout
+### Logout (`POST /logout`, D2A)
 
-Requiere `Authorization: Bearer <accessToken>`. Revoca la sesion asociada al refresh token y limpia la cookie.
+Logout de producto: cierra **solo la sesion refresh del transporte actual**. No usa middleware `authenticate` ni access token. La credencial que identifica la sesion es el refresh token.
+
+**Resolucion del refresh (prioridad cookie > body):**
+
+1. Si existe cookie httpOnly `maps_refresh` (string no vacio), se usa **solo** la cookie; el body se ignora por completo (incluso si trae `refreshToken` invalido).
+2. Si no hay cookie y `allowRefreshBody` esta habilitado (`NODE_ENV !== 'production'` por defecto, o `ALLOW_REFRESH_BODY=true` en produccion), se valida `logoutBodySchema` y se toma `body.refreshToken`.
+3. Si no hay cookie y `allowRefreshBody` esta desactivado, el body se ignora.
+
+**Comportamiento del endpoint:**
+
+| Situacion | HTTP | Revocacion server-side | Cookie respuesta |
+|-----------|------|------------------------|------------------|
+| Refresh valido (firma + `typ === 'refresh'`) | `200` | `SesionToken.deleteMany({ tokenHash })` para esa sesion | `clearCookie` |
+| Sin refresh usable (ausente, ya revocado, corrupto) | `200` idempotente | No borra filas desconocidas | `clearCookie` |
+| Refresh con firma/tipo invalido | `200` (misma respuesta; no revela validez) | **No** consulta BD (`deleteMany` no se invoca) | `clearCookie` |
+| Logout repetido | `200` | Idempotente (0 filas es OK) | `clearCookie` |
+| Body invalido cuando **participa** (sin cookie + `allowRefreshBody`) | `400` | — | — |
+| Fallo real de BD al revocar | `500` | No se afirma revocacion | `clearCookie` (termina sesion local del navegador) |
+
+**Validacion antes de BD:** `authService.logout` ejecuta `jwt.verify(refreshToken, REFRESH_SECRET, { ignoreExpiration: true })` y exige `typ === 'refresh'`. Solo se ignora la expiracion del JWT para permitir revocar un refresh legitimo ya expirado cuyo hash sigue en `SesionToken`. Tokens arbitrarios o manipulados no provocan `deleteMany`.
+
+**Revocacion:** SHA-256 del refresh → `prisma.sesionToken.deleteMany({ where: { tokenHash } })`. No incrementa `Usuario.tokenVersion`. No elimina otras sesiones del mismo usuario (otros dispositivos/tabs conservan su refresh).
+
+**Respuesta de exito (200):**
+
+```json
+{
+  "data": null,
+  "message": "Sesión cerrada",
+  "error": null
+}
+```
+
+**Limitacion explicita (access residual):** un access token ya emitido **antes** del logout sigue pasando `authenticate` hasta su expiracion natural (`JWT_EXPIRES_IN`, habitualmente ~15 min) mientras el usuario siga activo, el rol coincida y `ver === tokenVersion`. D2A no implementa denylist de access ni consulta de `SesionToken` por request.
+
+**Caso sin refresh identificable:** si no hay cookie ni body usable, el servidor responde `200` e intenta `clearCookie`, pero **no puede** saber que fila `SesionToken` borrar. No se hace `deleteMany` por `usuarioId` (cerraria otros dispositivos).
+
+**Frontend:**
+
+- `useLogout` (`frontend/src/modules/auth/hooks/useLogout.ts`): best-effort `POST /auth/logout`; en `finally` limpia el auth store y navega a `/login` aunque la red falle.
+- El interceptor Axios (`frontend/src/lib/axios.ts`) excluye `/auth/logout` del flujo automatico `401 → refresh → retry` (`isAuthEndpoint`).
+
+**Distincion con cambio de contraseña:** `PATCH /me/password` revoca **todas** las sesiones del usuario (`tokenVersion++` + `deleteMany` por `usuarioId`). El logout explicito del sidebar usa `POST /logout` y cierra solo la sesion refresh actual.
 
 ### Cambio de contraseña propia (`PATCH /me/password`)
 
@@ -100,9 +142,9 @@ Piezas principales:
 |-------|---------|-----------------|
 | Login page | `frontend/src/modules/auth/pages/LoginPage.tsx` | Formulario y envio de credenciales |
 | Auth store | `frontend/src/store/authStore.ts` | Usuario persistido, access token en memoria, estado de inicializacion |
-| HTTP client | `frontend/src/lib/axios.ts` | Bearer token, refresh automatico ante 401 |
+| HTTP client | `frontend/src/lib/axios.ts` | Bearer token, refresh automatico ante 401; `/auth/logout` excluido del retry (D2A) |
 | Inicializacion | `frontend/src/components/AuthInitializer.tsx` | Rehidrata store y renueva token al cargar |
-| Logout hook | `frontend/src/modules/auth/hooks/useLogout.ts` | Llama API, limpia store y redirige (logout explícito; no se usa tras cambio de contraseña) |
+| Logout hook | `frontend/src/modules/auth/hooks/useLogout.ts` | Best-effort remoto + limpieza local en `finally` (logout explicito; no se usa tras cambio de contraseña) |
 | Cambio de contraseña | `frontend/src/modules/auth/components/ChangePasswordForm.tsx` | Formulario self-service compartido (productor, admin, superadmin) |
 | Auth service | `frontend/src/modules/auth/services/auth.service.ts` | `PATCH /auth/me/password` |
 
@@ -182,7 +224,7 @@ curl -s -X POST http://127.0.0.1:3000/api/v1/auth/login \
 
 Backend:
 
-- `backend/tests/auth.integration.test.ts` (login/refresh/logout y `PATCH /me/password` para PRODUCTOR, ADMIN y SUPERADMIN)
+- `backend/tests/auth.integration.test.ts` (login/refresh/logout D2A y `PATCH /me/password` para PRODUCTOR, ADMIN y SUPERADMIN)
 - `backend/tests/producers.integration.test.ts` (alias temporal `PATCH /producers/me/password`, solo PRODUCTOR)
 - `backend/tests/authorize-validate.middleware.test.ts`
 
@@ -197,3 +239,11 @@ Frontend:
 - E2E browser para flujo login -> zona protegida -> logout.
 - Revisar configuracion final de cookies/CORS para produccion.
 - Invitacion por email para el primer acceso del productor (ver `docs/modules/producers.md`). El "primer login" en si ya esta cubierto: el admin define la password inicial en el alta (MAPS-016, `docs/worklog/MAPS-016-credenciales-productores.md`).
+
+### Deuda D2C — session hardening (diferida)
+
+D2A endurece el **logout de producto** (revocacion de la sesion refresh actual). **No** implementa refresh rotation, reuse detection, token families ni grace period.
+
+El refresh token sigue siendo **reutilizable** hasta su expiracion (`REFRESH_EXPIRES_IN`, default 30d) mientras la fila `SesionToken` exista y el usuario no haya hecho logout de esa cookie ni un evento de revocacion global (cambio de contraseña, reset admin, desactivacion, cambio de `usuario` ADMIN, etc.). Un refresh robado que el usuario nunca revoca sigue siendo un riesgo de sesion; eso no se describe como bug resuelto por D2A.
+
+Estado: **deuda de session hardening**, actualmente diferida. Una rotacion correcta requiere diseno adicional para concurrencia multi-tab, token families/reuse detection y lost-response handling. Ver TDD `docs/tdd/D2A-tdd-logout-robusto.md` (seccion Deuda D2C) y worklog `docs/worklog/D2A-logout-robusto.md`.

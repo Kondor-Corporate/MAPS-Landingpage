@@ -159,33 +159,30 @@ export const authService = {
     };
   },
 
-  async logout(userSub: string, refreshToken: string) {
+  /**
+   * Revoca a lo sumo la sesión cuyo hash coincide con este refresh.
+   * Valida firma y `typ` con `ignoreExpiration: true` antes de tocar BD:
+   * tokens arbitrarios no deben provocar `deleteMany`. Un refresh legítimo
+   * expirado sigue pasando la validación y puede eliminar su hash persistido.
+   * Cero coincidencias es éxito (`deleteMany`).
+   */
+  async logout(refreshToken: string) {
     const env = getEnv();
-    let payload: jwt.JwtPayload & { sub?: string; typ?: string };
+    let payload: jwt.JwtPayload & { typ?: string };
     try {
-      payload = jwt.verify(refreshToken, env.REFRESH_SECRET) as typeof payload;
+      payload = jwt.verify(refreshToken, env.REFRESH_SECRET, {
+        ignoreExpiration: true,
+      }) as typeof payload;
     } catch {
-      throw new AppError(401, 'Refresh token inválido o expirado');
+      return;
     }
 
-    if (payload.typ !== 'refresh' || !payload.sub) {
-      throw new AppError(401, 'Refresh token inválido');
-    }
-
-    if (payload.sub !== userSub) {
-      throw new AppError(403, 'El refresh token no corresponde a la sesión');
+    if (payload.typ !== 'refresh') {
+      return;
     }
 
     const tokenHash = hashToken(refreshToken);
-    const session = await prisma.sesionToken.findUnique({
-      where: { tokenHash },
-    });
-
-    if (!session || session.usuarioId !== Number(userSub)) {
-      throw new AppError(401, 'Sesión no encontrada o ya revocada');
-    }
-
-    await prisma.sesionToken.delete({ where: { id: session.id } });
+    await prisma.sesionToken.deleteMany({ where: { tokenHash } });
   },
 
   /** Cambio self-service: el usuario autenticado cambia su propia contraseña. */

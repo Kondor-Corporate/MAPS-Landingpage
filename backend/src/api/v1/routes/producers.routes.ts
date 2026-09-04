@@ -16,6 +16,8 @@ import { uploadFotoMiddleware } from '../../../middlewares/uploadFoto.js';
 
 import { passwordChangeLimiter } from '../../../middlewares/passwordChangeLimiter.js';
 
+import { producersMapLimiter } from '../../../middlewares/producersMapLimiter.js';
+
 import { validate } from '../../../middlewares/validate.js';
 
 import { changeMyPasswordSchema } from '../../../validations/auth.schema.js';
@@ -186,7 +188,7 @@ producersRouter.get(
 
 
 
-producersRouter.get('/map', producersController.listForMap);
+producersRouter.get('/map', producersMapLimiter, producersController.listForMap);
 
 
 
