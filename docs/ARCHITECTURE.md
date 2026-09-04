@@ -176,6 +176,30 @@ Envelope de respuesta esperado:
 }
 ```
 
+### Uploads multipart (D3A)
+
+Los cinco caminos de upload (certificaciones productor/admin, foto de perfil, portada y galería de noticias) comparten este flujo transversal:
+
+```text
+Ruta + Multer (memoryStorage, fileFilter, límite)
+  → file.buffer
+  → detectAllowedUploadType (lib) — identificación binaria
+  → assertAllowedUploadContent (lib) — allowlist por dominio
+  → service — familia correcta antes de storage
+  → StorageAdapter.upload* — persiste; NO detecta bytes
+  → MIME canónico detectado → extensión / metadatos persistidos
+```
+
+| Capa | Responsabilidad |
+|------|-----------------|
+| Multer | Tamaño + filtro preliminar por MIME **declarado** |
+| `detectAllowedUploadType` | Firma binaria → MIME o `null` |
+| `uploadContentValidation` | Allowlist por familia + `AppError(400)` |
+| Service | Invoca D3A antes de cualquier `upload*` |
+| StorageAdapter | Almacena; confía en `mimeType` recibido |
+
+Detalle por módulo: [`modules/producers.md`](./modules/producers.md), [`modules/news.md`](./modules/news.md). Diseño e implementación: [`worklog/D3A-validacion-contenido-uploads.md`](./worklog/D3A-validacion-contenido-uploads.md).
+
 ---
 
 ## Autenticacion y autorizacion
@@ -239,10 +263,10 @@ Las migraciones deben versionarse en Git. Para el flujo detallado, ver `docs/MIG
 | Modulo | Estado actual resumido |
 |--------|------------------------|
 | [Auth/routing](./modules/auth.md) | Implementado (self-service D1A; logout robusto D2A) |
-| [Productores](./modules/producers.md) | CRUD admin, perfil productor, mapa publico y certificaciones |
+| [Productores](./modules/producers.md) | CRUD admin, perfil productor, mapa publico, certificaciones y validacion D3A en uploads |
 | [Biblioteca](./modules/library.md) | API real de ramos e integracion frontend |
 | [Web publica/mapa](./modules/public-web.md) | Landing, mapa y perfil publico conectados a productores |
-| [Noticias](./modules/news.md) | API real; admin, Home, intranet conectados |
+| [Noticias](./modules/news.md) | API real; admin, Home, intranet conectados; validacion D3A en imagenes |
 | [Admins](./modules/admins.md) | Gestión de cuentas ADMIN por SUPERADMIN (`/admin/admins`, `/api/v1/admins`); perfil + self-service D1A |
 
 Los detalles de cada modulo deben vivir en `docs/modules/*.md`.
