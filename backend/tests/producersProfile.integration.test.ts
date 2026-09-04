@@ -1,10 +1,18 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 
 import request from 'supertest';
 
 import { createApp } from '../src/app.js';
 
 import { loadEnv } from '../src/config/env.js';
+import { getStorageAdapter } from '../src/lib/storage/index.js';
+import {
+  JPEG_SIGNATURE_FIXTURE,
+  PDF_SIGNATURE_FIXTURE,
+  PNG_1x1,
+  UPLOAD_GARBAGE,
+  WEBP_SIGNATURE_FIXTURE,
+} from './helpers/binaryFixtures.js';
 
 
 
@@ -425,8 +433,6 @@ describe('producers admin profile API (MAPS-013 Fase 2)', () => {
 
 
 
-    const pdfBuffer = Buffer.from('%PDF-1.4 test certificacion MAPS-013');
-
     const upload = await agent
 
       .post(`${PRODUCERS}/me/certificaciones`)
@@ -435,7 +441,7 @@ describe('producers admin profile API (MAPS-013 Fase 2)', () => {
 
       .field('nombre', 'Certificado Test')
 
-      .attach('file', pdfBuffer, {
+      .attach('file', PDF_SIGNATURE_FIXTURE, {
 
         filename: 'test-cert.pdf',
 
@@ -451,7 +457,11 @@ describe('producers admin profile API (MAPS-013 Fase 2)', () => {
 
       nombre: 'Certificado Test',
 
+      mimeType: 'application/pdf',
+
     });
+
+    expect(upload.body.data.certificacion.archivoUrl).toMatch(/\.pdf$/i);
 
 
 
@@ -523,6 +533,80 @@ describe('producers admin profile API (MAPS-013 Fase 2)', () => {
     expect(res.body.message).toBe('El archivo supera el tamaño máximo de 10 MB.');
   });
 
+  it('POST certificaciones — basura declarada application/pdf → 400 D3A', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/certificaciones`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', UPLOAD_GARBAGE, {
+        filename: 'certificacion.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(400);
+
+    expect(res.body.message).toBe('El archivo no es un PDF válido');
+  });
+
+  it('POST certificaciones — PNG real declarado application/pdf → 400 D3A', async () => {
+    const adapter = getStorageAdapter();
+    const uploadSpy = vi.spyOn(adapter, 'uploadCertificacion');
+
+    try {
+      const agent = request.agent(app);
+      const token = await loginProductor(agent);
+
+      const res = await agent
+        .post(`${PRODUCERS}/me/certificaciones`)
+        .set('Authorization', `Bearer ${token}`)
+        .attach('file', PNG_1x1, {
+          filename: 'certificacion.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(400);
+
+      expect(res.body.message).toBe('El archivo no es un PDF válido');
+      expect(uploadSpy).not.toHaveBeenCalled();
+    } finally {
+      uploadSpy.mockRestore();
+    }
+  });
+
+  it('POST /producers/:id/certificaciones — admin, basura declarada PDF → 400 D3A', async () => {
+    const adapter = getStorageAdapter();
+    const uploadSpy = vi.spyOn(adapter, 'uploadCertificacion');
+
+    try {
+      const agent = request.agent(app);
+      const adminToken = await loginAdmin(agent);
+
+      const list = await agent
+        .get(`${PRODUCERS}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const carlos = list.body.data.find(
+        (p: { slug: string }) => p.slug === 'carlos-rodriguez',
+      );
+      expect(carlos).toBeTruthy();
+
+      const res = await agent
+        .post(`${PRODUCERS}/${carlos.id}/certificaciones`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .attach('file', UPLOAD_GARBAGE, {
+          filename: 'admin-cert.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(400);
+
+      expect(res.body.message).toBe('El archivo no es un PDF válido');
+      expect(uploadSpy).not.toHaveBeenCalled();
+    } finally {
+      uploadSpy.mockRestore();
+    }
+  });
+
 });
 
 describe('POST /producers/me/foto (MAPS-016)', () => {
@@ -532,8 +616,6 @@ describe('POST /producers/me/foto (MAPS-016)', () => {
     loadEnv();
   });
 
-  const pngBuffer = Buffer.from('fake-png-bytes');
-
   it('productor autenticado sube su foto de perfil', async () => {
     const agent = request.agent(app);
     const token = await loginProductor(agent);
@@ -541,10 +623,11 @@ describe('POST /producers/me/foto (MAPS-016)', () => {
     const res = await agent
       .post(`${PRODUCERS}/me/foto`)
       .set('Authorization', `Bearer ${token}`)
-      .attach('file', pngBuffer, { filename: 'avatar.png', contentType: 'image/png' })
+      .attach('file', PNG_1x1, { filename: 'avatar.png', contentType: 'image/png' })
       .expect(200);
 
     expect(res.body.data.profile.foto).toMatch(/\/uploads\/fotos\//);
+    expect(res.body.data.profile.foto).toMatch(/\.png$/i);
 
     const me = await agent
       .get(`${PRODUCERS}/me`)
@@ -560,13 +643,13 @@ describe('POST /producers/me/foto (MAPS-016)', () => {
     const first = await agent
       .post(`${PRODUCERS}/me/foto`)
       .set('Authorization', `Bearer ${token}`)
-      .attach('file', pngBuffer, { filename: 'avatar1.png', contentType: 'image/png' })
+      .attach('file', PNG_1x1, { filename: 'avatar1.png', contentType: 'image/png' })
       .expect(200);
 
     const second = await agent
       .post(`${PRODUCERS}/me/foto`)
       .set('Authorization', `Bearer ${token}`)
-      .attach('file', pngBuffer, { filename: 'avatar2.png', contentType: 'image/png' })
+      .attach('file', PNG_1x1, { filename: 'avatar2.png', contentType: 'image/png' })
       .expect(200);
 
     expect(second.body.data.profile.foto).not.toBe(first.body.data.profile.foto);
@@ -619,15 +702,135 @@ describe('POST /producers/me/foto (MAPS-016)', () => {
     await agent
       .post(`${PRODUCERS}/me/foto`)
       .set('Authorization', `Bearer ${token}`)
-      .attach('file', pngBuffer, { filename: 'avatar.png', contentType: 'image/png' })
+      .attach('file', PNG_1x1, { filename: 'avatar.png', contentType: 'image/png' })
       .expect(403);
   });
 
   it('sin token → 401', async () => {
     await request(app)
       .post(`${PRODUCERS}/me/foto`)
-      .attach('file', pngBuffer, { filename: 'avatar.png', contentType: 'image/png' })
+      .attach('file', PNG_1x1, { filename: 'avatar.png', contentType: 'image/png' })
       .expect(401);
+  });
+
+  it('D3A — fixture JPEG con firma válida → 200 y extensión .jpg', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', JPEG_SIGNATURE_FIXTURE, {
+        filename: 'avatar.jpg',
+        contentType: 'image/jpeg',
+      })
+      .expect(200);
+
+    expect(res.body.data.profile.foto).toMatch(/\.jpg$/i);
+  });
+
+  it('D3A — fixture WebP con firma válida → 200 y extensión .webp', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', WEBP_SIGNATURE_FIXTURE, {
+        filename: 'avatar.webp',
+        contentType: 'image/webp',
+      })
+      .expect(200);
+
+    expect(res.body.data.profile.foto).toMatch(/\.webp$/i);
+  });
+
+  it('D3A — JPEG bytes declarados image/png → 200 y extensión .jpg', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', JPEG_SIGNATURE_FIXTURE, {
+        filename: 'avatar.png',
+        contentType: 'image/png',
+      })
+      .expect(200);
+
+    expect(res.body.data.profile.foto).toMatch(/\.jpg$/i);
+  });
+
+  it('D3A — basura declarada image/png → 400', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const res = await agent
+      .post(`${PRODUCERS}/me/foto`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', UPLOAD_GARBAGE, {
+        filename: 'avatar.png',
+        contentType: 'image/png',
+      })
+      .expect(400);
+
+    expect(res.body.message).toBe(
+      'La foto debe ser un archivo JPG, PNG o WEBP válido',
+    );
+  });
+});
+
+describe('D3A — storage no invocado (productores)', () => {
+  const app = createApp();
+
+  beforeAll(() => {
+    loadEnv();
+  });
+
+  it('certificación basura → uploadCertificacion no llamado', async () => {
+    const adapter = getStorageAdapter();
+    const uploadSpy = vi.spyOn(adapter, 'uploadCertificacion');
+
+    try {
+      const agent = request.agent(app);
+      const token = await loginProductor(agent);
+
+      await agent
+        .post(`${PRODUCERS}/me/certificaciones`)
+        .set('Authorization', `Bearer ${token}`)
+        .attach('file', UPLOAD_GARBAGE, {
+          filename: 'cert.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(400);
+
+      expect(uploadSpy).not.toHaveBeenCalled();
+    } finally {
+      uploadSpy.mockRestore();
+    }
+  });
+
+  it('foto basura → uploadFoto no llamado', async () => {
+    const adapter = getStorageAdapter();
+    const uploadSpy = vi.spyOn(adapter, 'uploadFoto');
+
+    try {
+      const agent = request.agent(app);
+      const token = await loginProductor(agent);
+
+      await agent
+        .post(`${PRODUCERS}/me/foto`)
+        .set('Authorization', `Bearer ${token}`)
+        .attach('file', UPLOAD_GARBAGE, {
+          filename: 'avatar.png',
+          contentType: 'image/png',
+        })
+        .expect(400);
+
+      expect(uploadSpy).not.toHaveBeenCalled();
+    } finally {
+      uploadSpy.mockRestore();
+    }
   });
 });
 
