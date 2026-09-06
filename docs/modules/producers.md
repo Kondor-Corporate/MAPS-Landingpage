@@ -17,6 +17,7 @@ Historial relacionado:
 - Perfil productor y slug: `docs/worklog/MAPS-013-vista-perfil-productor.md`.
 - Credenciales administradas por admin: `docs/worklog/MAPS-016-credenciales-productores.md`.
 - Self-service de contraseña movido a Auth: `docs/worklog/D1A-cambio-self-password.md`.
+- Validación de contenido real en uploads (D3A): `docs/worklog/D3A-validacion-contenido-uploads.md`.
 
 ---
 
@@ -211,7 +212,30 @@ Riesgos:
 
 ## Certificaciones, foto de perfil y storage
 
-Las certificaciones son PDFs asociados a productores. La foto de perfil (JPG/PNG/WEBP, máx. 5MB) se sube desde `/intranet/mi-perfil` haciendo click en el avatar propio — reemplaza el antiguo campo de texto "URL foto". Ambos reutilizan el mismo `StorageAdapter` (`backend/src/lib/storage/`).
+Las certificaciones son PDFs asociados a productores. La foto de perfil (JPG/PNG/WEBP, máx. 5 MB) se sube desde `/intranet/mi-perfil` haciendo click en el avatar propio — reemplaza el antiguo campo de texto "URL foto". Ambos reutilizan el mismo `StorageAdapter` (`backend/src/lib/storage/`).
+
+### Validación de contenido (D3A)
+
+Multer sigue siendo la **primera barrera** (MIME declarado + límite de tamaño). Después, los services verifican los **bytes reales** del buffer antes de llamar a storage. Detalle de diseño: [`docs/worklog/D3A-validacion-contenido-uploads.md`](../worklog/D3A-validacion-contenido-uploads.md).
+
+**Certificaciones** (`POST .../certificaciones`):
+
+- Formato permitido: PDF; máx. **10 MB**.
+- Multer acepta solo `application/pdf` declarado.
+- El backend exige firma `%PDF-` en el buffer; si no coincide → `400` (`El archivo no es un PDF válido`).
+- Solo se escribe en storage si el contenido detectado es PDF.
+- Storage y BD reciben el MIME canónico detectado (`application/pdf`), no el declarado.
+- Visibilidad pública de certificaciones: **sin cambio** (intencional).
+
+**Foto de perfil** (`POST /producers/me/foto`):
+
+- Formatos permitidos: JPEG, PNG, WebP; máx. **5 MB**.
+- Multer filtra MIME declarado (`image/jpeg`, `image/png`, `image/webp`).
+- El backend detecta el tipo por firma; `file.mimetype` **no** es fuente de verdad post-Multer.
+- Si el cliente declara PNG pero los bytes son JPEG válido → **aceptado** como JPEG (extensión y `Content-Type` derivan de `detectedMime`).
+- Contenido no reconocido o no permitido → `400` antes de storage.
+
+Los adapters **no** inspeccionan bytes; reciben `mimeType` ya verificado desde el service.
 
 Storage:
 

@@ -7,6 +7,7 @@ Historial relacionado:
 - UI admin inicial: [`docs/worklog/MAPS-007-vista-gestion-noticias.md`](../worklog/MAPS-007-vista-gestion-noticias.md)
 - Diseño fullstack: [`docs/tdd/MAPS-014-tdd-noticias-api-fullstack.md`](../tdd/MAPS-014-tdd-noticias-api-fullstack.md)
 - Cierre implementación: [`docs/worklog/MAPS-014-noticias-api-fullstack.md`](../worklog/MAPS-014-noticias-api-fullstack.md)
+- Validación de contenido en uploads de imágenes (D3A): [`docs/worklog/D3A-validacion-contenido-uploads.md`](../worklog/D3A-validacion-contenido-uploads.md)
 
 ---
 
@@ -115,12 +116,19 @@ El detalle (`GET /news/:id` y `GET /news/public/:slug`) incluye `galeria` (admin
 
 Archivos: `backend/src/api/v1/routes/news.routes.ts`, `news.controller.ts`, `news.service.ts`, `validations/news.schema.ts`, `middlewares/uploadNewsImage.ts`, `lib/storage/*`.
 
-### Imágenes y storage (MAPS-019)
+### Imágenes y storage (MAPS-019, validación D3A)
 
-- Portada y galería se suben como **archivo** (`.jpg/.jpeg/.png`, máx. 10 MB) vía `StorageAdapter` (`backend/src/lib/storage/`), categoría `noticias`.
+- Portada y galería se suben como **archivo** (`.jpg/.jpeg/.png`, máx. **10 MB**) vía `StorageAdapter` (`backend/src/lib/storage/`), categoría `noticias`.
+- Multer (`uploadNewsImageMiddleware`) filtra MIME declarado (`image/jpeg`, `image/png`) y tamaño; es la barrera temprana.
+- Tras Multer, los services detectan el tipo por **firmas binarias** (D3A) y aplican allowlist de familia `noticia`: solo JPEG y PNG reales llegan a storage. WebP con MIME declarado `image/png` → `400`.
+- Storage recibe `mimeType` canónico detectado, no `file.mimetype`.
+- `NoticiaImagen.mimeType` en BD deriva de `detectedMime` vía el adapter.
+- El DTO HTTP de galería sigue siendo `{ id, url, orden }` — **no** expone `mimeType` (sin cambio de contrato API por D3A).
 - Provider según `STORAGE_PROVIDER` (`local` por defecto; `gcs`/`s3` disponibles). El dominio de Noticias **no** se acopla a GCP.
 - En staging, `STORAGE_PROVIDER=gcs` está en uso. El dominio Noticias no se acopla a un proveedor concreto.
 - La galería se muestra como **carrusel** solo en la vista completa (`NewsImageCarousel` en `NewsArticleContent`); nunca en cards/listados/preview.
+
+Detalle de diseño D3A: [`docs/worklog/D3A-validacion-contenido-uploads.md`](../worklog/D3A-validacion-contenido-uploads.md).
 
 ---
 

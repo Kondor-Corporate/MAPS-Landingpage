@@ -2,22 +2,25 @@
  * Tests de integración de imágenes de Noticias (MAPS-019).
  * Cubre upload de portada, galería (alta/baja, orden, tope), RBAC y limpieza en cascada.
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { loadEnv } from '../src/config/env.js';
 import { prisma } from '../src/lib/prisma.js';
+import { getStorageAdapter } from '../src/lib/storage/index.js';
+import {
+  JPEG_SIGNATURE_FIXTURE,
+  PNG_1x1,
+  UPLOAD_GARBAGE,
+  WEBP_SIGNATURE_FIXTURE,
+} from './helpers/binaryFixtures.js';
 
 const BASE = '/api/v1/news';
 const AUTH = '/api/v1/auth';
 
 const VALID_CONTENIDO = 'Contenido de prueba con mas de veinte caracteres.';
 
-// 1x1 PNG y 1x1 GIF mínimos para ejercitar el fileFilter de multer.
-const PNG_1x1 = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-  'base64',
-);
+// 1x1 GIF mínimo para ejercitar el fileFilter de multer (rechazo temprano, no D3A).
 const GIF_1x1 = Buffer.from(
   'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
   'base64',
@@ -111,6 +114,67 @@ describe('news imágenes API (integración MAPS-019)', () => {
 
       expect(res.body.data.imagenUrl).toBeTruthy();
       expect(res.body.data.imagenUrl).toContain('/uploads/noticias/');
+      expect(res.body.data.imagenUrl).toMatch(/\.png$/i);
+    });
+
+    it('D3A — portada JPEG con firma válida → 200 y extensión .jpg', async () => {
+      const admin = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+      const news = await createNews(app, admin);
+
+      const res = await request(app)
+        .post(`${BASE}/${news.id}/portada`)
+        .set('Authorization', `Bearer ${admin}`)
+        .attach('file', JPEG_SIGNATURE_FIXTURE, {
+          filename: 'portada.jpg',
+          contentType: 'image/jpeg',
+        })
+        .expect(200);
+
+      expect(res.body.data.imagenUrl).toMatch(/\.jpg$/i);
+    });
+
+    it('D3A — portada WebP declarada image/png → 400', async () => {
+      const adapter = getStorageAdapter();
+      const uploadSpy = vi.spyOn(adapter, 'uploadImagenNoticia');
+
+      try {
+        const admin = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+        const news = await createNews(app, admin);
+
+        const res = await request(app)
+          .post(`${BASE}/${news.id}/portada`)
+          .set('Authorization', `Bearer ${admin}`)
+          .attach('file', WEBP_SIGNATURE_FIXTURE, {
+            filename: 'portada.png',
+            contentType: 'image/png',
+          })
+          .expect(400);
+
+        expect(res.body.message).toBe(
+          'La imagen debe ser un archivo JPG, JPEG o PNG válido',
+        );
+        expect(uploadSpy).not.toHaveBeenCalled();
+      } finally {
+        uploadSpy.mockRestore();
+      }
+    });
+
+    it('D3A — portada basura declarada image/png → 400', async () => {
+      const admin = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+      const news = await createNews(app, admin);
+
+      const res = await request(app)
+        .post(`${BASE}/${news.id}/portada`)
+        .set('Authorization', `Bearer ${admin}`)
+        .attach('file', UPLOAD_GARBAGE, {
+          filename: 'portada.png',
+          contentType: 'image/png',
+        })
+        .expect(400);
+
+      expect(res.body.message).toBe(
+        'La imagen debe ser un archivo JPG, JPEG o PNG válido',
+      );
     });
 
     it('mime inválido (gif) → 400', async () => {
@@ -177,6 +241,51 @@ describe('news imágenes API (integración MAPS-019)', () => {
       const galeria = detail.body.data.galeria as { id: number; orden: number }[];
       expect(galeria).toHaveLength(2);
       expect(galeria.map((g) => g.orden)).toEqual([0, 1]);
+    });
+
+    it('D3A — galería JPEG con firma válida → 201, mimeType y extensión .jpg', async () => {
+      const admin = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+      const news = await createNews(app, admin);
+
+      const res = await request(app)
+        .post(`${BASE}/${news.id}/imagenes`)
+        .set('Authorization', `Bearer ${admin}`)
+        .attach('file', JPEG_SIGNATURE_FIXTURE, {
+          filename: 'galeria.jpg',
+          contentType: 'image/jpeg',
+        })
+        .expect(201);
+
+      const imageId = res.body.data.id as number;
+      expect(imageId).toBeGreaterThan(0);
+      expect(res.body.data.url).toMatch(/\.jpg$/i);
+
+      const persisted = await prisma.noticiaImagen.findUnique({
+        where: { id: imageId },
+        select: { mimeType: true, url: true },
+      });
+
+      expect(persisted).not.toBeNull();
+      expect(persisted?.mimeType).toBe('image/jpeg');
+      expect(persisted?.url).toBe(res.body.data.url);
+    });
+
+    it('D3A — galería WebP declarada image/png → 400', async () => {
+      const admin = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+      const news = await createNews(app, admin);
+
+      const res = await request(app)
+        .post(`${BASE}/${news.id}/imagenes`)
+        .set('Authorization', `Bearer ${admin}`)
+        .attach('file', WEBP_SIGNATURE_FIXTURE, {
+          filename: 'galeria.png',
+          contentType: 'image/png',
+        })
+        .expect(400);
+
+      expect(res.body.message).toBe(
+        'La imagen debe ser un archivo JPG, JPEG o PNG válido',
+      );
     });
 
     it('GET /news/public/:slug expone galería como array de URLs', async () => {
@@ -261,6 +370,54 @@ describe('news imágenes API (integración MAPS-019)', () => {
 
       const count = await prisma.noticiaImagen.count({ where: { noticiaId: news.id } });
       expect(count).toBe(0);
+    });
+  });
+
+  describe('D3A — storage no invocado (noticias)', () => {
+    it('portada basura → uploadImagenNoticia no llamado', async () => {
+      const adapter = getStorageAdapter();
+      const uploadSpy = vi.spyOn(adapter, 'uploadImagenNoticia');
+
+      try {
+        const admin = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+        const news = await createNews(app, admin);
+
+        await request(app)
+          .post(`${BASE}/${news.id}/portada`)
+          .set('Authorization', `Bearer ${admin}`)
+          .attach('file', UPLOAD_GARBAGE, {
+            filename: 'portada.png',
+            contentType: 'image/png',
+          })
+          .expect(400);
+
+        expect(uploadSpy).not.toHaveBeenCalled();
+      } finally {
+        uploadSpy.mockRestore();
+      }
+    });
+
+    it('galería WebP no permitida → uploadImagenNoticia no llamado', async () => {
+      const adapter = getStorageAdapter();
+      const uploadSpy = vi.spyOn(adapter, 'uploadImagenNoticia');
+
+      try {
+        const admin = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+        const news = await createNews(app, admin);
+
+        await request(app)
+          .post(`${BASE}/${news.id}/imagenes`)
+          .set('Authorization', `Bearer ${admin}`)
+          .attach('file', WEBP_SIGNATURE_FIXTURE, {
+            filename: 'galeria.png',
+            contentType: 'image/png',
+          })
+          .expect(400);
+
+        expect(uploadSpy).not.toHaveBeenCalled();
+      } finally {
+        uploadSpy.mockRestore();
+      }
     });
   });
 });
