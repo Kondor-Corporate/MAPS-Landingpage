@@ -2,6 +2,13 @@ import { Prisma, type Usuario } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { AppError } from '../lib/errors.js';
+import {
+  LATITUDE_MAX,
+  LATITUDE_MIN,
+  LONGITUDE_MAX,
+  LONGITUDE_MIN,
+  normalizeCoordinates,
+} from '../lib/coordinates.js';
 import { geocodeAddress } from '../lib/geocode.js';
 import {
   buildProductorUpdateFromAdmin,
@@ -232,11 +239,16 @@ async function resolveFinalLocation(input: {
   const text = direccionTrimmed || ciudadTrimmed;
 
   if (hasManualCoordinates(input)) {
+    const coordinates = normalizeCoordinates(input.latitud, input.longitud);
+    if (coordinates === null) {
+      throw new AppError(400, 'Las coordenadas están fuera de rango');
+    }
+
     return {
       ...(text !== undefined ? { ciudad: ciudadTrimmed ?? text } : {}),
       ...(text !== undefined ? { direccion: text } : {}),
-      latitud: input.latitud,
-      longitud: input.longitud,
+      latitud: coordinates.latitud,
+      longitud: coordinates.longitud,
     };
   }
 
@@ -611,8 +623,16 @@ export const producersService = {
     return prisma.productor.findMany({
       where: {
         usuario: { activo: true },
-        latitud: { not: null },
-        longitud: { not: null },
+        latitud: {
+          not: null,
+          gte: LATITUDE_MIN,
+          lte: LATITUDE_MAX,
+        },
+        longitud: {
+          not: null,
+          gte: LONGITUDE_MIN,
+          lte: LONGITUDE_MAX,
+        },
       },
       select: {
         slug: true,
