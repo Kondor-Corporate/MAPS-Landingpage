@@ -18,6 +18,7 @@ Historial relacionado:
 - Credenciales administradas por admin: `docs/worklog/MAPS-016-credenciales-productores.md`.
 - Self-service de contraseña movido a Auth: `docs/worklog/D1A-cambio-self-password.md`.
 - Validación de contenido real en uploads (D3A): `docs/worklog/D3A-validacion-contenido-uploads.md`.
+- Integridad de coordenadas y defensa legacy (D3B): `docs/worklog/D3B-integridad-coordenadas.md`.
 
 ---
 
@@ -28,6 +29,7 @@ Historial relacionado:
 | Admin CRUD productores | Implementado con API real |
 | Activos/inactivos | Implementado |
 | Geocodificacion de direccion | Implementada via Nominatim |
+| Integridad de coordenadas | Implementada (D3B): finite + bounds globales, defensa cache/provider y legacy |
 | Perfil propio productor | Implementado |
 | Perfil publico por slug | Implementado |
 | Mapa publico | Implementado |
@@ -63,7 +65,7 @@ Campos relevantes de `Productor`:
 | `slug` | URL publica e intranet por perfil |
 | `nombre`, `apellido` | Identidad visible |
 | `ciudad` | Direccion/zona visible y fuente para geocoding |
-| `latitud`, `longitud` | Mapa publico y zona de influencia |
+| `latitud`, `longitud` | Mapa publico y zona de influencia. En app-layer: latitud [-90, 90], longitud [-180, 180] (finas y finitas). PostgreSQL no impone CHECK constraint. |
 | `matricula`, `verificado` | Datos profesionales |
 | `bio`, `foto`, `whatsapp`, `idiomas` | Perfil |
 | `anosExperiencia`, `clientesActivos` | Estadisticas |
@@ -191,10 +193,21 @@ Archivos principales:
 
 ## Geocodificacion
 
-Al crear o actualizar productores desde admin, la direccion/ciudad puede geocodificarse con Nominatim para persistir:
+Al crear o actualizar productores (admin o perfil propio), la direccion/ciudad puede geocodificarse con Nominatim para persistir `latitud` y `longitud`. Detalle de diseño D3B: [`docs/worklog/D3B-integridad-coordenadas.md`](../worklog/D3B-integridad-coordenadas.md).
 
-- `latitud`
-- `longitud`
+**Busqueda (search):**
+
+- Nominatim sigue sesgado a Argentina / La Plata (`countrycodes=ar`, `viewbox` Buenos Aires).
+- La respuesta del provider se valida con bounds globales (`normalizeCoordinates`); resultado invalido → `null`, no se propaga.
+- Coordenadas manuales en pareja completa tienen **prioridad** sobre el geocoder; pareja incompleta → `400`.
+- `(0, 0)` es tecnicamente valido.
+
+**Cache Redis** (si `REDIS_URL` esta configurada):
+
+- Cache de geocoding search/reverse via `geocodeCache.ts` (TTL positivo 24 h, negative 5 min).
+- Positive cache se **revalida** antes de usarse; contenido invalido o malformado no se considera confiable y dispara refetch al provider.
+- Negative cache (`NOT_FOUND`) retorna `null` sin reconsultar Nominatim.
+- Si Redis no esta disponible, fail-open: la request sigue contra Nominatim.
 
 Variable relacionada:
 
@@ -206,7 +219,18 @@ Riesgos:
 
 - Nominatim puede fallar por direccion ambigua, rate limit o conectividad.
 - La direccion debe ser suficientemente especifica.
-- No hay cache externa documentada.
+
+### Mapa publico y legacy
+
+`GET /producers/map`:
+
+- Solo productores activos (`Usuario.activo`).
+- Requiere `latitud`/`longitud` no null y dentro de bounds validos en query Prisma.
+- Registros legacy fuera de rango quedan excluidos del mapa.
+
+Admin y perfil (lectura):
+
+- Pair legacy invalida en BD se expone como `latitud: null`, `longitud: null` en DTOs.
 
 ---
 
