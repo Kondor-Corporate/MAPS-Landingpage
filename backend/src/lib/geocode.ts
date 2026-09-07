@@ -1,4 +1,5 @@
 import { loadEnv } from '../config/env.js';
+import { normalizeCoordinates } from './coordinates.js';
 import { getCachedGeocode, setCachedGeocode } from './geocodeCache.js';
 import { logGeocodeEvent } from './geocodeMetrics.js';
 import { normalizeGeocodeQuery, normalizeReverseCoordinates } from './geocodeNormalize.js';
@@ -69,9 +70,7 @@ async function fetchGeocodeFromNominatim(trimmed: string): Promise<GeocodeResult
 
     const latitud = parseFloat(data[0].lat);
     const longitud = parseFloat(data[0].lon);
-    if (Number.isNaN(latitud) || Number.isNaN(longitud)) return null;
-
-    return { latitud, longitud };
+    return normalizeCoordinates(latitud, longitud);
   } catch {
     return null;
   }
@@ -84,10 +83,19 @@ export async function geocodeAddress(query: string): Promise<GeocodeResult | nul
   const cacheKey = `geocode:search:${normalizeGeocodeQuery(trimmed)}`;
   const cached = await getCachedGeocode<GeocodeResult>(cacheKey);
   if (cached.hit) {
-    logGeocodeEvent('geocode.cache_hit', { operation: 'search' });
-    return cached.value;
+    if (cached.value === null) {
+      logGeocodeEvent('geocode.cache_hit', { operation: 'search' });
+      return null;
+    }
+
+    const cachedCoords = normalizeCoordinates(cached.value.latitud, cached.value.longitud);
+    if (cachedCoords !== null) {
+      logGeocodeEvent('geocode.cache_hit', { operation: 'search' });
+      return cachedCoords;
+    }
+  } else {
+    logGeocodeEvent('geocode.cache_miss', { operation: 'search' });
   }
-  logGeocodeEvent('geocode.cache_miss', { operation: 'search' });
 
   const result = await runWithNominatimSlot(() => fetchGeocodeFromNominatim(trimmed));
   await setCachedGeocode(cacheKey, result);

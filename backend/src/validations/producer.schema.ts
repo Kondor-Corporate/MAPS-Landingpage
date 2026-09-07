@@ -1,7 +1,22 @@
 import { z } from 'zod';
 import { PRODUCER_SPECIALTY_KEYS } from '../constants/producerSpecialties.js';
+import {
+  LATITUDE_MAX,
+  LATITUDE_MIN,
+  LONGITUDE_MAX,
+  LONGITUDE_MIN,
+} from '../lib/coordinates.js';
 import { passwordSchema } from '../lib/passwordPolicy.js';
 import { redesSocialesSchema } from './producerProfile.schema.js';
+
+const LATITUDE_MESSAGE = 'La latitud debe estar entre -90 y 90';
+const LONGITUDE_MESSAGE = 'La longitud debe estar entre -180 y 180';
+
+function optionalCoordinatePreprocess(value: unknown) {
+  if (value === null || value === '') return undefined;
+  if (typeof value === 'string') return Number(value);
+  return value;
+}
 
 const optionalTrimmedString = z.preprocess(
   (value) => (value === null ? undefined : value),
@@ -13,13 +28,24 @@ const optionalUrlString = z.preprocess(
   z.string().trim().url().optional().or(z.literal('')),
 );
 
-const optionalNumber = z.preprocess(
-  (value) => {
-    if (value === null || value === '') return undefined;
-    if (typeof value === 'string') return Number(value);
-    return value;
-  },
-  z.number().optional(),
+const optionalLatitude = z.preprocess(
+  optionalCoordinatePreprocess,
+  z
+    .number()
+    .finite({ message: LATITUDE_MESSAGE })
+    .min(LATITUDE_MIN, { message: LATITUDE_MESSAGE })
+    .max(LATITUDE_MAX, { message: LATITUDE_MESSAGE })
+    .optional(),
+);
+
+const optionalLongitude = z.preprocess(
+  optionalCoordinatePreprocess,
+  z
+    .number()
+    .finite({ message: LONGITUDE_MESSAGE })
+    .min(LONGITUDE_MIN, { message: LONGITUDE_MESSAGE })
+    .max(LONGITUDE_MAX, { message: LONGITUDE_MESSAGE })
+    .optional(),
 );
 
 const optionalNonNegativeInteger = z.preprocess(
@@ -69,8 +95,8 @@ const producerExtendedFields = {
   whatsapp: optionalTrimmedString,
   foto: optionalUrlString,
   idiomas: optionalStringArray,
-  latitud: optionalNumber,
-  longitud: optionalNumber,
+  latitud: optionalLatitude,
+  longitud: optionalLongitude,
   especialidades: optionalSpecialtyArray,
   redesSociales: z.preprocess((value) => (value === null ? undefined : value), redesSocialesSchema),
   matricula: optionalTrimmedString.or(z.literal('')),
