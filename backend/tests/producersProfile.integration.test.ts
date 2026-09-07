@@ -211,6 +211,35 @@ describe('producers profile API (MAPS-013)', () => {
       .expect(200);
   });
 
+  it('PATCH /producers/me — solo latitud → 400 y no persiste coords parciales', async () => {
+    const agent = request.agent(app);
+    const token = await loginProductor(agent);
+
+    const before = await agent
+      .get(`${PRODUCERS}/me`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const prevLat = before.body.data.profile.latitud;
+    const prevLng = before.body.data.profile.longitud;
+
+    const res = await agent
+      .patch(`${PRODUCERS}/me`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ latitud: -34.9 })
+      .expect(400);
+
+    expect(res.body.message).toBe('Latitud y longitud deben enviarse juntas');
+
+    const after = await agent
+      .get(`${PRODUCERS}/me`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(after.body.data.profile.latitud).toBe(prevLat);
+    expect(after.body.data.profile.longitud).toBe(prevLng);
+  });
+
   it('PATCH /producers/me — campos admin-only rechazados', async () => {
 
     const agent = request.agent(app);
