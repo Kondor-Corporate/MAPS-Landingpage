@@ -19,6 +19,7 @@ Historial relacionado:
 - Self-service de contraseña movido a Auth: `docs/worklog/D1A-cambio-self-password.md`.
 - Validación de contenido real en uploads (D3A): `docs/worklog/D3A-validacion-contenido-uploads.md`.
 - Integridad de coordenadas y defensa legacy (D3B): `docs/worklog/D3B-integridad-coordenadas.md`.
+- Consistencia Storage ↔ DB (D3C): `docs/worklog/D3C-consistencia-storage-db.md`.
 
 ---
 
@@ -34,6 +35,7 @@ Historial relacionado:
 | Perfil publico por slug | Implementado |
 | Mapa publico | Implementado |
 | Certificaciones PDF | Implementado con storage local/S3-compatible |
+| Consistencia storage ↔ DB de certificaciones/foto | Implementada en app-layer (D3C): compensación de uploads y DB-first en deletes |
 | Credenciales individuales por productor (alta con password propia) | Implementado (MAPS-016) |
 | Cambio de contraseña self-service | Canónico en Auth (`PATCH /api/v1/auth/me/password`, D1A). El productor lo usa desde su perfil; `PATCH /producers/me/password` queda como alias temporal solo para `PRODUCTOR` |
 | Restablecimiento de contraseña por admin | Implementado (MAPS-016) — sigue en este dominio |
@@ -281,6 +283,35 @@ S3_PUBLIC_BASE_URL=
 
 En Docker desarrollo, `backend_uploads` persiste los archivos subidos.
 
+### Consistencia Storage ↔ DB (D3C)
+
+PostgreSQL es el source of truth lógico. No hay transacción distribuida entre Prisma y storage; los flujos de certificaciones y foto aplican orden de operaciones y compensación best-effort. Detalle: [`docs/worklog/D3C-consistencia-storage-db.md`](../worklog/D3C-consistencia-storage-db.md).
+
+**Certificación alta** (`POST .../certificaciones`):
+
+- validación D3A del buffer;
+- upload a storage;
+- `count` + `create` en DB;
+- si DB falla → se intenta borrar el upload nuevo (compensación);
+- el error DB original prevalece sobre cualquier fallo de compensación.
+
+**Certificación baja** (`DELETE .../certificaciones/:certId`):
+
+- la fila DB se elimina primero;
+- después cleanup del blob en storage;
+- si cleanup falla → queda registrado (`storage.consistency_cleanup_failed`); no revierte el delete ni cambia HTTP `200`.
+
+**Foto replace** (`POST /producers/me/foto`):
+
+- upload de imagen nueva;
+- DB apunta a la URL nueva;
+- luego cleanup de la foto anterior;
+- si DB falla → nueva compensada y foto anterior intacta.
+
+Los storage adapters solo borran URLs **managed** reconocidas como propias del entorno; URLs externas o legacy → no-op; archivo inexistente → no-op; error real del adapter → el helper lo captura en cleanup sin propagar al cliente.
+
+El cleanup es best-effort: puede quedar un orphan físico residual si falla la compensación o el cleanup posterior.
+
 ---
 
 ## Verificacion manual
@@ -323,3 +354,5 @@ Publico:
 - E2E admin/productor/publico.
 - Mejor manejo operacional de geocoding.
 - Definir politica final para storage productivo.
+- Reconciliación Storage ↔ DB para detectar y limpiar huérfanos (fuera de D3C).
+- Política de acceso/privacidad de certificaciones almacenadas (auth / signed URLs) como decisión separada si negocio la requiere.

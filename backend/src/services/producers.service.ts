@@ -26,6 +26,10 @@ import {
 } from '../lib/producerProfileMapper.js';
 import { prisma } from '../lib/prisma.js';
 import { getStorageAdapter } from '../lib/storage/index.js';
+import {
+  cleanupBestEffort,
+  compensateUploadFailure,
+} from '../lib/storageConsistency.js';
 import { assertAllowedUploadContent } from '../lib/uploadContentValidation.js';
 
 const usuarioListSelect = {
@@ -141,25 +145,34 @@ async function addCertificacion(
     productorId,
   });
 
-  const count = await prisma.certificacion.count({ where: { productorId } });
-  const cert = await prisma.certificacion.create({
-    data: {
-      productorId,
-      nombre: nombre?.trim() || file.originalname || 'Certificación',
-      archivoUrl: uploaded.url,
-      tamanoBytes: uploaded.tamanoBytes,
-      mimeType: uploaded.mimeType,
-      orden: count,
-    },
-  });
+  try {
+    const count = await prisma.certificacion.count({ where: { productorId } });
+    const cert = await prisma.certificacion.create({
+      data: {
+        productorId,
+        nombre: nombre?.trim() || file.originalname || 'Certificación',
+        archivoUrl: uploaded.url,
+        tamanoBytes: uploaded.tamanoBytes,
+        mimeType: uploaded.mimeType,
+        orden: count,
+      },
+    });
 
-  return {
-    id: cert.id,
-    nombre: cert.nombre,
-    archivoUrl: cert.archivoUrl,
-    tamanoBytes: cert.tamanoBytes,
-    mimeType: cert.mimeType,
-  };
+    return {
+      id: cert.id,
+      nombre: cert.nombre,
+      archivoUrl: cert.archivoUrl,
+      tamanoBytes: cert.tamanoBytes,
+      mimeType: cert.mimeType,
+    };
+  } catch (error) {
+    await compensateUploadFailure({
+      category: 'certificaciones',
+      resourceId: productorId,
+      cleanup: () => storage.deleteCertificacion(uploaded.url),
+    });
+    throw error;
+  }
 }
 
 async function removeCertificacion(productorId: number, certId: number) {
@@ -171,8 +184,13 @@ async function removeCertificacion(productorId: number, certId: number) {
   }
 
   const storage = getStorageAdapter();
-  await storage.deleteCertificacion(cert.archivoUrl);
   await prisma.certificacion.delete({ where: { id: cert.id } });
+  await cleanupBestEffort({
+    operation: 'cleanup_after_db_delete',
+    category: 'certificaciones',
+    resourceId: cert.id,
+    cleanup: () => storage.deleteCertificacion(cert.archivoUrl),
+  });
 }
 
 async function replaceFoto(
@@ -193,15 +211,27 @@ async function replaceFoto(
     productorId,
   });
 
-  await prisma.productor.update({
-    where: { id: productorId },
-    data: { foto: uploaded.url },
-  });
+  try {
+    await prisma.productor.update({
+      where: { id: productorId },
+      data: { foto: uploaded.url },
+    });
+  } catch (error) {
+    await compensateUploadFailure({
+      category: 'fotos',
+      resourceId: productorId,
+      cleanup: () => storage.deleteFoto(uploaded.url),
+    });
+    throw error;
+  }
 
   if (currentFotoUrl) {
-    // La foto anterior puede ser una URL externa no gestionada por nuestro storage;
-    // no bloqueamos el reemplazo si no se puede borrar.
-    await storage.deleteFoto(currentFotoUrl).catch(() => undefined);
+    await cleanupBestEffort({
+      operation: 'cleanup_after_db_replace',
+      category: 'fotos',
+      resourceId: productorId,
+      cleanup: () => storage.deleteFoto(currentFotoUrl),
+    });
   }
 
   return uploaded.url;

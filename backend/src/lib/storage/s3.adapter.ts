@@ -7,6 +7,7 @@ import {
 import { loadEnv } from '../../config/env.js';
 import type {
   StorageAdapter,
+  StoredFileCategory,
   UploadCertificacionInput,
   UploadCertificacionResult,
   UploadFotoInput,
@@ -26,17 +27,51 @@ const NOTICIA_EXTENSION_BY_MIME: Record<string, string> = {
   'image/png': 'png',
 };
 
-function keyFromUrl(url: string, publicBase: string): string | null {
-  const normalizedBase = publicBase.replace(/\/$/, '');
-  if (url.startsWith(normalizedBase)) {
-    return url.slice(normalizedBase.length + 1);
-  }
+const S3_MANAGED_KEY_PATTERNS: Record<StoredFileCategory, RegExp> = {
+  certificaciones: /^certificaciones\/\d+\/\d+-[0-9a-f]{8}\.pdf$/i,
+  fotos: /^fotos\/\d+\/\d+-[0-9a-f]{8}\.(?:jpg|png|webp)$/i,
+  noticias: /^noticias\/\d+\/\d+-[0-9a-f]{8}\.(?:jpg|png)$/i,
+};
+
+function parseS3ManagedKey(
+  rawUrl: string,
+  publicBaseUrl: string,
+  category: StoredFileCategory,
+): string | null {
+  let parsed: URL;
+  let base: URL;
   try {
-    const pathname = new URL(url).pathname;
-    return pathname.startsWith('/') ? pathname.slice(1) : pathname;
+    const normalizedBase = publicBaseUrl.replace(/\/$/, '');
+    base = new URL(normalizedBase);
+    parsed = new URL(rawUrl);
   } catch {
     return null;
   }
+
+  if (parsed.origin !== base.origin) {
+    return null;
+  }
+
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    return null;
+  }
+
+  const basePath = base.pathname === '/' ? '' : base.pathname.replace(/\/$/, '');
+  if (basePath) {
+    if (parsed.pathname !== basePath && !parsed.pathname.startsWith(`${basePath}/`)) {
+      return null;
+    }
+  }
+
+  const key = basePath
+    ? parsed.pathname.slice(basePath.length + 1)
+    : parsed.pathname.replace(/^\//, '');
+
+  if (!key || !S3_MANAGED_KEY_PATTERNS[category].test(key)) {
+    return null;
+  }
+
+  return key;
 }
 
 export class S3StorageAdapter implements StorageAdapter {
@@ -62,6 +97,15 @@ export class S3StorageAdapter implements StorageAdapter {
     });
   }
 
+  private async deleteManagedObject(key: string): Promise<void> {
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+    );
+  }
+
   async uploadCertificacion(input: UploadCertificacionInput): Promise<UploadCertificacionResult> {
     const key = `certificaciones/${input.productorId}/${Date.now()}-${randomBytes(4).toString('hex')}.pdf`;
     await this.client.send(
@@ -80,14 +124,9 @@ export class S3StorageAdapter implements StorageAdapter {
   }
 
   async deleteCertificacion(url: string): Promise<void> {
-    const key = keyFromUrl(url, this.publicBaseUrl);
+    const key = parseS3ManagedKey(url, this.publicBaseUrl, 'certificaciones');
     if (!key) return;
-    await this.client.send(
-      new DeleteObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-      }),
-    );
+    await this.deleteManagedObject(key);
   }
 
   async uploadFoto(input: UploadFotoInput): Promise<UploadFotoResult> {
@@ -105,18 +144,9 @@ export class S3StorageAdapter implements StorageAdapter {
   }
 
   async deleteFoto(url: string): Promise<void> {
-    const key = keyFromUrl(url, this.publicBaseUrl);
+    const key = parseS3ManagedKey(url, this.publicBaseUrl, 'fotos');
     if (!key) return;
-    try {
-      await this.client.send(
-        new DeleteObjectCommand({
-          Bucket: this.bucket,
-          Key: key,
-        }),
-      );
-    } catch {
-      /* file may already be gone, or was an external URL we don't manage */
-    }
+    await this.deleteManagedObject(key);
   }
 
   async uploadImagenNoticia(
@@ -140,17 +170,8 @@ export class S3StorageAdapter implements StorageAdapter {
   }
 
   async deleteImagenNoticia(url: string): Promise<void> {
-    const key = keyFromUrl(url, this.publicBaseUrl);
+    const key = parseS3ManagedKey(url, this.publicBaseUrl, 'noticias');
     if (!key) return;
-    try {
-      await this.client.send(
-        new DeleteObjectCommand({
-          Bucket: this.bucket,
-          Key: key,
-        }),
-      );
-    } catch {
-      /* file may already be gone, or was an external URL we don't manage */
-    }
+    await this.deleteManagedObject(key);
   }
 }
