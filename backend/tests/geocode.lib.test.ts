@@ -4,6 +4,20 @@ import {
   reverseGeocodeCoordinates,
 } from '../src/lib/geocode.js';
 
+function uniqueQuery(prefix: string): string {
+  return `${prefix} ${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function mockNominatimSearch(lat: string, lon: string) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => [{ lat, lon }],
+    })),
+  );
+}
+
 describe('geocodeAddress', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -26,6 +40,38 @@ describe('geocodeAddress', () => {
     expect(url.searchParams.get('viewbox')).toBe('-59.2,-34.2,-57.2,-35.4');
     expect(url.searchParams.get('bounded')).toBe('0');
     expect(url.searchParams.get('q')).toBe('Diagonal 75 172, La Plata');
+  });
+
+  it.each([
+    { label: 'lat 91', lat: '91', lon: '-57.95' },
+    { label: 'lat -91', lat: '-91', lon: '-57.95' },
+    { label: 'lng 181', lat: '-34.92', lon: '181' },
+    { label: 'lng -181', lat: '-34.92', lon: '-181' },
+    { label: 'lat Infinity', lat: 'Infinity', lon: '-57.95' },
+    { label: 'lng -Infinity', lat: '-34.92', lon: '-Infinity' },
+  ])('provider $label → null', async ({ lat, lon }) => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => [{ lat, lon }],
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await geocodeAddress(uniqueQuery('D3B provider invalid'));
+
+    expect(result).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { label: '90/180', lat: '90', lon: '180', expected: { latitud: 90, longitud: 180 } },
+    { label: '-90/-180', lat: '-90', lon: '-180', expected: { latitud: -90, longitud: -180 } },
+    { label: '0/0', lat: '0', lon: '0', expected: { latitud: 0, longitud: 0 } },
+  ])('provider boundaries $label → pair válida', async ({ lat, lon, expected }) => {
+    mockNominatimSearch(lat, lon);
+
+    const result = await geocodeAddress(uniqueQuery(`D3B provider boundary ${lat}/${lon}`));
+
+    expect(result).toEqual(expected);
   });
 });
 

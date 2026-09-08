@@ -1,5 +1,28 @@
 import { z } from 'zod';
 import { PRODUCER_SPECIALTY_KEYS } from '../constants/producerSpecialties.js';
+import {
+  LATITUDE_MAX,
+  LATITUDE_MIN,
+  LONGITUDE_MAX,
+  LONGITUDE_MIN,
+} from '../lib/coordinates.js';
+
+const LATITUDE_MESSAGE = 'La latitud debe estar entre -90 y 90';
+const LONGITUDE_MESSAGE = 'La longitud debe estar entre -180 y 180';
+
+const boundedLatitude = z
+  .number()
+  .finite({ message: LATITUDE_MESSAGE })
+  .min(LATITUDE_MIN, { message: LATITUDE_MESSAGE })
+  .max(LATITUDE_MAX, { message: LATITUDE_MESSAGE })
+  .optional();
+
+const boundedLongitude = z
+  .number()
+  .finite({ message: LONGITUDE_MESSAGE })
+  .min(LONGITUDE_MIN, { message: LONGITUDE_MESSAGE })
+  .max(LONGITUDE_MAX, { message: LONGITUDE_MESSAGE })
+  .optional();
 
 export const redesSocialesSchema = z
   .array(
@@ -32,8 +55,8 @@ export const updateMyProfileSchema = z
     whatsapp: z.string().trim().optional(),
     foto: z.string().trim().url().optional().or(z.literal('')),
     idiomas: z.array(z.string().trim().min(1)).optional(),
-    latitud: z.number().optional(),
-    longitud: z.number().optional(),
+    latitud: boundedLatitude,
+    longitud: boundedLongitude,
     especialidades: z.array(z.enum(PRODUCER_SPECIALTY_KEYS)).optional(),
     redesSociales: redesSocialesSchema,
   })

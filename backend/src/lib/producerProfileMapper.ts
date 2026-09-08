@@ -4,6 +4,7 @@ import {
   specialtyKeyToLabel,
   type ProducerSpecialtyKey,
 } from '../constants/producerSpecialties.js';
+import { normalizeCoordinates } from './coordinates.js';
 
 export type ProductorWithRelations = Productor & {
   usuario: Pick<Usuario, 'usuario' | 'activo'>;
@@ -53,6 +54,7 @@ function mapCertificaciones(rows: Certificacion[]) {
 
 export function toProducerProfileDto(row: ProductorWithRelations) {
   const keys = parseEspecialidadesJson(row.especialidades);
+  const coordinates = normalizeCoordinates(row.latitud, row.longitud);
   return {
     id: row.id,
     slug: row.slug,
@@ -72,8 +74,8 @@ export function toProducerProfileDto(row: ProductorWithRelations) {
     email: row.usuario.usuario,
     anosExperiencia: row.anosExperiencia,
     clientesActivos: row.clientesActivos,
-    latitud: row.latitud,
-    longitud: row.longitud,
+    latitud: coordinates?.latitud ?? null,
+    longitud: coordinates?.longitud ?? null,
     especialidades: keys.map((clave) => ({
       clave,
       label: specialtyKeyToLabel(clave),
@@ -142,6 +144,7 @@ export function toMapProducerDto(row: MapProducerRow): MapProducerDto {
 
 export function toAdminProducerDto(row: AdminProducerRow) {
   const keys = parseEspecialidadesJson(row.especialidades);
+  const coordinates = normalizeCoordinates(row.latitud, row.longitud);
   return {
     id: row.id,
     slug: row.slug,
@@ -152,8 +155,8 @@ export function toAdminProducerDto(row: AdminProducerRow) {
     direccion: row.direccion,
     dni: row.dni,
     foto: row.foto,
-    latitud: row.latitud,
-    longitud: row.longitud,
+    latitud: coordinates?.latitud ?? null,
+    longitud: coordinates?.longitud ?? null,
     telefono: row.telefono,
     matricula: row.matricula,
     verificado: row.verificado,
