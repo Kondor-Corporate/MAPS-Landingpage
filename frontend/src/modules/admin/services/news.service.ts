@@ -79,3 +79,9 @@ export async function addImagenGaleria(id: number, file: File): Promise<ApiNotic
 export async function removeImagenGaleria(id: number, imagenId: number): Promise<void> {
   await api.delete(`/news/${id}/imagenes/${imagenId}`);
 }
+
+/** Aplica el orden final de la galería (ids de `NoticiaImagen` en el orden deseado). */
+export async function reorderGaleria(id: number, orden: number[]): Promise<ApiNews> {
+  const res = await api.patch<ApiSuccess<ApiNews>>(`/news/${id}/imagenes/orden`, { orden });
+  return unwrap(res);
+}

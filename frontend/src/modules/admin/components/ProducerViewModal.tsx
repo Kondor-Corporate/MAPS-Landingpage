@@ -18,6 +18,7 @@ import { Modal } from '@/shared/components/Modal';
 import { SingleProducerMap } from '@/shared/components/map/SingleProducerMap';
 import { ProducerStatusBadge } from '@/modules/admin/components/ProducerStatusBadge';
 import { ProfileCertificationsList } from '@/shared/components/profile/ProfileCertificationsList';
+import { formatDateLong } from '@/shared/utils/date';
 import type { Producer } from '@/modules/admin/types/producer';
 import { producerNombreCompleto } from '@/modules/admin/types/producer';
 
@@ -38,14 +39,6 @@ const SOCIAL_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
 };
 
 const DASH = '—';
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-}
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('es-AR', {
@@ -84,7 +77,7 @@ export function ProducerViewModal({ isOpen, onClose, producer, onEdit }: Props) 
           <div className="flex items-start gap-5">
             <Avatar name={name} src={producer.avatarUrl} size="xl" />
             <div className="flex flex-1 flex-col gap-2">
-              <h2 className="text-2xl font-bold text-maps-heading">{name}</h2>
+              <h2 className="text-lg font-bold text-maps-heading">{name}</h2>
               <div className="flex flex-wrap items-center gap-3">
                 <ProducerStatusBadge estado={producer.estado} />
                 {producer.verificado && (
@@ -216,7 +209,7 @@ export function ProducerViewModal({ isOpen, onClose, producer, onEdit }: Props) 
               <InfoRow
                 icon={<CalendarDays size={16} />}
                 label="Alta"
-                value={formatDate(producer.fechaAlta)}
+                value={formatDateLong(producer.fechaAlta)}
               />
               <InfoRow
                 icon={<ShieldCheck size={16} />}

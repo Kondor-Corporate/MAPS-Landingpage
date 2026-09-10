@@ -176,8 +176,11 @@ export function FindAdvisorMap() {
   };
 
   return (
-    <section id="mapa" className="grid min-w-0 scroll-mt-[70px] grid-cols-1 lg:grid-cols-[704px_1fr]">
-      <div className="flex min-w-0 items-center bg-white px-6 sm:px-10 lg:px-16 py-12 sm:py-16 lg:py-32">
+    <section
+      id="mapa"
+      className="grid min-w-0 scroll-mt-[70px] grid-cols-1 lg:grid-cols-[420px_1fr] xl:grid-cols-[704px_1fr]"
+    >
+      <div className="flex min-w-0 items-center bg-white px-6 sm:px-10 lg:px-8 xl:px-16 py-12 sm:py-16 lg:py-16 xl:py-32">
         <div className="flex min-w-0 w-full max-w-[560px] flex-col gap-5">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-maps-brand-soft text-maps-brand">
             <MapPinIcon className="h-6 w-6" />
@@ -193,7 +196,7 @@ export function FindAdvisorMap() {
           </p>
 
           <form
-            className="mt-4 flex min-w-0 flex-col gap-2 rounded-xl border border-maps-border bg-white p-2 shadow-card min-[420px]:h-16 min-[420px]:flex-row min-[420px]:items-stretch min-[420px]:gap-0"
+            className="mt-4 flex min-w-0 flex-col gap-2 rounded-xl border border-maps-border bg-white p-2 shadow-card transition focus-within:border-maps-brand focus-within:ring-2 focus-within:ring-maps-brand/20 min-[420px]:h-16 min-[420px]:flex-row min-[420px]:items-stretch min-[420px]:gap-0"
             onSubmit={handleSearch}
           >
             <span className="flex w-9 items-center justify-center text-maps-muted-soft">
@@ -305,7 +308,7 @@ export function FindAdvisorMap() {
 
       <div className="relative min-h-[380px] min-w-0 sm:min-h-[460px] lg:min-h-[600px]">
         {loading && (
-          <div className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-100/80">
+          <div className="absolute inset-0 z-map-loading flex items-center justify-center bg-slate-100/80">
             <p className="text-sm font-medium text-maps-muted">Cargando mapa…</p>
           </div>
         )}
@@ -385,7 +388,7 @@ export function FindAdvisorMap() {
         </Map>
 
         <div
-          className={`absolute right-3 top-3 z-[10] flex-col gap-2 sm:right-6 sm:top-6 ${
+          className={`absolute right-3 top-3 z-map-controls flex-col gap-2 sm:right-6 sm:top-6 ${
             activeProducer ? 'hidden sm:flex' : 'flex'
           }`}
         >
@@ -504,7 +507,7 @@ export function ProducerPopupCard({ producer }: { producer: ProducerWithDistance
             href={waLink}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#22c55e] px-3 py-2 text-sm font-bold text-white hover:opacity-90"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-maps-whatsapp px-3 py-2 text-sm font-bold text-white hover:opacity-90"
           >
             <MessageCircle className="h-3.5 w-3.5" aria-hidden />
             WhatsApp

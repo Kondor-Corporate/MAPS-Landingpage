@@ -150,7 +150,7 @@ export function ProducerProfileForm({
         onSubmit={(e) => void handleSubmit(e)}
         className="flex max-h-[90vh] min-h-0 flex-col p-4 sm:p-8"
       >
-        <h2 className="text-xl font-bold text-maps-heading">Editar perfil</h2>
+        <h2 className="text-lg font-bold text-maps-heading">Editar perfil</h2>
         {error && (
           <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
             {error}

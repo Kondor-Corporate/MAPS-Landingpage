@@ -1,12 +1,6 @@
-const LIBRARY_GRADIENT =
-  'linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #00a4c0 100%)';
-
 export function LibraryHero() {
   return (
-    <section
-      className="relative w-full overflow-hidden px-8 pb-16 pt-20 text-center text-white"
-      style={{ background: LIBRARY_GRADIENT }}
-    >
+    <section className="relative w-full overflow-hidden bg-library-gradient px-8 pb-16 pt-20 text-center text-white">
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-4">
         <span className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3 py-1 text-sm font-medium backdrop-blur-sm">
           Recursos para Productores

@@ -427,6 +427,38 @@ export const newsService = {
     });
   },
 
+  async reorderImagenesGaleria(id: number, orden: number[]): Promise<NewsAdminDto> {
+    const current = await prisma.noticiaImagen.findMany({
+      where: { noticiaId: id },
+      select: { id: true },
+    });
+    if (current.length === 0) {
+      throw new AppError(404, 'Noticia sin imágenes de galería');
+    }
+
+    const currentIds = new Set(current.map((img) => img.id));
+    const receivedIds = new Set(orden);
+    const sameSet =
+      currentIds.size === receivedIds.size &&
+      [...currentIds].every((imgId) => receivedIds.has(imgId));
+    if (!sameSet) {
+      throw new AppError(400, 'El orden debe incluir exactamente las imágenes actuales de la galería');
+    }
+
+    await prisma.$transaction(
+      orden.map((imagenId, index) =>
+        prisma.noticiaImagen.update({ where: { id: imagenId }, data: { orden: index } }),
+      ),
+    );
+
+    const row = await prisma.noticia.findUniqueOrThrow({
+      where: { id },
+      include: { imagenes: { orderBy: galeriaOrderBy } },
+    });
+    const { imagenes, ...noticia } = row;
+    return toNewsAdminDto(noticia, imagenes);
+  },
+
   async listPublicNews(query: ListNewsPagedQuery): Promise<NewsPublicDto[]> {
     const { skip, take } = resolvePagination(query, 6);
 

@@ -158,7 +158,7 @@ export function ChangePasswordForm({ open, onClose, changePassword, onSaved }: P
             <CheckCircle2 size={28} strokeWidth={1.75} aria-hidden />
           </span>
           <div className="flex flex-col gap-2">
-            <h2 className="text-xl font-bold text-maps-heading">Contraseña actualizada</h2>
+            <h2 className="text-lg font-bold text-maps-heading">Contraseña actualizada</h2>
             <p className="text-sm text-maps-muted">
               Por seguridad, tenés que iniciar sesión nuevamente.
             </p>
@@ -176,7 +176,7 @@ export function ChangePasswordForm({ open, onClose, changePassword, onSaved }: P
                 <ShieldCheck size={20} strokeWidth={1.75} />
               </span>
               <div>
-                <h2 className="text-xl font-bold text-maps-heading">Cambiar contraseña</h2>
+                <h2 className="text-lg font-bold text-maps-heading">Cambiar contraseña</h2>
                 <p className="text-sm text-maps-muted">Necesitás tu contraseña actual.</p>
               </div>
             </header>

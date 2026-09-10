@@ -12,6 +12,7 @@ import { ProducerFormModal } from '@/modules/admin/components/ProducerFormModal'
 import { ProducerViewModal } from '@/modules/admin/components/ProducerViewModal';
 import { ProducerResetPasswordModal } from '@/modules/admin/components/ProducerResetPasswordModal';
 import { DeactivateConfirmModal } from '@/modules/admin/components/DeactivateConfirmModal';
+import { MapsFeedbackToastHost, useMapsFeedback } from '@/shared/components/MapsFeedbackToast';
 import type { ResetProducerPasswordPayload } from '@/modules/admin/types/adminProducer';
 import type { Producer, ProducerFormSubmit } from '@/modules/admin/types/producer';
 
@@ -67,7 +68,7 @@ export function ProducersDashboard({ scope }: Props) {
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, dismiss, showSuccess } = useMapsFeedback();
 
   const filtered = useMemo(() => apply(producers), [apply, producers]);
 
@@ -79,11 +80,6 @@ export function ProducersDashboard({ scope }: Props) {
   );
 
   const totalProductores = producers.length;
-
-  function flash(msg: string) {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 3800);
-  }
 
   function handleNew() {
     setFormError(null);
@@ -114,7 +110,7 @@ export function ProducersDashboard({ scope }: Props) {
     setResetError(null);
     try {
       await resetPassword(resettingPassword.id, payload);
-      flash('Contraseña restablecida');
+      showSuccess('Contraseña restablecida');
       setResettingPassword(null);
     } catch (err) {
       setResetError(getApiErrorMessage(err));
@@ -131,10 +127,10 @@ export function ProducersDashboard({ scope }: Props) {
     try {
       if (p.estado === 'ACTIVO') {
         await deactivate(p.id);
-        flash('Productor desactivado');
+        showSuccess('Productor desactivado');
       } else {
         await activate(p.id);
-        flash('Productor reactivado');
+        showSuccess('Productor reactivado');
       }
       setConfirming(null);
     } catch (err) {
@@ -153,7 +149,7 @@ export function ProducersDashboard({ scope }: Props) {
         ...input,
         activo: true,
       });
-      flash('Productor creado');
+      showSuccess('Productor creado');
       setCreating(false);
       setPage(1);
     } catch (err) {
@@ -169,7 +165,7 @@ export function ProducersDashboard({ scope }: Props) {
     setFormError(null);
     try {
       await update(editing.id, input);
-      flash('Cambios guardados');
+      showSuccess('Cambios guardados');
       setEditing(null);
     } catch (err) {
       setFormError(getApiErrorMessage(err));
@@ -180,13 +176,9 @@ export function ProducersDashboard({ scope }: Props) {
 
   return (
     <div className="flex min-w-0 flex-col gap-6 px-4 py-5 sm:px-8 sm:py-6">
-      <ProducersGreeting name={greetingName} totalProductores={totalProductores} />
+      <MapsFeedbackToastHost toast={toast} onDismiss={dismiss} />
 
-      {toast ? (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-          {toast}
-        </p>
-      ) : null}
+      <ProducersGreeting name={greetingName} totalProductores={totalProductores} />
 
       {error ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">

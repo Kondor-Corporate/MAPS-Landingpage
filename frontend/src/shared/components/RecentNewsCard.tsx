@@ -39,7 +39,7 @@ export function RecentNewsCard({
     <button
       type="button"
       onClick={() => onClick(item)}
-      className="flex h-full flex-col overflow-hidden rounded-2xl bg-white text-left shadow-card transition-transform hover:scale-[1.02] hover:shadow-floating"
+      className="group flex h-full w-full flex-col overflow-hidden rounded-2xl bg-white text-left shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-maps-brand"
     >
       <NewsImage
         src={item.imageUrl}
@@ -47,6 +47,7 @@ export function RecentNewsCard({
         className={
           isCompact ? 'h-[150px] w-full shrink-0' : 'h-[195px] w-full shrink-0'
         }
+        imageClassName="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
         iconSize={isCompact ? 20 : 22}
       />
       <div
@@ -65,8 +66,8 @@ export function RecentNewsCard({
         <h3
           className={
             isCompact
-              ? 'line-clamp-2 text-lg font-bold leading-snug text-maps-heading'
-              : 'line-clamp-2 text-xl font-bold leading-[25px] text-maps-heading'
+              ? 'line-clamp-2 min-h-[50px] text-lg font-bold leading-snug text-maps-heading'
+              : 'line-clamp-2 min-h-[50px] text-xl font-bold leading-[25px] text-maps-heading'
           }
         >
           {item.title}

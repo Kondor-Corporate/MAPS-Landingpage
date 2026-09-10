@@ -40,7 +40,7 @@ export function ProducerTable({
   return (
     <div className="overflow-hidden rounded-2xl border border-maps-border bg-white shadow-card">
       {/* Desktop table */}
-      <div className="hidden overflow-x-auto lg:block">
+      <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full">
           <thead className="bg-maps-surface">
             <tr>
@@ -101,7 +101,7 @@ export function ProducerTable({
       </div>
 
       {/* Mobile cards */}
-      <ul className="flex flex-col divide-y divide-maps-border lg:hidden">
+      <ul className="flex flex-col divide-y divide-maps-border md:hidden">
         {producers.map((p) => {
           const name = producerNombreCompleto(p);
           return (

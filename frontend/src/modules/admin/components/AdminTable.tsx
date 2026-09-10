@@ -2,6 +2,7 @@ import { Inbox } from 'lucide-react';
 import { AdminActionsMenu } from '@/modules/admin/components/AdminActionsMenu';
 import { AdminStatusBadge } from '@/modules/admin/components/AdminStatusBadge';
 import type { Admin } from '@/modules/admin/types/admin';
+import { formatDateShort } from '@/shared/utils/date';
 import { relativeTimeFromNow } from '@/shared/utils/relativeTime';
 
 type Props = {
@@ -14,14 +15,6 @@ type Props = {
 };
 
 const COLUMNS = ['Usuario', 'Estado', 'Último acceso', 'Creado', 'Acciones'];
-
-function formatCreatedAt(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
 
 function lastAccessLabel(lastLoginAt: string | null): string {
   return lastLoginAt ? relativeTimeFromNow(lastLoginAt) : 'Nunca';
@@ -49,7 +42,7 @@ export function AdminTable({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-maps-border bg-white shadow-card">
-      <div className="hidden overflow-x-auto lg:block">
+      <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full">
           <thead className="bg-maps-surface">
             <tr>
@@ -87,7 +80,7 @@ export function AdminTable({
                   {lastAccessLabel(admin.lastLoginAt)}
                 </td>
                 <td className="whitespace-nowrap px-6 py-3.5 text-sm text-maps-muted">
-                  {formatCreatedAt(admin.createdAt)}
+                  {formatDateShort(admin.createdAt)}
                 </td>
                 <td className="whitespace-nowrap px-6 py-3.5">
                   <AdminActionsMenu
@@ -103,7 +96,7 @@ export function AdminTable({
         </table>
       </div>
 
-      <ul className="flex flex-col divide-y divide-maps-border lg:hidden">
+      <ul className="flex flex-col divide-y divide-maps-border md:hidden">
         {admins.map((admin) => (
           <li
             key={admin.id}

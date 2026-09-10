@@ -129,9 +129,11 @@ export function AppSidebarPanel({ user, headerTrailing }: AppSidebarPanelProps) 
   return (
     <>
       <div className="flex items-center gap-3 border-b border-maps-border px-5 py-5">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-maps-brand text-base font-bold text-white">
-          M
-        </div>
+        <img
+          src="/mapsLogo.webp"
+          alt="MAPS Asesores"
+          className="h-10 w-10 shrink-0 object-contain"
+        />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="text-sm font-bold leading-tight text-maps-heading">MAPS Asesores</span>
           <span className="text-xs leading-tight text-maps-muted">Portal de Productores</span>
