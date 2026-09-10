@@ -76,6 +76,8 @@ function newsToFormState(n: News): NewsFormState {
 
     galeriaEliminar: [],
 
+    galeriaOrder: n.galeria.map((img) => `p:${img.id}`),
+
     estado: n.estado,
 
     ultimaModificacion: n.ultimaModificacion,
@@ -274,6 +276,7 @@ export function NewsManagementDashboard() {
           removePortada: prev.removePortada,
           galeriaNuevas: prev.galeriaNuevas,
           galeriaEliminar: prev.galeriaEliminar,
+          galeriaOrder: prev.galeriaOrder,
         }));
       }
       throw err;
@@ -581,8 +584,6 @@ export function NewsManagementDashboard() {
                 totalItems={filtered.length}
 
                 onPageChange={setPage}
-
-                pageSizeSelect="maps"
 
                 onPageSizeChange={(s) => {
 

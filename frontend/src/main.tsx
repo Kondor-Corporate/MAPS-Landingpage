@@ -8,7 +8,7 @@ import './index.css';
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthInitializer>
-      <RouterProvider router={appRouter} future={{ v7_startTransition: true }} />
+      <RouterProvider router={appRouter} />
     </AuthInitializer>
   </StrictMode>,
 );

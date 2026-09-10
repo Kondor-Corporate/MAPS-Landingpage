@@ -136,7 +136,7 @@ export function MapsFeedbackToastHost({ toast, onDismiss }: HostProps) {
   if (!visible) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-4 bottom-4 z-[100] flex flex-col items-stretch sm:inset-x-auto sm:bottom-6 sm:right-6 sm:items-end">
+    <div className="pointer-events-none fixed inset-x-4 bottom-4 z-toast flex flex-col items-stretch sm:inset-x-auto sm:bottom-6 sm:right-6 sm:items-end">
       <MapsFeedbackToast
         key={visible.id}
         message={visible.message}

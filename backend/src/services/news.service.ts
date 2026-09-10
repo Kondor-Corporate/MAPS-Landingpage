@@ -13,6 +13,11 @@ import { AppError } from '../lib/errors.js';
 import { ensureUniqueNewsSlug, slugifyTitulo } from '../lib/newsSlug.js';
 import { prisma } from '../lib/prisma.js';
 import { getStorageAdapter } from '../lib/storage/index.js';
+import {
+  cleanupBestEffort,
+  compensateUploadFailure,
+} from '../lib/storageConsistency.js';
+import { assertAllowedUploadContent } from '../lib/uploadContentValidation.js';
 
 /** Tope de imágenes de galería por noticia (portada aparte). */
 export const MAX_GALERIA_IMAGENES = 10;
@@ -252,15 +257,23 @@ export const newsService = {
       throw new AppError(404, 'Noticia no encontrada');
     }
 
-    // El cascade borra las filas NoticiaImagen; los archivos del storage se limpian aquí.
-    const storage = getStorageAdapter();
-    const urls = current.imagenes.map((img) => img.url);
+    // El cascade borra las filas NoticiaImagen; los archivos del storage se limpian después del delete DB.
+    const urls: string[] = current.imagenes.map((img) => img.url);
     if (current.imagenUrl) urls.push(current.imagenUrl);
-    await Promise.all(
-      urls.map((url) => storage.deleteImagenNoticia(url).catch(() => undefined)),
-    );
 
     await prisma.noticia.delete({ where: { id } });
+
+    const storage = getStorageAdapter();
+    await Promise.all(
+      urls.map((url) =>
+        cleanupBestEffort({
+          operation: 'cleanup_after_db_delete',
+          category: 'noticias',
+          resourceId: id,
+          cleanup: () => storage.deleteImagenNoticia(url),
+        }),
+      ),
+    );
   },
 
   async setPortada(id: number, file: Express.Multer.File): Promise<NewsAdminDto> {
@@ -272,23 +285,41 @@ export const newsService = {
       throw new AppError(404, 'Noticia no encontrada');
     }
 
+    const detectedMime = assertAllowedUploadContent(file.buffer, 'noticia');
+    const previousImagenUrl = current.imagenUrl;
+
     const storage = getStorageAdapter();
     const uploaded = await storage.uploadImagenNoticia({
       buffer: file.buffer,
-      mimeType: file.mimetype,
+      mimeType: detectedMime,
       noticiaId: id,
     });
 
-    // Reemplaza la portada anterior gestionada (no-op si era una URL externa legacy).
-    if (current.imagenUrl) {
-      await storage.deleteImagenNoticia(current.imagenUrl).catch(() => undefined);
+    let row;
+    try {
+      row = await prisma.noticia.update({
+        where: { id },
+        data: { imagenUrl: uploaded.url },
+        include: { imagenes: { orderBy: galeriaOrderBy } },
+      });
+    } catch (error) {
+      await compensateUploadFailure({
+        category: 'noticias',
+        resourceId: id,
+        cleanup: () => storage.deleteImagenNoticia(uploaded.url),
+      });
+      throw error;
     }
 
-    const row = await prisma.noticia.update({
-      where: { id },
-      data: { imagenUrl: uploaded.url },
-      include: { imagenes: { orderBy: galeriaOrderBy } },
-    });
+    if (previousImagenUrl) {
+      await cleanupBestEffort({
+        operation: 'cleanup_after_db_replace',
+        category: 'noticias',
+        resourceId: id,
+        cleanup: () => storage.deleteImagenNoticia(previousImagenUrl),
+      });
+    }
+
     const { imagenes, ...noticia } = row;
     return toNewsAdminDto(noticia, imagenes);
   },
@@ -299,16 +330,24 @@ export const newsService = {
       throw new AppError(404, 'Noticia no encontrada');
     }
 
-    if (current.imagenUrl) {
-      const storage = getStorageAdapter();
-      await storage.deleteImagenNoticia(current.imagenUrl).catch(() => undefined);
-    }
+    const previousImagenUrl = current.imagenUrl;
 
     const row = await prisma.noticia.update({
       where: { id },
       data: { imagenUrl: null },
       include: { imagenes: { orderBy: galeriaOrderBy } },
     });
+
+    if (previousImagenUrl) {
+      const storage = getStorageAdapter();
+      await cleanupBestEffort({
+        operation: 'cleanup_after_db_delete',
+        category: 'noticias',
+        resourceId: id,
+        cleanup: () => storage.deleteImagenNoticia(previousImagenUrl),
+      });
+    }
+
     const { imagenes, ...noticia } = row;
     return toNewsAdminDto(noticia, imagenes);
   },
@@ -336,24 +375,35 @@ export const newsService = {
       );
     }
 
+    const detectedMime = assertAllowedUploadContent(file.buffer, 'noticia');
+
     const storage = getStorageAdapter();
     const uploaded = await storage.uploadImagenNoticia({
       buffer: file.buffer,
-      mimeType: file.mimetype,
+      mimeType: detectedMime,
       noticiaId: id,
     });
 
-    const img = await prisma.noticiaImagen.create({
-      data: {
-        noticiaId: id,
-        url: uploaded.url,
-        orden: count,
-        mimeType: uploaded.mimeType,
-        tamanoBytes: uploaded.tamanoBytes,
-      },
-    });
+    try {
+      const img = await prisma.noticiaImagen.create({
+        data: {
+          noticiaId: id,
+          url: uploaded.url,
+          orden: count,
+          mimeType: uploaded.mimeType,
+          tamanoBytes: uploaded.tamanoBytes,
+        },
+      });
 
-    return toNoticiaImagenDto(img);
+      return toNoticiaImagenDto(img);
+    } catch (error) {
+      await compensateUploadFailure({
+        category: 'noticias',
+        resourceId: id,
+        cleanup: () => storage.deleteImagenNoticia(uploaded.url),
+      });
+      throw error;
+    }
   },
 
   async removeImagenGaleria(id: number, imagenId: number): Promise<void> {
@@ -364,10 +414,49 @@ export const newsService = {
       throw new AppError(404, 'Imagen no encontrada');
     }
 
-    const storage = getStorageAdapter();
-    await storage.deleteImagenNoticia(img.url).catch(() => undefined);
+    const imageUrl = img.url;
 
     await prisma.noticiaImagen.delete({ where: { id: imagenId } });
+
+    const storage = getStorageAdapter();
+    await cleanupBestEffort({
+      operation: 'cleanup_after_db_delete',
+      category: 'noticias',
+      resourceId: id,
+      cleanup: () => storage.deleteImagenNoticia(imageUrl),
+    });
+  },
+
+  async reorderImagenesGaleria(id: number, orden: number[]): Promise<NewsAdminDto> {
+    const current = await prisma.noticiaImagen.findMany({
+      where: { noticiaId: id },
+      select: { id: true },
+    });
+    if (current.length === 0) {
+      throw new AppError(404, 'Noticia sin imágenes de galería');
+    }
+
+    const currentIds = new Set(current.map((img) => img.id));
+    const receivedIds = new Set(orden);
+    const sameSet =
+      currentIds.size === receivedIds.size &&
+      [...currentIds].every((imgId) => receivedIds.has(imgId));
+    if (!sameSet) {
+      throw new AppError(400, 'El orden debe incluir exactamente las imágenes actuales de la galería');
+    }
+
+    await prisma.$transaction(
+      orden.map((imagenId, index) =>
+        prisma.noticiaImagen.update({ where: { id: imagenId }, data: { orden: index } }),
+      ),
+    );
+
+    const row = await prisma.noticia.findUniqueOrThrow({
+      where: { id },
+      include: { imagenes: { orderBy: galeriaOrderBy } },
+    });
+    const { imagenes, ...noticia } = row;
+    return toNewsAdminDto(noticia, imagenes);
   },
 
   async listPublicNews(query: ListNewsPagedQuery): Promise<NewsPublicDto[]> {

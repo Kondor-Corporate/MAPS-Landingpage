@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { loadEnv } from '../../config/env.js';
 import {
   certificacionPublicUrl,
   fotoPublicUrl,
@@ -11,6 +12,7 @@ import {
 } from '../uploadPaths.js';
 import type {
   StorageAdapter,
+  StoredFileCategory,
   UploadCertificacionInput,
   UploadCertificacionResult,
   UploadFotoInput,
@@ -30,14 +32,79 @@ const NOTICIA_EXTENSION_BY_MIME: Record<string, string> = {
   'image/png': 'png',
 };
 
-function filenameFromUrl(url: string): string | null {
+const LOCAL_MANAGED_FILENAME_PATTERNS: Record<StoredFileCategory, RegExp> = {
+  certificaciones: /^\d+-\d+-[0-9a-f]{8}\.pdf$/i,
+  fotos: /^\d+-\d+-[0-9a-f]{8}\.(?:jpg|png|webp)$/i,
+  noticias:
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:jpg|png)$/i,
+};
+
+function getLocalPublicBaseUrl(): URL {
+  const env = loadEnv();
+  const raw =
+    env.API_PUBLIC_URL?.replace(/\/$/, '') ?? `http://localhost:${env.PORT}`;
+  return new URL(`${raw}/`);
+}
+
+function parseLocalManagedFilename(
+  rawUrl: string,
+  category: StoredFileCategory,
+): string | null {
+  let parsed: URL;
   try {
-    const pathname = new URL(url).pathname;
-    const base = path.basename(pathname);
-    return base || null;
+    parsed = new URL(rawUrl);
   } catch {
-    const parts = url.split('/');
-    return parts[parts.length - 1] || null;
+    return null;
+  }
+
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    return null;
+  }
+
+  const publicBase = getLocalPublicBaseUrl();
+  if (parsed.origin !== publicBase.origin) {
+    return null;
+  }
+
+  const basePath =
+    publicBase.pathname === '/' ? '' : publicBase.pathname.replace(/\/$/, '');
+  const categorySegment = `uploads/${category}`;
+  const expectedPrefix =
+    basePath === '' ? `/${categorySegment}/` : `${basePath}/${categorySegment}/`;
+
+  if (!parsed.pathname.startsWith(expectedPrefix)) {
+    return null;
+  }
+
+  const filename = parsed.pathname.slice(expectedPrefix.length);
+  if (!filename || filename.includes('/')) {
+    return null;
+  }
+
+  if (!LOCAL_MANAGED_FILENAME_PATTERNS[category].test(filename)) {
+    return null;
+  }
+
+  return filename;
+}
+
+function isENOENT(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === 'ENOENT'
+  );
+}
+
+function unlinkManagedFile(filePath: string): void {
+  try {
+    unlinkSync(filePath);
+  } catch (error) {
+    if (isENOENT(error)) {
+      return;
+    }
+    throw error;
   }
 }
 
@@ -54,14 +121,10 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 
   async deleteCertificacion(url: string): Promise<void> {
-    const filename = filenameFromUrl(url);
+    const filename = parseLocalManagedFilename(url, 'certificaciones');
     if (!filename) return;
     const filePath = path.join(getCertificacionesUploadDir(), filename);
-    try {
-      unlinkSync(filePath);
-    } catch {
-      /* file may already be gone */
-    }
+    unlinkManagedFile(filePath);
   }
 
   async uploadFoto(input: UploadFotoInput): Promise<UploadFotoResult> {
@@ -73,14 +136,10 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 
   async deleteFoto(url: string): Promise<void> {
-    const filename = filenameFromUrl(url);
+    const filename = parseLocalManagedFilename(url, 'fotos');
     if (!filename) return;
     const filePath = path.join(getFotosUploadDir(), filename);
-    try {
-      unlinkSync(filePath);
-    } catch {
-      /* file may already be gone, or was an external URL we don't manage */
-    }
+    unlinkManagedFile(filePath);
   }
 
   async uploadImagenNoticia(
@@ -98,13 +157,9 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 
   async deleteImagenNoticia(url: string): Promise<void> {
-    const filename = filenameFromUrl(url);
+    const filename = parseLocalManagedFilename(url, 'noticias');
     if (!filename) return;
     const filePath = path.join(getNoticiasUploadDir(), filename);
-    try {
-      unlinkSync(filePath);
-    } catch {
-      /* file may already be gone, or was an external URL we don't manage */
-    }
+    unlinkManagedFile(filePath);
   }
 }

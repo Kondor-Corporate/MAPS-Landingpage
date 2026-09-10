@@ -11,6 +11,7 @@ import { ProfileSpecialtiesGrid } from '@/shared/components/profile/ProfileSpeci
 import { ProfileStatsCards } from '@/shared/components/profile/ProfileStatsCards';
 import { ProfileTrajectorySection } from '@/shared/components/profile/ProfileTrajectorySection';
 import { useProducerProfile } from '@/modules/intranet/hooks/useProducerProfile';
+import { MapsFeedbackToastHost, useMapsFeedback } from '@/shared/components/MapsFeedbackToast';
 import { useAuthStore } from '@/store/authStore';
 
 export function ProducerProfileViewPage() {
@@ -47,7 +48,7 @@ function ProducerProfileViewInner({
   const storeLogout = useAuthStore((s) => s.logout);
   const [editOpen, setEditOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, dismiss, showSuccess } = useMapsFeedback();
 
   if (isLoading) {
     return (
@@ -90,14 +91,7 @@ function ProducerProfileViewInner({
 
   return (
     <div className="flex flex-col gap-6 bg-maps-surface px-4 py-6 sm:px-8 sm:py-8">
-      {toast && (
-        <div
-          className="fixed bottom-6 right-6 z-40 rounded-lg bg-maps-dark px-4 py-3 text-sm font-medium text-white shadow-lg"
-          role="status"
-        >
-          {toast}
-        </div>
-      )}
+      <MapsFeedbackToastHost toast={toast} onDismiss={dismiss} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-maps-heading">Mi Perfil</h1>
@@ -118,8 +112,7 @@ function ProducerProfileViewInner({
         onChangePassword={() => setChangePasswordOpen(true)}
         onUploadFoto={async (file) => {
           await uploadFoto(file);
-          setToast('Foto de perfil actualizada');
-          setTimeout(() => setToast(null), 3000);
+          showSuccess('Foto de perfil actualizada');
         }}
       />
 
@@ -156,8 +149,7 @@ function ProducerProfileViewInner({
         onClose={() => setEditOpen(false)}
         profile={profile}
         onSaved={() => {
-          setToast('Perfil actualizado correctamente');
-          setTimeout(() => setToast(null), 3000);
+          showSuccess('Perfil actualizado correctamente');
         }}
         updateProfile={updateProfile}
         uploadCertificacion={uploadCertificacion}

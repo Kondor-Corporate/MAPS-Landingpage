@@ -53,6 +53,13 @@ export const noticiaImagenParamSchema = z.object({
   imagenId: z.coerce.number().int().positive(),
 });
 
+/** Body para reordenar la galería: ids de `NoticiaImagen` en el orden final deseado. */
+export const reorderGaleriaSchema = z
+  .object({
+    orden: z.array(z.number().int().positive()).min(1),
+  })
+  .strict();
+
 /** Slug en path para detalle público. */
 export const newsSlugParamSchema = z.object({
   slug: z

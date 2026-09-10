@@ -9,7 +9,6 @@ type Props = {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   pageSizeOptions?: number[];
-  pageSizeSelect?: 'native' | 'maps';
 };
 
 const DEFAULT_OPTIONS = [8, 16, 32];
@@ -34,7 +33,6 @@ export function TablePagination({
   onPageChange,
   onPageSizeChange,
   pageSizeOptions = DEFAULT_OPTIONS,
-  pageSizeSelect = 'native',
 }: Props) {
   const safeTotalPages = Math.max(1, totalPages);
   const start = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -96,32 +94,17 @@ export function TablePagination({
 
       <label className="flex items-center gap-2 text-xs text-maps-muted">
         Filas:
-        {pageSizeSelect === 'maps' ? (
-          <MapsSelect
-            value={String(pageSize)}
-            onChange={(value) => onPageSizeChange(Number(value))}
-            aria-label="Filas por página"
-            className="w-[4.5rem]"
-            size="compact"
-            options={pageSizeOptions.map((opt) => ({
-              value: String(opt),
-              label: String(opt),
-            }))}
-          />
-        ) : (
-          <select
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="rounded-lg border border-maps-border bg-white px-2 py-1 text-sm font-medium text-maps-heading focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
-            aria-label="Filas por página"
-          >
-            {pageSizeOptions.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        )}
+        <MapsSelect
+          value={String(pageSize)}
+          onChange={(value) => onPageSizeChange(Number(value))}
+          aria-label="Filas por página"
+          className="w-[4.5rem]"
+          size="compact"
+          options={pageSizeOptions.map((opt) => ({
+            value: String(opt),
+            label: String(opt),
+          }))}
+        />
       </label>
     </div>
   );

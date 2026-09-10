@@ -184,4 +184,15 @@ export const newsController = {
       next(err);
     }
   }) satisfies RequestHandler,
+
+  reorderGaleria: (async (req, res, next) => {
+    try {
+      const id = Number.parseInt(req.params.id, 10);
+      const { orden } = req.body as { orden: number[] };
+      const updated = await newsService.reorderImagenesGaleria(id, orden);
+      res.json({ data: updated, message: 'OK', error: null });
+    } catch (err) {
+      next(err);
+    }
+  }) satisfies RequestHandler,
 };

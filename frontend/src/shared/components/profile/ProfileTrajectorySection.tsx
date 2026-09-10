@@ -17,7 +17,7 @@ export function ProfileTrajectorySection({ bio, onEdit, emptyMessage }: Props) {
   const paragraphs = bio ? splitBioParagraphs(bio) : [];
 
   return (
-    <section className="rounded-3xl border border-slate-100 bg-white p-8 shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
+    <section className="rounded-2xl border border-maps-border bg-white p-8 shadow-profile">
       <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
         <FileText className="size-5 text-maps-brand" aria-hidden />
         Trayectoria profesional

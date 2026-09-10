@@ -217,7 +217,7 @@ export function ProducerFormModal({
               <UserPlus size={20} strokeWidth={1.75} />
             </span>
             <div>
-              <h2 className="text-xl font-bold text-maps-heading">
+              <h2 className="text-lg font-bold text-maps-heading">
                 {mode === 'create' ? 'Nuevo productor' : 'Editar productor'}
               </h2>
               <p className="text-sm text-maps-muted">

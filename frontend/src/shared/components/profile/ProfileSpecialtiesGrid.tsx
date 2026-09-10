@@ -30,7 +30,7 @@ type Props = {
 export function ProfileSpecialtiesGrid({ especialidades, emptyMessage }: Props) {
   if (especialidades.length === 0) {
     return (
-      <section className="rounded-3xl border border-slate-100 bg-white p-8 shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
+      <section className="rounded-2xl border border-maps-border bg-white p-8 shadow-profile">
         <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
           <LayoutGrid className="size-5 text-maps-brand" aria-hidden />
           Especialidades y servicios
@@ -43,7 +43,7 @@ export function ProfileSpecialtiesGrid({ especialidades, emptyMessage }: Props) 
   }
 
   return (
-    <section className="rounded-3xl border border-slate-100 bg-white p-8 shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
+    <section className="rounded-2xl border border-maps-border bg-white p-8 shadow-profile">
       <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
         <LayoutGrid className="size-5 text-maps-brand" aria-hidden />
         Especialidades y servicios
@@ -54,7 +54,7 @@ export function ProfileSpecialtiesGrid({ especialidades, emptyMessage }: Props) 
           return (
             <li
               key={esp.clave}
-              className="flex flex-col items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-4 text-center"
+              className="flex flex-col items-center gap-2 rounded-2xl border border-maps-border bg-slate-50/80 px-4 py-4 text-center"
             >
               <span className="flex size-10 items-center justify-center text-maps-brand">
                 <Icon className="size-6" aria-hidden />

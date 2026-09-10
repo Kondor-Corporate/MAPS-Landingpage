@@ -58,7 +58,7 @@ export function NewsFilterModal({ isOpen, initialFilters, onClose, onApply, onRe
           </span>
           <div className="flex flex-1 flex-col gap-0.5">
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-semibold text-maps-heading">Filtrar noticias</h3>
+              <h2 className="text-lg font-bold text-maps-heading">Filtrar noticias</h2>
               {draftActiveCount > 0 ? (
                 <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-maps-brand px-1.5 text-[11px] font-semibold text-white">
                   {draftActiveCount}

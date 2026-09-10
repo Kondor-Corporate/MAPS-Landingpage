@@ -2,6 +2,13 @@ import { Prisma, type Usuario } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { AppError } from '../lib/errors.js';
+import {
+  LATITUDE_MAX,
+  LATITUDE_MIN,
+  LONGITUDE_MAX,
+  LONGITUDE_MIN,
+  normalizeCoordinates,
+} from '../lib/coordinates.js';
 import { geocodeAddress } from '../lib/geocode.js';
 import {
   buildProductorUpdateFromAdmin,
@@ -19,6 +26,11 @@ import {
 } from '../lib/producerProfileMapper.js';
 import { prisma } from '../lib/prisma.js';
 import { getStorageAdapter } from '../lib/storage/index.js';
+import {
+  cleanupBestEffort,
+  compensateUploadFailure,
+} from '../lib/storageConsistency.js';
+import { assertAllowedUploadContent } from '../lib/uploadContentValidation.js';
 
 const usuarioListSelect = {
   id: true,
@@ -124,32 +136,43 @@ async function addCertificacion(
     throw new AppError(400, 'Archivo PDF requerido');
   }
 
+  const detectedMime = assertAllowedUploadContent(file.buffer, 'certificacion');
+
   const storage = getStorageAdapter();
   const uploaded = await storage.uploadCertificacion({
     buffer: file.buffer,
-    mimeType: file.mimetype,
+    mimeType: detectedMime,
     productorId,
   });
 
-  const count = await prisma.certificacion.count({ where: { productorId } });
-  const cert = await prisma.certificacion.create({
-    data: {
-      productorId,
-      nombre: nombre?.trim() || file.originalname || 'Certificación',
-      archivoUrl: uploaded.url,
-      tamanoBytes: uploaded.tamanoBytes,
-      mimeType: uploaded.mimeType,
-      orden: count,
-    },
-  });
+  try {
+    const count = await prisma.certificacion.count({ where: { productorId } });
+    const cert = await prisma.certificacion.create({
+      data: {
+        productorId,
+        nombre: nombre?.trim() || file.originalname || 'Certificación',
+        archivoUrl: uploaded.url,
+        tamanoBytes: uploaded.tamanoBytes,
+        mimeType: uploaded.mimeType,
+        orden: count,
+      },
+    });
 
-  return {
-    id: cert.id,
-    nombre: cert.nombre,
-    archivoUrl: cert.archivoUrl,
-    tamanoBytes: cert.tamanoBytes,
-    mimeType: cert.mimeType,
-  };
+    return {
+      id: cert.id,
+      nombre: cert.nombre,
+      archivoUrl: cert.archivoUrl,
+      tamanoBytes: cert.tamanoBytes,
+      mimeType: cert.mimeType,
+    };
+  } catch (error) {
+    await compensateUploadFailure({
+      category: 'certificaciones',
+      resourceId: productorId,
+      cleanup: () => storage.deleteCertificacion(uploaded.url),
+    });
+    throw error;
+  }
 }
 
 async function removeCertificacion(productorId: number, certId: number) {
@@ -161,8 +184,13 @@ async function removeCertificacion(productorId: number, certId: number) {
   }
 
   const storage = getStorageAdapter();
-  await storage.deleteCertificacion(cert.archivoUrl);
   await prisma.certificacion.delete({ where: { id: cert.id } });
+  await cleanupBestEffort({
+    operation: 'cleanup_after_db_delete',
+    category: 'certificaciones',
+    resourceId: cert.id,
+    cleanup: () => storage.deleteCertificacion(cert.archivoUrl),
+  });
 }
 
 async function replaceFoto(
@@ -174,22 +202,36 @@ async function replaceFoto(
     throw new AppError(400, 'Imagen requerida');
   }
 
+  const detectedMime = assertAllowedUploadContent(file.buffer, 'foto');
+
   const storage = getStorageAdapter();
   const uploaded = await storage.uploadFoto({
     buffer: file.buffer,
-    mimeType: file.mimetype,
+    mimeType: detectedMime,
     productorId,
   });
 
-  await prisma.productor.update({
-    where: { id: productorId },
-    data: { foto: uploaded.url },
-  });
+  try {
+    await prisma.productor.update({
+      where: { id: productorId },
+      data: { foto: uploaded.url },
+    });
+  } catch (error) {
+    await compensateUploadFailure({
+      category: 'fotos',
+      resourceId: productorId,
+      cleanup: () => storage.deleteFoto(uploaded.url),
+    });
+    throw error;
+  }
 
   if (currentFotoUrl) {
-    // La foto anterior puede ser una URL externa no gestionada por nuestro storage;
-    // no bloqueamos el reemplazo si no se puede borrar.
-    await storage.deleteFoto(currentFotoUrl).catch(() => undefined);
+    await cleanupBestEffort({
+      operation: 'cleanup_after_db_replace',
+      category: 'fotos',
+      resourceId: productorId,
+      cleanup: () => storage.deleteFoto(currentFotoUrl),
+    });
   }
 
   return uploaded.url;
@@ -227,11 +269,16 @@ async function resolveFinalLocation(input: {
   const text = direccionTrimmed || ciudadTrimmed;
 
   if (hasManualCoordinates(input)) {
+    const coordinates = normalizeCoordinates(input.latitud, input.longitud);
+    if (coordinates === null) {
+      throw new AppError(400, 'Las coordenadas están fuera de rango');
+    }
+
     return {
       ...(text !== undefined ? { ciudad: ciudadTrimmed ?? text } : {}),
       ...(text !== undefined ? { direccion: text } : {}),
-      latitud: input.latitud,
-      longitud: input.longitud,
+      latitud: coordinates.latitud,
+      longitud: coordinates.longitud,
     };
   }
 
@@ -606,8 +653,16 @@ export const producersService = {
     return prisma.productor.findMany({
       where: {
         usuario: { activo: true },
-        latitud: { not: null },
-        longitud: { not: null },
+        latitud: {
+          not: null,
+          gte: LATITUDE_MIN,
+          lte: LATITUDE_MAX,
+        },
+        longitud: {
+          not: null,
+          gte: LONGITUDE_MIN,
+          lte: LONGITUDE_MAX,
+        },
       },
       select: {
         slug: true,

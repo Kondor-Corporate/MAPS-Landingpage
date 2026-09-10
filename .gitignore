@@ -93,3 +93,4 @@ tmp/
 Arquitectura/**/*.bmp
 .tmp/
 .tmp/
+\.tmp\

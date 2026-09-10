@@ -8,12 +8,12 @@ type PublicNewsCardProps = {
 
 export function PublicNewsCard({ item, onOpen }: PublicNewsCardProps) {
   return (
-    <article className="h-full">
+    <article className="h-full w-full">
       <button
         type="button"
         onClick={() => onOpen(item)}
         aria-label={`Vista previa de noticia: ${item.title}`}
-        className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white text-left shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-maps-brand"
+        className="group flex h-full w-full flex-col overflow-hidden rounded-2xl bg-white text-left shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-maps-brand"
       >
         <NewsImage
           src={item.imageUrl}

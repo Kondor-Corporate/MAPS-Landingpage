@@ -46,12 +46,7 @@ export function AccessCard({
 
   if (variant === 'self') {
     return (
-      <article
-        className="relative flex flex-col gap-5 overflow-hidden rounded-2xl p-7 text-white shadow-cta"
-        style={{
-          background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #00a4c0 100%)',
-        }}
-      >
+      <article className="relative flex flex-col gap-5 overflow-hidden rounded-2xl bg-library-gradient p-7 text-white shadow-cta">
         {badge && (
           <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
             {badgeIcon}

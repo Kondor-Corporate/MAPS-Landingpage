@@ -16,6 +16,7 @@ import {
   deletePortada,
   listNews,
   removeImagenGaleria,
+  reorderGaleria,
   updateNews as updateNewsApi,
   uploadPortada,
 } from '@/modules/admin/services/news.service';
@@ -48,9 +49,23 @@ async function applyImageOps(newsId: number, images?: NewsImageOps): Promise<voi
   for (const imagenId of images.galeriaEliminar) {
     await removeImagenGaleria(newsId, imagenId);
   }
-  // Secuencial para preservar el orden de subida en la galería.
-  for (const file of images.galeriaNuevas) {
-    await addImagenGaleria(newsId, file);
+
+  // Secuencial para poder mapear cada key local al id que asigna el backend.
+  const uploadedIds = new Map<string, number>();
+  for (const { key, file } of images.galeriaNuevas) {
+    const created = await addImagenGaleria(newsId, file);
+    uploadedIds.set(key, created.id);
+  }
+
+  if (images.galeriaOrder.length > 0) {
+    const finalOrder = images.galeriaOrder
+      .map((token) =>
+        token.startsWith('p:') ? Number(token.slice(2)) : uploadedIds.get(token.slice(2)),
+      )
+      .filter((id): id is number => id !== undefined);
+    if (finalOrder.length > 0) {
+      await reorderGaleria(newsId, finalOrder);
+    }
   }
 }
 

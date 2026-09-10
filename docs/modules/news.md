@@ -7,6 +7,8 @@ Historial relacionado:
 - UI admin inicial: [`docs/worklog/MAPS-007-vista-gestion-noticias.md`](../worklog/MAPS-007-vista-gestion-noticias.md)
 - Diseño fullstack: [`docs/tdd/MAPS-014-tdd-noticias-api-fullstack.md`](../tdd/MAPS-014-tdd-noticias-api-fullstack.md)
 - Cierre implementación: [`docs/worklog/MAPS-014-noticias-api-fullstack.md`](../worklog/MAPS-014-noticias-api-fullstack.md)
+- Validación de contenido en uploads de imágenes (D3A): [`docs/worklog/D3A-validacion-contenido-uploads.md`](../worklog/D3A-validacion-contenido-uploads.md)
+- Consistencia Storage ↔ DB (D3C): [`docs/worklog/D3C-consistencia-storage-db.md`](../worklog/D3C-consistencia-storage-db.md)
 
 ---
 
@@ -105,7 +107,7 @@ Prefijo: `/api/v1/news`. Envelope: `{ data, message, error }`.
 | `GET` | `/news/:id` | JWT | ADMIN, SUPERADMIN | Detalle admin por id |
 | `POST` | `/news` | JWT | ADMIN, SUPERADMIN | Crear noticia; default borrador |
 | `PATCH` | `/news/:id` | JWT | ADMIN, SUPERADMIN | Actualizar; publicar/despublicar vía `publicada` |
-| `DELETE` | `/news/:id` | JWT | ADMIN, SUPERADMIN | Eliminación física (borra archivos de storage + galería en cascada) |
+| `DELETE` | `/news/:id` | JWT | ADMIN, SUPERADMIN | Eliminación física: borra la noticia/galería en DB y luego realiza cleanup best-effort de los assets gestionados |
 | `POST` | `/news/:id/portada` | JWT | ADMIN, SUPERADMIN | Sube/reemplaza portada (multipart `file`, jpg/jpeg/png, 10 MB) |
 | `DELETE` | `/news/:id/portada` | JWT | ADMIN, SUPERADMIN | Quita la portada (`imagenUrl=null`) |
 | `POST` | `/news/:id/imagenes` | JWT | ADMIN, SUPERADMIN | Agrega una imagen a la galería (tope 10) |
@@ -115,12 +117,53 @@ El detalle (`GET /news/:id` y `GET /news/public/:slug`) incluye `galeria` (admin
 
 Archivos: `backend/src/api/v1/routes/news.routes.ts`, `news.controller.ts`, `news.service.ts`, `validations/news.schema.ts`, `middlewares/uploadNewsImage.ts`, `lib/storage/*`.
 
-### Imágenes y storage (MAPS-019)
+### Imágenes y storage (MAPS-019, validación D3A)
 
-- Portada y galería se suben como **archivo** (`.jpg/.jpeg/.png`, máx. 10 MB) vía `StorageAdapter` (`backend/src/lib/storage/`), categoría `noticias`.
+- Portada y galería se suben como **archivo** (`.jpg/.jpeg/.png`, máx. **10 MB**) vía `StorageAdapter` (`backend/src/lib/storage/`), categoría `noticias`.
+- Multer (`uploadNewsImageMiddleware`) filtra MIME declarado (`image/jpeg`, `image/png`) y tamaño; es la barrera temprana.
+- Tras Multer, los services detectan el tipo por **firmas binarias** (D3A) y aplican allowlist de familia `noticia`: solo JPEG y PNG reales llegan a storage. WebP con MIME declarado `image/png` → `400`.
+- Storage recibe `mimeType` canónico detectado, no `file.mimetype`.
+- `NoticiaImagen.mimeType` en BD deriva de `detectedMime` vía el adapter.
+- El DTO HTTP de galería sigue siendo `{ id, url, orden }` — **no** expone `mimeType` (sin cambio de contrato API por D3A).
 - Provider según `STORAGE_PROVIDER` (`local` por defecto; `gcs`/`s3` disponibles). El dominio de Noticias **no** se acopla a GCP.
 - En staging, `STORAGE_PROVIDER=gcs` está en uso. El dominio Noticias no se acopla a un proveedor concreto.
 - La galería se muestra como **carrusel** solo en la vista completa (`NewsImageCarousel` en `NewsArticleContent`); nunca en cards/listados/preview.
+
+Detalle de diseño D3A: [`docs/worklog/D3A-validacion-contenido-uploads.md`](../worklog/D3A-validacion-contenido-uploads.md).
+
+### Consistencia Storage ↔ DB (D3C)
+
+PostgreSQL es el source of truth lógico. Sin outbox, job ni transacción distribuida entre Prisma y storage. Detalle: [`docs/worklog/D3C-consistencia-storage-db.md`](../worklog/D3C-consistencia-storage-db.md).
+
+**Portada replace** (`POST /news/:id/portada`):
+
+- **Antes (pre-D3C):** upload → delete blob viejo → DB update.
+- **Ahora:** upload → DB update → cleanup blob viejo best-effort.
+- Si DB falla: se compensa el upload nuevo; la portada anterior permanece en DB.
+
+**Quitar portada** (`DELETE /news/:id/portada`):
+
+- `imagenUrl = null` en DB primero;
+- cleanup del blob después.
+
+**Galería create** (`POST /news/:id/imagenes`):
+
+- `count`/tope/D3A antes del upload;
+- upload → `noticiaImagen.create`;
+- si `create` falla → compensar blob nuevo.
+
+**Galería delete** (`DELETE /news/:id/imagenes/:imagenId`):
+
+- delete de fila DB primero;
+- cleanup del blob después.
+
+**Delete noticia** (`DELETE /news/:id`):
+
+- captura URLs de portada y galería;
+- `prisma.noticia.delete` (cascade de filas `NoticiaImagen`);
+- después intenta cleanup de todos los blobs capturados.
+
+Si un cleanup falla: no impide intentar los demás; HTTP sigue `204`; el fallo queda observable en log. Un fallo de cleanup no revierte el delete en DB.
 
 ---
 
@@ -175,6 +218,7 @@ Servicios compartidos:
 - Archivo: `backend/tests/news.integration.test.ts`
 - **45 tests** cubriendo RBAC, CRUD, validaciones, slug, lectura pública/intranet
 - Ejecutar: `npx vitest run tests/news.integration.test.ts` (desde `backend/`)
+- Archivo: `backend/tests/news-imagenes.integration.test.ts` — MAPS-019 (portada/galería), validación D3A y failure windows D3C (portada, galería, delete noticia). Cierre técnico D3C: full backend **437/437 PASS**.
 
 ### Frontend
 
@@ -188,6 +232,8 @@ Servicios compartidos:
 | Deuda | Detalle |
 |-------|---------|
 | Upload / storage | Portada y galería por archivo (MAPS-019). Política productiva de bucket ya operativa en staging GCS |
+| Consistencia storage ↔ DB | Implementada en app-layer (D3C); reconciliación periódica futura |
+| Concurrencia galería | `count`/tope y orden sin resolver en D3C |
 | SEO `/noticias/:slug` | Sin página dedicada; modal + API slug |
 | E2E | Sin Playwright editorial |
 | Tests frontend unitarios | Pendiente toolchain CI |

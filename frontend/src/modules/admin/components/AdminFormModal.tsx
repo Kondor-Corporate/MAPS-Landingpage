@@ -145,7 +145,7 @@ export function AdminFormModal({
               )}
             </span>
             <div>
-              <h2 className="text-xl font-bold text-maps-heading">
+              <h2 className="text-lg font-bold text-maps-heading">
                 {isCreate ? 'Nuevo administrador' : 'Editar usuario'}
               </h2>
               {!isCreate && admin ? (
