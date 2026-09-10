@@ -677,6 +677,10 @@ export const producersService = {
         whatsapp: true,
         verificado: true,
         especialidades: true,
+        redesSociales: {
+          select: { plataforma: true, url: true, orden: true },
+          orderBy: { orden: 'asc' },
+        },
       },
       orderBy: { nombre: 'asc' },
     });

@@ -109,7 +109,9 @@ export type MapProducerRow = Pick<
   | 'whatsapp'
   | 'verificado'
   | 'especialidades'
->;
+> & {
+  redesSociales: Pick<RedSocial, 'plataforma' | 'url' | 'orden'>[];
+};
 
 export type MapProducerDto = {
   slug: string;
@@ -123,6 +125,7 @@ export type MapProducerDto = {
   whatsapp: string | null;
   verificado: boolean;
   especialidades: { clave: ProducerSpecialtyKey; label: string }[];
+  redesSociales: { plataforma: string; url: string; orden: number }[];
 };
 
 export function toMapProducerDto(row: MapProducerRow): MapProducerDto {
@@ -139,6 +142,11 @@ export function toMapProducerDto(row: MapProducerRow): MapProducerDto {
     whatsapp: row.whatsapp,
     verificado: row.verificado,
     especialidades: keys.map((clave) => ({ clave, label: specialtyKeyToLabel(clave) })),
+    redesSociales: row.redesSociales.map((r) => ({
+      plataforma: r.plataforma,
+      url: r.url,
+      orden: r.orden,
+    })),
   };
 }
 
