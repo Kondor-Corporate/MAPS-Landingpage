@@ -25,14 +25,13 @@ export function HeroSection() {
             </span>
           </span>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-[60px] font-extrabold leading-tight lg:leading-[66px] tracking-[-1.5px] lg:tracking-[-1.98px] text-white">
-            Encontrá asesoramiento
-            <br />cerca tuyo
+          <h1 className="text-4xl sm:text-5xl lg:text-[65px] font-extrabold leading-tight lg:leading-[66px] tracking-[-1.5px] lg:tracking-[-1.98px] text-white">
+            El compromiso de asesorar está en nuestro ADN.
           </h1>
 
           <p className="max-w-[540px] text-base sm:text-[18px] leading-[26px] sm:leading-[28px] text-[#e5e7eb]">
-            Conocé a los asesores que forman parte de MAPS, explorá sus perfiles y encontrá una
-            opción según tu ubicación.
+            Somos una empresa con 10 años en el mercado. Conocé a los asesores que forman parte de
+            la red MAPS, explorá sus perfiles y elegí la mejor opción, según tu ubicación.
           </p>
 
           <div className="flex flex-wrap gap-4 pt-2">
