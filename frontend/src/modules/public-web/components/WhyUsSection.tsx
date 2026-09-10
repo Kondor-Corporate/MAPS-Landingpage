@@ -70,13 +70,13 @@ const features: Feature[] = [
     icon: <MapPinIcon />,
     title: 'Cobertura Nacional',
     description:
-      'Red de asesores presentes en todo el país para estar cerca de vos cuando más lo necesites, sin importar dónde estés.',
+      'Una red de asesores presentes en todo el país para estar cerca tuyo cuando más lo necesites, sin importar dónde estés.',
   },
   {
     icon: <HeadsetIcon />,
     title: 'Atención Personalizada',
     description:
-      'Asesoramiento humano y experto enfocado en tus necesidades reales, con el respaldo de una gran institución.',
+      'Asesoramiento humano y experto enfocado en tus necesidades reales, con el respaldo de una gran compañía como Federación Patronal.',
   },
 ];
 
@@ -89,8 +89,9 @@ export function WhyUsSection() {
             ¿Por qué elegir MAPS Asesores?
           </h2>
           <p className="max-w-[640px] text-lg leading-[29px] text-maps-muted">
-            Ofrecemos herramientas digitales de vanguardia y una red de profesionales capacitados
-            para brindarte la mejor atención.
+            Ofrecemos un equipo profesional para facilitar la gestión diaria de los asesores,
+            desarrollar proyectos comerciales de crecimiento y construir vínculos de confianza con
+            los asegurados.
           </p>
         </div>
 
