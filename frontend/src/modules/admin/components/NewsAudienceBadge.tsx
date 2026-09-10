@@ -8,6 +8,7 @@ type Props = {
 const STYLES: Record<NewsAudiencia, string> = {
   PRODUCTORES: 'bg-blue-50 text-blue-800',
   PUBLICO: 'bg-violet-50 text-violet-700',
+  AMBOS: 'bg-emerald-50 text-emerald-700',
 };
 
 export function NewsAudienceBadge({ audiencia }: Props) {

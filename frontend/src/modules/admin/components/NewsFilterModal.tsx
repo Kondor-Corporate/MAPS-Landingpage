@@ -81,6 +81,7 @@ export function NewsFilterModal({ isOpen, initialFilters, onClose, onApply, onRe
                 { value: 'TODOS', label: 'Todas' },
                 { value: 'PRODUCTORES', label: 'Productores' },
                 { value: 'PUBLICO', label: 'Público' },
+                { value: 'AMBOS', label: 'Ambos' },
               ]}
             />
           </label>

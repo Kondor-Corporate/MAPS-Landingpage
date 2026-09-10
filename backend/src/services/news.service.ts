@@ -465,7 +465,7 @@ export const newsService = {
     const rows = await prisma.noticia.findMany({
       where: {
         publicada: true,
-        visibilidad: 'PUBLICA',
+        visibilidad: { in: ['PUBLICA', 'AMBAS'] },
       },
       orderBy: [{ publicadaEn: 'desc' }, { updatedAt: 'desc' }],
       skip,
@@ -481,7 +481,7 @@ export const newsService = {
       where: {
         slug,
         publicada: true,
-        visibilidad: 'PUBLICA',
+        visibilidad: { in: ['PUBLICA', 'AMBAS'] },
       },
       include: { imagenes: { orderBy: galeriaOrderBy } },
     });
@@ -498,7 +498,7 @@ export const newsService = {
     const rows = await prisma.noticia.findMany({
       where: {
         publicada: true,
-        visibilidad: 'INTERNA',
+        visibilidad: { in: ['INTERNA', 'AMBAS'] },
       },
       orderBy: [{ publicadaEn: 'desc' }, { updatedAt: 'desc' }],
       skip,

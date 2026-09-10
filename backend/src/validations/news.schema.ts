@@ -12,7 +12,7 @@ const categoriaNoticiaSchema = z.enum([
   'COMUNICADO',
 ]);
 
-const visibilidadSchema = z.enum(['PUBLICA', 'INTERNA']);
+const visibilidadSchema = z.enum(['PUBLICA', 'INTERNA', 'AMBAS']);
 
 // La portada y las imágenes de galería se suben como archivo por endpoints dedicados
 // (`POST /news/:id/portada`, `POST /news/:id/imagenes`), no por el body de create/update.

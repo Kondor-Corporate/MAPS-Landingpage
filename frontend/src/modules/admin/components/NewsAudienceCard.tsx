@@ -18,6 +18,11 @@ const OPTIONS: { value: NewsAudiencia; label: string; hint: string }[] = [
     label: 'Público General',
     hint: 'Visible en el sitio web público',
   },
+  {
+    value: 'AMBOS',
+    label: 'Ambos',
+    hint: 'Visible para productores y público general',
+  },
 ];
 
 export function NewsAudienceCard({ value, onChange }: Props) {

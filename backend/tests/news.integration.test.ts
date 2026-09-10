@@ -531,6 +531,21 @@ describe('news API (integración MAPS-014 Fase D)', () => {
     it('GET /public/:slug → 404 slug inexistente', async () => {
       await request(app).get(`${BASE}/public/slug-que-no-existe-xyz`).expect(404);
     });
+
+    it('GET /public incluye publicadas AMBAS', async () => {
+      const { accessToken } = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+      const created = await createNewsAsAdmin(app, accessToken, {
+        ...validNewsBody({ visibilidad: 'AMBAS' }),
+        publicada: true,
+      });
+
+      const res = await request(app).get(`${BASE}/public`).expect(200);
+      const slugs = (res.body.data as { slug: string }[]).map((i) => i.slug);
+      expect(slugs).toContain(created.slug);
+
+      const bySlug = await request(app).get(`${BASE}/public/${created.slug}`).expect(200);
+      expect(bySlug.body.data.slug).toBe(created.slug);
+    });
   });
 
   // ─── 6. Lectura intranet ────────────────────────────────────────────────────
@@ -594,6 +609,82 @@ describe('news API (integración MAPS-014 Fase D)', () => {
       for (const item of items) {
         expectPublicDtoShape(item);
       }
+    });
+
+    it('GET /intranet incluye publicadas AMBAS', async () => {
+      const { accessToken } = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+      const created = await createNewsAsAdmin(app, accessToken, {
+        ...validNewsBody({ visibilidad: 'AMBAS' }),
+        publicada: true,
+      });
+
+      const { accessToken: producerToken } = await loginUsuarioPassword(app, 'user', 'User1234!');
+      const res = await request(app)
+        .get(`${BASE}/intranet`)
+        .set('Authorization', `Bearer ${producerToken}`)
+        .expect(200);
+
+      const slugs = (res.body.data as { slug: string }[]).map((i) => i.slug);
+      expect(slugs).toContain(created.slug);
+    });
+  });
+
+  // ─── 7bis. Cambio dinámico de audiencia ─────────────────────────────────────
+
+  describe('Cambio de audiencia (visibilidad)', () => {
+    it('PRODUCTORES(INTERNA) → AMBAS: empieza a aparecer también en público', async () => {
+      const { accessToken } = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+      const created = await createNewsAsAdmin(app, accessToken, {
+        ...validNewsBody({ visibilidad: 'INTERNA' }),
+        publicada: true,
+      });
+
+      let publicSlugs = (
+        await request(app).get(`${BASE}/public`).expect(200)
+      ).body.data.map((i: { slug: string }) => i.slug) as string[];
+      expect(publicSlugs).not.toContain(created.slug);
+
+      await request(app)
+        .patch(`${BASE}/${created.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ visibilidad: 'AMBAS' })
+        .expect(200);
+
+      publicSlugs = (
+        await request(app).get(`${BASE}/public`).expect(200)
+      ).body.data.map((i: { slug: string }) => i.slug) as string[];
+      expect(publicSlugs).toContain(created.slug);
+    });
+
+    it('AMBAS → PUBLICO: deja de aparecer en intranet', async () => {
+      const { accessToken } = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+      const created = await createNewsAsAdmin(app, accessToken, {
+        ...validNewsBody({ visibilidad: 'AMBAS' }),
+        publicada: true,
+      });
+
+      const { accessToken: producerToken } = await loginUsuarioPassword(app, 'user', 'User1234!');
+      let intranetSlugs = (
+        await request(app)
+          .get(`${BASE}/intranet`)
+          .set('Authorization', `Bearer ${producerToken}`)
+          .expect(200)
+      ).body.data.map((i: { slug: string }) => i.slug) as string[];
+      expect(intranetSlugs).toContain(created.slug);
+
+      await request(app)
+        .patch(`${BASE}/${created.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ visibilidad: 'PUBLICA' })
+        .expect(200);
+
+      intranetSlugs = (
+        await request(app)
+          .get(`${BASE}/intranet`)
+          .set('Authorization', `Bearer ${producerToken}`)
+          .expect(200)
+      ).body.data.map((i: { slug: string }) => i.slug) as string[];
+      expect(intranetSlugs).not.toContain(created.slug);
     });
   });
 
