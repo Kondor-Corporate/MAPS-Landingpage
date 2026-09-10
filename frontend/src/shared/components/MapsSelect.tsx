@@ -174,7 +174,7 @@ export function MapsSelect({
               width: coords.width,
               maxHeight: coords.maxHeight,
             }}
-            className="maps-select-dropdown z-[120] overflow-auto rounded-xl border border-maps-border bg-white p-1.5 shadow-floating"
+            className="maps-select-dropdown z-select overflow-auto rounded-xl border border-maps-border bg-white p-1.5 shadow-floating"
           >
             {selectableOptions.map((opt, index) => {
               const isSelected = opt.value === value;

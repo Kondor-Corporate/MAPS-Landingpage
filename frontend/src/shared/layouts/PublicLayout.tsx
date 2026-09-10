@@ -70,6 +70,28 @@ export function PublicLayout({ children }: PublicLayoutProps) {
   const currentPublicTarget = `${location.pathname}${location.hash}`;
 
   useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMenuOpen]);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMenuOpen]);
+
+  useEffect(() => {
     if (!location.hash) {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
       return;
@@ -124,6 +146,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               className="flex h-10 w-10 items-center justify-center rounded-lg text-maps-heading transition-colors hover:bg-maps-surface lg:hidden"
               aria-label={isMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
               aria-expanded={isMenuOpen}
+              aria-controls="public-mobile-nav"
             >
               {isMenuOpen ? (
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
@@ -149,7 +172,13 @@ export function PublicLayout({ children }: PublicLayoutProps) {
         </div>
 
         {isMenuOpen && (
-          <div className="lg:hidden border-t border-maps-border bg-white px-4 py-3">
+          <div
+            id="public-mobile-nav"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menú de navegación"
+            className="lg:hidden border-t border-maps-border bg-white px-4 py-3"
+          >
             <nav className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <PublicNavLink
@@ -172,6 +201,15 @@ export function PublicLayout({ children }: PublicLayoutProps) {
           </div>
         )}
       </header>
+
+      {isMenuOpen && (
+        <button
+          type="button"
+          className="fixed inset-0 top-[70px] z-30 bg-black/40 lg:hidden"
+          aria-label="Cerrar menú de navegación"
+          onClick={() => setIsMenuOpen(false)}
+        />
+      )}
 
       <main className="flex-1">{children}</main>
       <NewsDetailModal />

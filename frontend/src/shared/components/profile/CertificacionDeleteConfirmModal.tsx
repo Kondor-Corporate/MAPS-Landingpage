@@ -1,34 +1,34 @@
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
-import type { Ramo } from '@/modules/admin/types/library';
+import type { ProducerCertificacion } from '@/shared/types/producerProfile';
 
 type Props = {
   isOpen: boolean;
-  ramo: Ramo | null;
+  certificacion: ProducerCertificacion | null;
   isBusy?: boolean;
   submitError?: string | null;
   onClose: () => void;
   onConfirm: () => void;
 };
 
-export function LibraryRamoDeleteModal({
+export function CertificacionDeleteConfirmModal({
   isOpen,
-  ramo,
+  certificacion,
   isBusy = false,
   submitError,
   onClose,
   onConfirm,
 }: Props) {
-  if (!ramo) return null;
+  if (!certificacion) return null;
 
   return (
     <ConfirmDialog
       isOpen={isOpen}
       onClose={onClose}
       onConfirm={onConfirm}
-      title="Eliminar ramo"
+      title="Eliminar certificación"
       description={
         <>
-          ¿Eliminar el ramo «{ramo.nombre}»? Esta acción no se puede deshacer.
+          ¿Eliminar la certificación «{certificacion.nombre}»? Esta acción no se puede deshacer.
         </>
       }
       tone="danger"
@@ -36,7 +36,7 @@ export function LibraryRamoDeleteModal({
       error={submitError}
       confirmLabel="Eliminar"
       confirmLoadingLabel="Eliminando…"
-      ariaLabel="Eliminar ramo"
+      ariaLabel="Eliminar certificación"
     />
   );
 }

@@ -52,7 +52,7 @@ export function RecentNewsTable({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-maps-border bg-white shadow-card">
-      <div className="hidden overflow-x-auto lg:block">
+      <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full">
           <thead className="bg-maps-surface">
             <tr>
@@ -116,7 +116,7 @@ export function RecentNewsTable({
         </table>
       </div>
 
-      <ul className="flex flex-col divide-y divide-maps-border lg:hidden">
+      <ul className="flex flex-col divide-y divide-maps-border md:hidden">
         {news.map((n, idx) => (
           <li key={n.id} className="flex flex-col gap-3 p-4">
             <div className="flex items-start gap-3">

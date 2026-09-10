@@ -166,7 +166,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <>
             <button
               type="button"
-              className="fixed inset-0 z-[50] bg-black/40 lg:hidden"
+              className="fixed inset-0 z-drawer-overlay bg-black/40 lg:hidden"
               aria-label="Cerrar menú de navegación"
               onClick={() => setMobileNavOpen(false)}
             />
@@ -175,7 +175,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               role="dialog"
               aria-modal="true"
               aria-label="Navegación del portal"
-              className="fixed left-0 top-0 z-[51] flex h-full w-64 max-w-[85vw] flex-col border-r border-maps-border bg-white shadow-lg lg:hidden"
+              className="fixed left-0 top-0 z-drawer-panel flex h-full w-64 max-w-[85vw] flex-col border-r border-maps-border bg-white shadow-lg lg:hidden"
             >
               <AppSidebarPanel
                 user={user}

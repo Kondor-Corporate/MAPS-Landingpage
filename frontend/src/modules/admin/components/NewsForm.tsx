@@ -38,6 +38,12 @@ export type NewsFormState = {
   galeria: NewsGaleriaImagen[];
   galeriaNuevas: File[];
   galeriaEliminar: number[];
+  /**
+   * Orden visual combinado de la galería: tokens `p:<id>` (imagen persistida) o
+   * `n:<key>` (archivo pendiente, key estable asignada por `NewsForm`). Se resuelve
+   * a ids reales recién al guardar, una vez que las nuevas imágenes tienen id server-side.
+   */
+  galeriaOrder: string[];
   estado: NewsEstado;
   ultimaModificacion: string;
 };
@@ -46,8 +52,9 @@ export type NewsFormState = {
 export type NewsImageOps = {
   portadaFile: File | null;
   removePortada: boolean;
-  galeriaNuevas: File[];
+  galeriaNuevas: { key: string; file: File }[];
   galeriaEliminar: number[];
+  galeriaOrder: string[];
 };
 
 export const EMPTY_FORM: NewsFormState = {
@@ -62,6 +69,7 @@ export const EMPTY_FORM: NewsFormState = {
   galeria: [],
   galeriaNuevas: [],
   galeriaEliminar: [],
+  galeriaOrder: [],
   estado: 'BORRADOR',
   ultimaModificacion: new Date().toISOString(),
 };
@@ -103,6 +111,21 @@ export function NewsForm({
 }: Props) {
   const [showErrors, setShowErrors] = useState(false);
   const actionLockRef = useRef(false);
+  // Key estable por File pendiente de galería, para poder reordenar/resolver el
+  // orden final sin depender del índice (que cambia al agregar/quitar).
+  const nuevaKeysRef = useRef(new WeakMap<File, string>());
+  const nuevaKeyCounterRef = useRef(0);
+
+  function keyForNueva(file: File): string {
+    const existing = nuevaKeysRef.current.get(file);
+    if (existing) return existing;
+    nuevaKeyCounterRef.current += 1;
+    const key = `f${nuevaKeyCounterRef.current}`;
+    nuevaKeysRef.current.set(file, key);
+    return key;
+  }
+
+  const nuevaKeys = state.galeriaNuevas.map(keyForNueva);
 
   const errors = useMemo(() => validate(state), [state]);
 
@@ -140,8 +163,12 @@ export function NewsForm({
           portadaFile: state.portadaFile,
           // Un archivo nuevo reemplaza; solo se quita si no hay reemplazo.
           removePortada: state.removePortada && !state.portadaFile,
-          galeriaNuevas: state.galeriaNuevas,
+          galeriaNuevas: state.galeriaNuevas.map((file, index) => ({
+            key: nuevaKeys[index],
+            file,
+          })),
           galeriaEliminar: state.galeriaEliminar,
+          galeriaOrder: state.galeriaOrder,
         },
       );
       setShowErrors(false);
@@ -230,14 +257,32 @@ export function NewsForm({
             persisted={state.galeria}
             eliminar={state.galeriaEliminar}
             nuevas={state.galeriaNuevas}
+            nuevaKeys={nuevaKeys}
+            order={state.galeriaOrder}
             disabled={isSubmitting}
-            onAddFiles={(files) => patch({ galeriaNuevas: [...state.galeriaNuevas, ...files] })}
+            onAddFiles={(files) =>
+              patch({
+                galeriaNuevas: [...state.galeriaNuevas, ...files],
+                galeriaOrder: [
+                  ...state.galeriaOrder,
+                  ...files.map((file) => `n:${keyForNueva(file)}`),
+                ],
+              })
+            }
             onRemovePersisted={(id) =>
-              patch({ galeriaEliminar: [...state.galeriaEliminar, id] })
+              patch({
+                galeriaEliminar: [...state.galeriaEliminar, id],
+                galeriaOrder: state.galeriaOrder.filter((token) => token !== `p:${id}`),
+              })
             }
-            onRemoveNueva={(index) =>
-              patch({ galeriaNuevas: state.galeriaNuevas.filter((_, i) => i !== index) })
-            }
+            onRemoveNueva={(index) => {
+              const key = nuevaKeys[index];
+              patch({
+                galeriaNuevas: state.galeriaNuevas.filter((_, i) => i !== index),
+                galeriaOrder: state.galeriaOrder.filter((token) => token !== `n:${key}`),
+              });
+            }}
+            onReorder={(nextOrder) => patch({ galeriaOrder: nextOrder })}
           />
         </div>
 

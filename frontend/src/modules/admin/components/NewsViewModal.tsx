@@ -36,7 +36,7 @@ export function NewsViewModal({ isOpen, news, onClose, onEdit }: Props) {
             </span>
           </div>
 
-          <h2 className="text-2xl font-bold text-maps-heading">{news.titulo}</h2>
+          <h2 className="text-lg font-bold text-maps-heading">{news.titulo}</h2>
 
           <div className="inline-flex items-center gap-1.5 text-xs text-maps-muted">
             <Calendar size={14} strokeWidth={1.75} />

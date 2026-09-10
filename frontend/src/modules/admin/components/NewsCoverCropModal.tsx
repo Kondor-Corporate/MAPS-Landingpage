@@ -67,7 +67,7 @@ export function NewsCoverCropModal({ isOpen, imageUrl, initialValue, onCancel, o
     <Modal isOpen={isOpen} onClose={onCancel} maxWidth="max-w-2xl" ariaLabel="Reencuadrar imagen de portada">
       <div className="flex flex-col gap-4 p-6">
         <div className="flex flex-col gap-1 pr-8">
-          <h3 className="text-base font-semibold text-maps-heading">Reencuadrar portada</h3>
+          <h2 className="text-lg font-bold text-maps-heading">Reencuadrar portada</h2>
           <p className="text-sm text-maps-body">
             Arrastrá y hacé zoom para elegir qué parte de la imagen se mostrará como portada.
           </p>

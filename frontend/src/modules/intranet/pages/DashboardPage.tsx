@@ -44,7 +44,7 @@ export function DashboardPage() {
     <div className="flex flex-col gap-8 px-8 py-6">
       <DashboardGreeting name="Productor" />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <AccessCard
           variant="self"
           title="Acceso al Portal SELF"

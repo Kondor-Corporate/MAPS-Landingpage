@@ -1,7 +1,8 @@
-import { Eye, EyeOff, Pencil, Trash2 } from 'lucide-react';
+import { Inbox } from 'lucide-react';
 import { RamoIcon } from '@/modules/admin/components/RamoIcon';
 import { LibraryRamoStatusBadge } from '@/modules/admin/components/LibraryRamoStatusBadge';
 import { LibraryRamoTipoBadge } from '@/modules/admin/components/LibraryRamoTipoBadge';
+import { LibraryRamoTableActions } from '@/modules/admin/components/LibraryRamoTableActions';
 import type { Ramo } from '@/modules/admin/types/library';
 
 type Props = {
@@ -28,15 +29,19 @@ export function LibraryRamoTable({
 }: Props) {
   if (ramos.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-maps-border bg-white px-6 py-14 text-center text-sm text-maps-muted">
-        {emptyMessage}
-      </p>
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-maps-border bg-white px-6 py-14 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-maps-brand-soft text-maps-brand">
+          <Inbox size={22} strokeWidth={1.75} />
+        </span>
+        <p className="text-sm font-medium text-maps-heading">Sin resultados</p>
+        <p className="text-xs text-maps-muted">{emptyMessage}</p>
+      </div>
     );
   }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-maps-border bg-white shadow-card">
-      <div className="hidden overflow-x-auto lg:block">
+      <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full">
           <thead className="bg-maps-surface">
             <tr>
@@ -54,10 +59,16 @@ export function LibraryRamoTable({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-maps-border">
-            {ramos.map((ramo) => (
-              <tr key={ramo.id} className="hover:bg-maps-surface/50">
-                <td className="px-6 py-4">
+          <tbody>
+            {ramos.map((ramo, idx) => (
+              <tr
+                key={ramo.id}
+                className={[
+                  'transition hover:bg-maps-surface/60',
+                  idx > 0 ? 'border-t border-maps-border' : '',
+                ].join(' ')}
+              >
+                <td className="whitespace-nowrap px-6 py-3.5">
                   <div className="flex items-center gap-3">
                     <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-maps-brand-soft text-maps-brand">
                       <RamoIcon icon={ramo.icono} size={18} />
@@ -65,58 +76,37 @@ export function LibraryRamoTable({
                     <span className="text-sm font-semibold text-maps-heading">{ramo.nombre}</span>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="whitespace-nowrap px-6 py-3.5">
                   <LibraryRamoTipoBadge tipo={ramo.tipo} />
                 </td>
-                <td className="max-w-xs px-6 py-4">
+                <td className="max-w-xs px-6 py-3.5">
                   <p className="line-clamp-2 text-sm text-maps-body">{ramo.descripcion}</p>
                 </td>
-                <td className="px-6 py-4">
+                <td className="whitespace-nowrap px-6 py-3.5">
                   {ramo.gdriveUrl ? (
-                    <span
-                      className="text-sm text-maps-brand"
+                    <a
+                      href={ramo.gdriveUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       title={ramo.gdriveUrl}
+                      className="text-sm text-maps-brand underline-offset-2 hover:underline"
                     >
                       {truncateUrl(ramo.gdriveUrl)}
-                    </span>
+                    </a>
                   ) : (
                     <span className="text-sm text-maps-muted-soft">—</span>
                   )}
                 </td>
-                <td className="px-6 py-4">
+                <td className="whitespace-nowrap px-6 py-3.5">
                   <LibraryRamoStatusBadge activo={ramo.activo} />
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex justify-end gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onEdit(ramo)}
-                      aria-label={`Editar ${ramo.nombre}`}
-                      className="rounded-lg p-2 text-maps-muted transition hover:bg-maps-surface hover:text-maps-brand"
-                    >
-                      <Pencil size={16} strokeWidth={1.75} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onToggle(ramo)}
-                      aria-label={ramo.activo ? `Desactivar ${ramo.nombre}` : `Activar ${ramo.nombre}`}
-                      className="rounded-lg p-2 text-maps-muted transition hover:bg-maps-surface hover:text-maps-brand"
-                    >
-                      {ramo.activo ? (
-                        <Eye size={16} strokeWidth={1.75} />
-                      ) : (
-                        <EyeOff size={16} strokeWidth={1.75} />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(ramo)}
-                      aria-label={`Eliminar ${ramo.nombre}`}
-                      className="rounded-lg p-2 text-maps-muted transition hover:bg-rose-50 hover:text-rose-600"
-                    >
-                      <Trash2 size={16} strokeWidth={1.75} />
-                    </button>
-                  </div>
+                <td className="whitespace-nowrap px-6 py-3.5 text-right">
+                  <LibraryRamoTableActions
+                    ramo={ramo}
+                    onEdit={onEdit}
+                    onToggle={onToggle}
+                    onDelete={onDelete}
+                  />
                 </td>
               </tr>
             ))}
@@ -124,7 +114,7 @@ export function LibraryRamoTable({
         </table>
       </div>
 
-      <ul className="divide-y divide-maps-border lg:hidden">
+      <ul className="flex flex-col divide-y divide-maps-border md:hidden">
         {ramos.map((ramo) => (
           <li key={ramo.id} className="flex flex-col gap-3 p-4">
             <div className="flex items-start justify-between gap-2">
@@ -137,39 +127,28 @@ export function LibraryRamoTable({
                   <LibraryRamoTipoBadge tipo={ramo.tipo} />
                 </div>
               </div>
-              <LibraryRamoStatusBadge activo={ramo.activo} />
+              <div className="flex items-center gap-1">
+                <LibraryRamoStatusBadge activo={ramo.activo} />
+                <LibraryRamoTableActions
+                  ramo={ramo}
+                  onEdit={onEdit}
+                  onToggle={onToggle}
+                  onDelete={onDelete}
+                />
+              </div>
             </div>
             <p className="text-sm text-maps-body">{ramo.descripcion}</p>
             {ramo.gdriveUrl ? (
-              <p className="truncate text-xs text-maps-brand" title={ramo.gdriveUrl}>
+              <a
+                href={ramo.gdriveUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="truncate text-xs text-maps-brand underline-offset-2 hover:underline"
+                title={ramo.gdriveUrl}
+              >
                 {truncateUrl(ramo.gdriveUrl, 50)}
-              </p>
+              </a>
             ) : null}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => onEdit(ramo)}
-                className="flex-1 rounded-lg border border-maps-border py-2 text-sm font-medium text-maps-heading"
-              >
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={() => onToggle(ramo)}
-                className="rounded-lg border border-maps-border px-3 py-2 text-maps-muted"
-                aria-label={ramo.activo ? 'Desactivar' : 'Activar'}
-              >
-                {ramo.activo ? <Eye size={16} /> : <EyeOff size={16} />}
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(ramo)}
-                className="rounded-lg border border-rose-200 px-3 py-2 text-rose-600"
-                aria-label="Eliminar"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
           </li>
         ))}
       </ul>

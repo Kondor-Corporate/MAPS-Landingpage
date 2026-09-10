@@ -7,12 +7,6 @@ import { isResolvableLibraryUrl } from '@/shared/utils/libraryLinks';
 
 
 
-const LIBRARY_GRADIENT =
-
-  'linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #00a4c0 100%)';
-
-
-
 export function LibrarySecondarySection() {
 
   const { ramos, loading, error, refetch } = useLibraryRamos();
@@ -41,15 +35,7 @@ export function LibrarySecondarySection() {
 
   return (
 
-    <section
-
-      id="explorar-categorias"
-
-      className="px-8 py-16 text-white"
-
-      style={{ background: LIBRARY_GRADIENT }}
-
-    >
+    <section id="explorar-categorias" className="bg-library-gradient px-8 py-16 text-white">
 
       <div className="mx-auto max-w-7xl">
 

@@ -11,7 +11,7 @@ export function ProfileStatsCards({ anosExperiencia, clientesActivos }: Props) {
   return (
     <section className="flex flex-col gap-4">
       {anosExperiencia != null && (
-        <div className="relative flex items-center gap-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
+        <div className="relative flex items-center gap-4 rounded-2xl border border-maps-border bg-white p-6 shadow-profile">
           <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-maps-brand/10 text-maps-brand">
             <Calendar className="size-5" aria-hidden />
           </span>
@@ -24,7 +24,7 @@ export function ProfileStatsCards({ anosExperiencia, clientesActivos }: Props) {
         </div>
       )}
       {clientesActivos != null && (
-        <div className="relative flex items-center gap-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
+        <div className="relative flex items-center gap-4 rounded-2xl border border-maps-border bg-white p-6 shadow-profile">
           <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-maps-brand/10 text-maps-brand">
             <Users className="size-5" aria-hidden />
           </span>

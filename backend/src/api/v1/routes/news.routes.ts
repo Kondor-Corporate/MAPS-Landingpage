@@ -18,6 +18,7 @@ import {
   newsIdParamSchema,
   newsSlugParamSchema,
   noticiaImagenParamSchema,
+  reorderGaleriaSchema,
   updateNewsSchema,
 } from '../../../validations/news.schema.js';
 
@@ -114,4 +115,12 @@ newsRouter.delete(
   ...adminOnly,
   validate({ params: noticiaImagenParamSchema }),
   newsController.removeImagenGaleria,
+);
+
+// Reordenar galería: recibe el array de ids de NoticiaImagen en el orden final deseado.
+newsRouter.patch(
+  '/:id/imagenes/orden',
+  ...adminOnly,
+  validate({ params: newsIdParamSchema, body: reorderGaleriaSchema }),
+  newsController.reorderGaleria,
 );

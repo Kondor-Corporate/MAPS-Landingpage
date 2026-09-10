@@ -86,7 +86,7 @@ export function ProfileHeaderCard({
   );
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white p-8 shadow-[0px_4px_20px_-2px_rgba(0,0,0,0.05)]">
+    <section className="relative overflow-hidden rounded-2xl border border-maps-border bg-white p-8 shadow-profile">
       <div
         className="pointer-events-none absolute -right-32 -top-32 size-64 rounded-full bg-maps-brand/10"
         aria-hidden
@@ -192,7 +192,7 @@ export function ProfileHeaderCard({
                 href={`https://wa.me/${profile.whatsapp.replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-[46px] items-center gap-2 rounded-2xl bg-[#22c55e] px-6 text-base font-bold text-white shadow-[0px_10px_15px_-3px_rgba(34,197,94,0.2),0px_4px_6px_-4px_rgba(34,197,94,0.2)] transition-opacity hover:opacity-90"
+                className="inline-flex h-[46px] items-center gap-2 rounded-2xl bg-maps-whatsapp px-6 text-base font-bold text-white shadow-[0px_10px_15px_-3px_rgba(34,197,94,0.2),0px_4px_6px_-4px_rgba(34,197,94,0.2)] transition-opacity hover:opacity-90"
               >
                 <MessageCircle className="size-5" aria-hidden />
                 WhatsApp
@@ -210,7 +210,7 @@ export function ProfileHeaderCard({
             {profile.telefono && (
               <a
                 href={`tel:${profile.telefono.replace(/\s/g, '')}`}
-                className="inline-flex h-[46px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-base font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                className="inline-flex h-[46px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-base font-bold text-slate-700 transition-colors hover:bg-slate-50 lg:hidden"
               >
                 <Phone className="size-[18px]" aria-hidden />
                 Llamar
