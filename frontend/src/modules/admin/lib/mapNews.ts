@@ -11,7 +11,7 @@ import type {
   NewsInput,
 } from '@/modules/admin/types/news';
 
-export type ApiNewsVisibilidad = 'PUBLICA' | 'INTERNA';
+export type ApiNewsVisibilidad = 'PUBLICA' | 'INTERNA' | 'AMBAS';
 
 export type ApiNoticiaImagen = {
   id: number;
@@ -57,10 +57,12 @@ export type ListNewsApiParams = {
 };
 
 function audienciaToVisibilidad(audiencia: NewsAudiencia): ApiNewsVisibilidad {
+  if (audiencia === 'AMBOS') return 'AMBAS';
   return audiencia === 'PUBLICO' ? 'PUBLICA' : 'INTERNA';
 }
 
 function visibilidadToAudiencia(visibilidad: ApiNewsVisibilidad): NewsAudiencia {
+  if (visibilidad === 'AMBAS') return 'AMBOS';
   return visibilidad === 'PUBLICA' ? 'PUBLICO' : 'PRODUCTORES';
 }
 
@@ -113,6 +115,7 @@ export function mapNewsFiltersToApiParams(filters: NewsFilters): ListNewsApiPara
   if (filters.estado === 'BORRADOR' || filters.estado === 'DESPUBLICADA') params.publicada = false;
   if (filters.audiencia === 'PUBLICO') params.visibilidad = 'PUBLICA';
   if (filters.audiencia === 'PRODUCTORES') params.visibilidad = 'INTERNA';
+  if (filters.audiencia === 'AMBOS') params.visibilidad = 'AMBAS';
   if (filters.categoria !== 'TODOS') params.categoria = filters.categoria;
 
   return params;
