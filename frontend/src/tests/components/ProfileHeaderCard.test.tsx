@@ -29,7 +29,10 @@ const PROFILE: ProfileHeaderData = {
   latitud: null,
   longitud: null,
   especialidades: [],
-  redesSociales: [],
+  redesSociales: [
+    { plataforma: 'instagram', url: 'https://instagram.com/lucas', orden: 0 },
+    { plataforma: 'linkedin', url: 'https://linkedin.com/in/lucas', orden: 1 },
+  ],
   certificaciones: [],
   email: 'lucas@example.com',
 };
@@ -168,5 +171,22 @@ describe('ProfileHeaderCard', () => {
       expect(screen.getByRole('button', { name: /cambiar foto de perfil/i })).toBeEnabled(),
     );
     expect(onUploadFoto).toHaveBeenCalledTimes(2);
+  });
+
+  it('no muestra un botón de Email aunque el perfil tenga email', () => {
+    render(<ProfileHeaderCard profile={PROFILE} />);
+    expect(screen.queryByRole('link', { name: /email/i })).not.toBeInTheDocument();
+  });
+
+  it('muestra Instagram y LinkedIn junto a los demás datos de contacto', () => {
+    render(<ProfileHeaderCard profile={PROFILE} />);
+    expect(screen.getByRole('link', { name: 'Instagram' })).toHaveAttribute(
+      'href',
+      'https://instagram.com/lucas',
+    );
+    expect(screen.getByRole('link', { name: 'LinkedIn' })).toHaveAttribute(
+      'href',
+      'https://linkedin.com/in/lucas',
+    );
   });
 });

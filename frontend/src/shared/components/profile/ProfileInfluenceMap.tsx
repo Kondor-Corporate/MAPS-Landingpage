@@ -1,18 +1,12 @@
 import { MapPin } from 'lucide-react';
-import { FaInstagram, FaLinkedin } from 'react-icons/fa';
 import { SingleProducerMap } from '@/shared/components/map/SingleProducerMap';
 import type { ProfileViewModel } from '@/shared/types/producerProfile';
 
 type Props = {
-  profile: Pick<
-    ProfileViewModel,
-    'ciudad' | 'latitud' | 'longitud' | 'redesSociales'
-  >;
+  profile: Pick<ProfileViewModel, 'ciudad' | 'latitud' | 'longitud'>;
 };
 
 export function ProfileInfluenceMap({ profile }: Props) {
-  const linkedin = profile.redesSociales.find((r) => r.plataforma === 'linkedin');
-  const instagram = profile.redesSociales.find((r) => r.plataforma === 'instagram');
   const hasCoords = profile.latitud != null && profile.longitud != null;
 
   return (
@@ -43,32 +37,6 @@ export function ProfileInfluenceMap({ profile }: Props) {
           </div>
         )}
       </div>
-      {(linkedin || instagram) && (
-        <div className="mt-4 flex items-center justify-center gap-4">
-          {linkedin && (
-            <a
-              href={linkedin.url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-slate-600 transition-colors hover:text-maps-brand"
-              aria-label="LinkedIn"
-            >
-              <FaLinkedin className="size-6" aria-hidden />
-            </a>
-          )}
-          {instagram && (
-            <a
-              href={instagram.url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-slate-600 transition-colors hover:text-maps-brand"
-              aria-label="Instagram"
-            >
-              <FaInstagram className="size-6" aria-hidden />
-            </a>
-          )}
-        </div>
-      )}
     </section>
   );
 }

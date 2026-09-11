@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BadgeCheck, Crosshair, MessageCircle } from 'lucide-react';
+import { BadgeCheck, Crosshair, User } from 'lucide-react';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { MapPinIcon } from '@/shared/components/map/MapPinIcon';
 import { LA_PLATA_VIEW, MAP_STYLE } from '@/shared/components/map/mapStyle';
+import { ProducerSocialLinks } from '@/shared/components/profile/ProducerSocialLinks';
 import { useProducersMap } from '@/modules/public-web/hooks/useProducersMap';
 import type { MapProducer } from '@/modules/public-web/types/producerMap';
 import { geocodeQuery } from '@/shared/lib/geocode';
@@ -380,7 +381,7 @@ export function FindAdvisorMap() {
               closeOnClick
               onClose={() => setActiveSlug(null)}
               className="maps-popup"
-              maxWidth="min(320px, calc(100vw - 32px))"
+              maxWidth="min(340px, calc(100vw - 32px))"
             >
               <ProducerPopupCard producer={activeProducer} />
             </Popup>
@@ -451,9 +452,6 @@ function ProducerAvatar({
 }
 
 export function ProducerPopupCard({ producer }: { producer: ProducerWithDistance }) {
-  const waLink = producer.whatsapp
-    ? `https://wa.me/${producer.whatsapp.replace(/\D/g, '')}`
-    : null;
   const specialties = producer.especialidades.slice(0, 3);
 
   return (
@@ -501,24 +499,17 @@ export function ProducerPopupCard({ producer }: { producer: ProducerWithDistance
         </ul>
       )}
 
-      <div className="flex flex-col gap-2 pt-1 min-[420px]:flex-row min-[420px]:items-center">
-        {waLink && (
-          <a
-            href={waLink}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-maps-whatsapp px-3 py-2 text-sm font-bold text-white hover:opacity-90"
-          >
-            <MessageCircle className="h-3.5 w-3.5" aria-hidden />
-            WhatsApp
-          </a>
-        )}
+      <div className="flex flex-nowrap items-center gap-2 pt-1">
+        <ProducerSocialLinks
+          whatsapp={producer.whatsapp}
+          redesSociales={producer.redesSociales}
+          variant="map-card"
+        />
         <Link
           to={`/productor/${producer.slug}`}
-          className={`inline-flex min-h-11 items-center justify-center rounded-lg bg-maps-brand px-3 py-2 text-sm font-bold text-white hover:bg-maps-brand-hover ${
-            waLink ? '' : 'flex-1'
-          }`}
+          className="inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-maps-brand px-3 text-sm font-bold text-white hover:bg-maps-brand-hover"
         >
+          <User className="h-[18px] w-[18px] shrink-0" aria-hidden />
           Ver perfil
         </Link>
       </div>
