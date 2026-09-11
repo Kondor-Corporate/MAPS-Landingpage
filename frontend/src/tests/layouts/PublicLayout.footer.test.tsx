@@ -32,7 +32,7 @@ describe('PublicLayout footer', () => {
       'href',
       '/#nosotros',
     );
-    expect(within(footer).getByRole('link', { name: 'Mapa de asesores' })).toHaveAttribute(
+    expect(within(footer).getByRole('link', { name: 'Mapa de Asesores' })).toHaveAttribute(
       'href',
       '/#mapa',
     );

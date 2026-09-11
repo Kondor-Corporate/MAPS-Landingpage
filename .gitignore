@@ -91,6 +91,8 @@ tmp/
 *.EAP
 *.ldb
 Arquitectura/**/*.bmp
+# Temporary files
 .tmp/
-.tmp/
-\.tmp\
+**/.tmp/
+tmp/
+temp/
