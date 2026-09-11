@@ -1,3 +1,5 @@
+import type { ProducerRedSocial } from '@/shared/types/producerProfile';
+
 export type MapProducerSpecialty = {
   clave: string;
   label: string;
@@ -15,4 +17,5 @@ export type MapProducer = {
   whatsapp: string | null;
   verificado: boolean;
   especialidades: MapProducerSpecialty[];
+  redesSociales: ProducerRedSocial[];
 };

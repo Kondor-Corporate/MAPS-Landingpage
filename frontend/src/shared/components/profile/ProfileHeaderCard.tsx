@@ -1,16 +1,7 @@
 import { useRef, useState } from 'react';
-import {
-  BadgeCheck,
-  Camera,
-  Globe,
-  KeyRound,
-  Mail,
-  MapPin,
-  MessageCircle,
-  Pencil,
-  Phone,
-} from 'lucide-react';
+import { BadgeCheck, Camera, Globe, KeyRound, MapPin, Pencil, Phone } from 'lucide-react';
 import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
+import { ProducerSocialLinks } from '@/shared/components/profile/ProducerSocialLinks';
 import type { ProfileHeaderData } from '@/shared/types/producerProfile';
 import { getInitials } from '@/shared/utils/initials';
 
@@ -187,33 +178,18 @@ export function ProfileHeaderCard({
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3 pt-1 lg:justify-start">
-            {profile.whatsapp && (
-              <a
-                href={`https://wa.me/${profile.whatsapp.replace(/\D/g, '')}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-[46px] items-center gap-2 rounded-2xl bg-maps-whatsapp px-6 text-base font-bold text-white shadow-[0px_10px_15px_-3px_rgba(34,197,94,0.2),0px_4px_6px_-4px_rgba(34,197,94,0.2)] transition-opacity hover:opacity-90"
-              >
-                <MessageCircle className="size-5" aria-hidden />
-                WhatsApp
-              </a>
-            )}
-            {profile.email && (
-              <a
-                href={`mailto:${profile.email}`}
-                className="inline-flex h-[46px] items-center gap-2 rounded-2xl bg-maps-brand px-6 text-base font-bold text-white shadow-[0px_10px_15px_-3px_rgba(61,109,226,0.2),0px_4px_6px_-4px_rgba(61,109,226,0.2)] transition-colors hover:bg-maps-brand-hover"
-              >
-                <Mail className="size-5" aria-hidden />
-                Email
-              </a>
-            )}
+            <ProducerSocialLinks
+              whatsapp={profile.whatsapp}
+              redesSociales={profile.redesSociales}
+              variant="profile"
+            />
             {profile.telefono && (
               <a
                 href={`tel:${profile.telefono.replace(/\s/g, '')}`}
-                className="inline-flex h-[46px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-base font-bold text-slate-700 transition-colors hover:bg-slate-50 lg:hidden"
+                aria-label="Llamar"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 lg:hidden"
               >
-                <Phone className="size-[18px]" aria-hidden />
-                Llamar
+                <Phone className="h-[18px] w-[18px]" aria-hidden />
               </a>
             )}
             {!isPublic && onEdit && (

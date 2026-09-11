@@ -28,7 +28,7 @@ export const ourTeam: OurTeamMember[] = [
     nombre: 'Ezequiel',
     apellido: 'Coria',
     puesto: 'Gestión Comunicación y Proyectos',
-    foto: '/team/Ezequiel.webp',
+    foto: '/team/ezequiel.webp',
   },
   {
     id: '8',
