@@ -10,7 +10,7 @@ function TeamMemberPhoto({ member }: { member: OurTeamMember }) {
       <img
         src={member.foto}
         alt={`${member.nombre} ${member.apellido}`}
-        className="h-full w-full object-cover"
+        className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
         loading="lazy"
         decoding="async"
       />
@@ -79,12 +79,12 @@ export function OurTeamSection() {
           <div
             ref={scrollerRef}
             onScroll={updateScrollState}
-            className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:snap-none sm:pb-0 lg:grid-cols-4"
           >
             {ourTeam.map((member) => (
               <article
                 key={member.id}
-                className="w-[80%] shrink-0 snap-start overflow-hidden rounded-2xl bg-white shadow-card sm:w-[45%] md:w-[31%] lg:w-[23%]"
+                className="group w-[80%] shrink-0 snap-start overflow-hidden rounded-2xl bg-white shadow-card transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl sm:w-full sm:shrink sm:snap-none"
               >
                 <div className="aspect-[3/4] w-full overflow-hidden bg-maps-brand-soft">
                   <TeamMemberPhoto member={member} />
@@ -104,7 +104,7 @@ export function OurTeamSection() {
             onClick={() => scrollByDirection('prev')}
             disabled={!canScrollPrev}
             aria-label="Ver integrante anterior"
-            className="absolute left-0 top-1/2 hidden -translate-x-4 -translate-y-1/2 items-center justify-center rounded-full border border-maps-border bg-white p-2 text-maps-heading shadow-card transition-opacity disabled:pointer-events-none disabled:opacity-0 sm:flex"
+            className="absolute left-0 top-1/2 flex -translate-x-4 -translate-y-1/2 items-center justify-center rounded-full border border-maps-border bg-white p-2 text-maps-heading shadow-card transition-opacity disabled:pointer-events-none disabled:opacity-0 sm:hidden"
           >
             <ChevronLeft size={20} />
           </button>
@@ -113,7 +113,7 @@ export function OurTeamSection() {
             onClick={() => scrollByDirection('next')}
             disabled={!canScrollNext}
             aria-label="Ver integrante siguiente"
-            className="absolute right-0 top-1/2 hidden -translate-y-1/2 translate-x-4 items-center justify-center rounded-full border border-maps-border bg-white p-2 text-maps-heading shadow-card transition-opacity disabled:pointer-events-none disabled:opacity-0 sm:flex"
+            className="absolute right-0 top-1/2 flex -translate-y-1/2 translate-x-4 items-center justify-center rounded-full border border-maps-border bg-white p-2 text-maps-heading shadow-card transition-opacity disabled:pointer-events-none disabled:opacity-0 sm:hidden"
           >
             <ChevronRight size={20} />
           </button>
