@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Monitor, MapPin, Headphones, UserRound, ArrowRight } from 'lucide-react';
 import { NewsDetailModal } from '@/modules/public-web/components/NewsDetailModal';
 
 type PublicLayoutProps = {
@@ -15,6 +16,12 @@ const navLinks = [
 ];
 
 const brandLogoSrc = '/mapsLogo.webp';
+
+const footerHighlights = [
+  { icon: Monitor, label: 'Gestión Digital' },
+  { icon: MapPin, label: 'Cobertura Nacional' },
+  { icon: Headphones, label: 'Atención Personalizada' },
+];
 
 const navLinkClassName =
   'whitespace-nowrap text-base font-medium text-maps-heading transition-colors hover:text-maps-brand';
@@ -214,65 +221,81 @@ export function PublicLayout({ children }: PublicLayoutProps) {
       <main className="flex-1">{children}</main>
       <NewsDetailModal />
 
-      <footer className="border-t border-maps-border bg-white px-4 pb-12 pt-16 text-maps-body sm:px-6 lg:px-10">
-        <div className="mx-auto max-w-[1188px]">
-          <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
-            <div className="flex flex-col gap-4">
+      <footer className="relative overflow-hidden bg-white px-4 pb-8 pt-14 text-maps-body sm:px-6 lg:px-10 lg:pt-16">
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -left-24 -top-32 h-80 w-80 rounded-full bg-maps-brand/[0.06] blur-3xl" />
+          <div className="absolute -bottom-24 right-0 h-96 w-96 rounded-full bg-maps-brand/[0.05] blur-3xl" />
+        </div>
+
+        <div className="relative mx-auto max-w-[1188px]">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-[1.5fr_0.8fr_1fr] lg:gap-8">
+            <div className="flex flex-col gap-5 lg:pr-8">
               <div className="flex items-center gap-3">
                 <img
                   src={brandLogoSrc}
                   alt=""
-                  className="h-12 w-auto max-h-12 shrink-0 object-contain"
+                  className="h-11 w-auto max-h-11 shrink-0 object-contain"
                 />
                 <span className="text-2xl font-bold tracking-[-0.3px] text-maps-heading">
                   MAPSASESORES
                 </span>
               </div>
-              <p className="max-w-[300px] text-sm leading-[22px] text-maps-muted">
+
+              <p className="max-w-[340px] text-sm leading-[22px] text-maps-muted">
                 Un espacio para conocer a nuestros asesores y acceder a información de interés.
               </p>
+
+              <span aria-hidden className="h-[3px] w-10 rounded-full bg-maps-brand" />
+
+              <ul className="flex flex-wrap gap-x-6 gap-y-4">
+                {footerHighlights.map(({ icon: Icon, label }) => (
+                  <li key={label} className="flex items-center gap-2">
+                    <Icon className="h-5 w-5 shrink-0 text-maps-brand" aria-hidden />
+                    <span className="text-xs leading-[16px] text-maps-muted">{label}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <h3 className="text-lg font-bold text-maps-heading">Enlaces</h3>
-              <ul className="flex flex-col gap-3 text-sm text-maps-muted">
-                <li>
-                  <Link
-                    to="/#noticias"
-                    className="transition-colors hover:text-maps-brand"
-                  >
-                    Noticias
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/#nosotros"
-                    className="transition-colors hover:text-maps-brand"
-                  >
-                    Nosotros
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/#mapa"
-                    className="transition-colors hover:text-maps-brand"
-                  >
-                    Mapa de asesores
-                  </Link>
-                </li>
-              </ul>
+            <div className="flex flex-col gap-4 border-maps-border lg:border-l lg:pl-8">
+              <h3 className="text-base font-semibold text-maps-heading">Navegación</h3>
+              <nav aria-label="Footer">
+                <ul className="flex flex-col gap-3 text-sm">
+                  {navLinks.map((link) => (
+                    <li key={link.to}>
+                      <Link
+                        to={link.to}
+                        className="text-maps-muted transition-colors hover:text-maps-brand focus-visible:text-maps-brand focus-visible:outline-none"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            </div>
+
+            <div className="flex flex-col gap-4 border-maps-border lg:border-l lg:pl-8">
+              <h3 className="text-base font-semibold text-maps-heading">Acceso Productores</h3>
+              <p className="text-sm leading-[22px] text-maps-muted">
+                Si sos productor, accedé a tu cuenta para gestionar tu información.
+              </p>
+              <Link
+                to="/login"
+                className="group inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-maps-brand px-5 text-sm font-bold text-maps-heading transition-colors hover:bg-maps-brand hover:text-white hover:shadow-[0_0_24px_rgba(0,164,192,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-maps-brand/50 focus-visible:ring-offset-2 sm:w-fit"
+              >
+                <UserRound className="h-4 w-4 text-maps-brand transition-colors group-hover:text-white" aria-hidden />
+                Acceso Productores
+                <ArrowRight className="h-4 w-4 transition-colors" aria-hidden />
+              </Link>
             </div>
           </div>
 
-          <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-maps-border pt-8 text-sm text-maps-muted md:flex-row md:items-center">
-            <p className="text-maps-body">© 2026 MAPS Asesores. Todos los derechos reservados.</p>
+          <div className="mt-10 flex flex-col items-start justify-between gap-4 border-t border-maps-border pt-6 text-sm text-maps-muted md:flex-row md:items-center">
+            <p>© 2026 MAPS Asesores. Todos los derechos reservados.</p>
             <p className="flex items-center gap-2">
               Desarrollado por
-              <img
-                src="/kondor.webp"
-                alt="Kondor"
-                className="h-6 w-auto object-contain"
-              />
+              <img src="/kondor.webp" alt="Kondor" className="h-6 w-auto object-contain" />
             </p>
           </div>
         </div>
