@@ -192,7 +192,7 @@ export function FindAdvisorMap() {
           </h2>
 
           <p className="text-lg leading-[29px] text-maps-muted">
-            Buscá por ciudad o usá desde tu ubicación actual y vamos a mostrarte para elegir los
+            Buscá por ciudad o desde tu ubicación actual para elegir los
             asesores más cercanos.
           </p>
 
