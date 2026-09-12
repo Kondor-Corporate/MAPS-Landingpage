@@ -26,6 +26,9 @@ describe('HeroSection', () => {
       'href',
       '#mapa',
     );
-    expect(screen.getByRole('link', { name: /soy productor/i })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: /acceso productores/i })).toHaveAttribute(
+      'href',
+      '/login',
+    );
   });
 });

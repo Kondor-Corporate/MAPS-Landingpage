@@ -1,14 +1,19 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProducerFormModal } from '@/modules/admin/components/ProducerFormModal';
 import type { Producer } from '@/modules/admin/types/producer';
 
-/**
- * MAPS-016: no ejecuta todavía (no hay runner de tests wireado en el frontend,
- * ver docs/TESTING.md). Escrito siguiendo el patrón de `LoginPage.test.tsx`
- * para quedar listo apenas se agregue vitest/jsdom/msw al proyecto.
- */
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    callback(0);
+    return 1;
+  });
+});
 
 type PickedLocation = {
   direccion: string;
@@ -245,7 +250,7 @@ describe('ProducerFormModal', () => {
     renderModal({ mode: 'create' });
 
     const passwordInput = screen.getByLabelText(/contraseña inicial/i);
-    await user.type(passwordInput, 'debil');
+    await user.type(passwordInput, 'debilpass');
 
     expect(screen.getByText(/al menos una mayúscula/i)).toBeInTheDocument();
 

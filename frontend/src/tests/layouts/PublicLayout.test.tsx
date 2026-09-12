@@ -47,7 +47,10 @@ describe('PublicLayout scroll público', () => {
       callback(0);
       return 1;
     });
-    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(scrollIntoView);
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
     scrollTo.mockClear();
     scrollIntoView.mockClear();
   });

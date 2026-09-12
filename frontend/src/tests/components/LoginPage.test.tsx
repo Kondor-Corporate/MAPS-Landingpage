@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { LoginPage } from '@/modules/auth/pages/LoginPage';
 import { useAuthStore } from '@/store/authStore';
 import { API_BASE, server } from '@/tests/mocks/server';
@@ -14,6 +14,14 @@ function getUsuarioInput() {
 
 function getPasswordInput() {
   return screen.getByPlaceholderText('••••••••');
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }
 
 function renderLogin() {
@@ -171,17 +179,10 @@ describe('LoginPage', () => {
   });
 
   it('durante envío el botón muestra Ingresando… y está deshabilitado', async () => {
+    const response = deferred<ReturnType<typeof HttpResponse.json>>();
     server.use(
       http.post(`${API_BASE}/auth/login`, async () => {
-        await new Promise((r) => setTimeout(r, 400));
-        return HttpResponse.json({
-          data: {
-            accessToken: 't',
-            user: { id: 1, usuario: 'admin', rol: 'ADMIN', slug: null },
-          },
-          message: 'OK',
-          error: null,
-        });
+        return response.promise;
       }),
     );
 
@@ -198,11 +199,16 @@ describe('LoginPage', () => {
       screen.getByRole('button', { name: /ingresando/i }),
     ).toBeDisabled();
 
-    await waitFor(
-      () => {
-        expect(screen.getByText('Admin dashboard')).toBeInTheDocument();
-      },
-      { timeout: 3000 },
+    response.resolve(
+      HttpResponse.json({
+        data: {
+          accessToken: 't',
+          user: { id: 1, usuario: 'admin', rol: 'ADMIN', slug: null },
+        },
+        message: 'OK',
+        error: null,
+      }),
     );
+    expect(await screen.findByText('Admin dashboard')).toBeInTheDocument();
   });
 });

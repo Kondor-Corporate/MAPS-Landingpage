@@ -46,6 +46,9 @@ vi.mock('@/modules/admin/components/ProducerTable', () => ({
     </button>
   ),
 }));
+vi.mock('@/modules/admin/components/ProducerFilterModal', () => ({
+  ProducerFilterModal: () => null,
+}));
 vi.mock('@/modules/admin/components/NewsForm', () => ({
   EMPTY_FORM: {
     titulo: '',
@@ -172,7 +175,7 @@ describe('locks síncronos de acciones admin', () => {
 
     render(<ProducersDashboard scope="active" />);
     fireEvent.click(screen.getByRole('button', { name: 'Abrir cambio estado' }));
-    const confirm = screen.getByRole('button', { name: 'Desactivar' });
+    const confirm = screen.getByRole('button', { name: /Desactivar/ });
     fireEvent.click(confirm);
     fireEvent.click(confirm);
 
@@ -215,7 +218,7 @@ describe('locks síncronos de acciones admin', () => {
 
     render(<NewsManagementDashboard />);
     fireEvent.click(screen.getByRole('button', { name: 'Abrir eliminar' }));
-    const confirm = screen.getByRole('button', { name: 'Eliminar noticia' });
+    const confirm = screen.getByRole('button', { name: /Eliminar noticia/ });
     fireEvent.click(confirm);
     fireEvent.click(confirm);
 

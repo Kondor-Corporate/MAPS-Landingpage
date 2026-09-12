@@ -19,12 +19,15 @@ npm run build
 npm test
 ```
 
-Frontend (calidad; **no hay runner de tests**):
+Frontend:
 
 ```bash
 cd frontend
 npm run typecheck
+npm run test:typecheck
 npm run lint
+npm test
+npm run test:watch
 npm run build
 ```
 
@@ -94,20 +97,36 @@ En local, evitar correr tests contra una base con datos importantes. Para desarr
 
 ## Frontend
 
-**No hay runner operativo.** `frontend/package.json` no declara script `test` ni dependencias de Vitest / React Testing Library.
+Stack ejecutable:
 
-Existen archivos `frontend/src/tests/**/*.test.*`. Son fundacion de tests, no una suite ejecutable. No afirmar que Vitest o RTL corren en local ni en CI.
+- Vitest con entorno jsdom.
+- React Testing Library, DOM Testing Library y `user-event`.
+- `jest-dom` para matchers del DOM.
+- MSW para simular la frontera HTTP sin mockear implementaciones internas.
 
-Calidad que si se ejecuta:
+Comandos:
 
 ```bash
 cd frontend
 npm run typecheck
+npm run test:typecheck
 npm run lint
+npm test
+npm run test:watch
 npm run build
 ```
 
-Activar el runner, cablear CI y decidir el destino de esos archivos queda en **D5** (testing / deuda). No se instalo en D1A.
+El typecheck de produccion y el de tests son gates separados. Los tests importan
+explicitamente las APIs de Vitest; no se habilitan globals.
+
+Principios:
+
+- Probar comportamiento visible y flujos de usuario mediante roles, labels y nombres accesibles.
+- Usar MSW para red; reservar mocks de modulos para boundaries que no aportan valor en jsdom.
+- Mantener MapLibre/WebGL fuera de jsdom mediante mocks minimos del boundary.
+- Evitar snapshots masivos, sleeps arbitrarios, selectores CSS fragiles y detalles de implementacion.
+
+Coverage y E2E no forman parte de la fundacion D5A y permanecen pendientes.
 
 ---
 
@@ -115,9 +134,12 @@ Activar el runner, cablear CI y decidir el destino de esos archivos queda en **D
 
 Workflow: `.github/workflows/ci.yml` (Node 22).
 
+Los jobs de backend y frontend son independientes y corren en paralelo.
+
 Backend: `npm ci` → Prisma migrate/seed → typecheck → lint → build → `npm test`.
 
-Frontend: `npm ci` → typecheck → lint → build. **Sin** `npm test`.
+Frontend: `npm ci` → typecheck de produccion → typecheck de tests → lint →
+`npm test` → build.
 
 ---
 
@@ -134,7 +156,7 @@ Cuando se incorpore, la recomendacion es Playwright con entorno aislado (DB de t
 Elegir segun alcance:
 
 - Cambios backend: typecheck, lint, build y tests backend.
-- Cambios frontend: typecheck, lint y build frontend (no hay `npm test` frontend).
+- Cambios frontend: typecheck de produccion y tests, lint, tests y build frontend.
 - Cambios de schema Prisma: migracion, `migrate deploy` y seed.
 - Cambios Docker: `docker compose up -d --build` y healthchecks.
 - Cambios UI: verificacion manual en navegador y captura si corresponde.

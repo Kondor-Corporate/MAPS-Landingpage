@@ -4,11 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { ProfileHeaderCard } from '@/shared/components/profile/ProfileHeaderCard';
 import type { ProfileHeaderData } from '@/shared/types/producerProfile';
 
-/**
- * No ejecuta todavía (sin runner de tests wireado en el frontend, ver docs/TESTING.md).
- * Escrito siguiendo el patrón de `LoginPage.test.tsx`.
- */
-
 const PROFILE: ProfileHeaderData = {
   slug: 'lucas-legorburu',
   nombre: 'Lucas',
@@ -92,7 +87,7 @@ describe('ProfileHeaderCard', () => {
   });
 
   it('un PDF como avatar muestra un mensaje humano y permite elegir otro archivo', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ applyAccept: false });
     const onUploadFoto = vi.fn().mockResolvedValue(undefined);
     render(<ProfileHeaderCard profile={PROFILE} onUploadFoto={onUploadFoto} />);
 

@@ -7,10 +7,15 @@ describe('normalizeCoordinates', () => {
       latitud: -34.9214,
       longitud: -57.9545,
     });
+    expect(normalizeCoordinates(0, '0')).toEqual({
+      latitud: 0,
+      longitud: 0,
+    });
   });
 
   it.each([
     [null, -57.9545],
+    [-34.9214, null],
     [-34.9214, undefined],
     [Number.NaN, -57.9545],
     ['inválida', -57.9545],

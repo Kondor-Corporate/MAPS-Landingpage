@@ -1,13 +1,19 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProducerResetPasswordModal } from '@/modules/admin/components/ProducerResetPasswordModal';
 import type { Producer } from '@/modules/admin/types/producer';
 
-/**
- * MAPS-016: no ejecuta todavía (sin runner de tests wireado en el frontend,
- * ver docs/TESTING.md). Escrito siguiendo el patrón de `LoginPage.test.tsx`.
- */
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    callback(0);
+    return 1;
+  });
+});
 
 const PRODUCER: Producer = {
   id: '1',
@@ -109,7 +115,7 @@ describe('ProducerResetPasswordModal', () => {
       />,
     );
 
-    await user.type(screen.getByLabelText(/^nueva contraseña/i), 'debil');
+    await user.type(screen.getByLabelText(/^nueva contraseña/i), 'debilpass');
     expect(screen.getByText(/al menos una mayúscula/i)).toBeInTheDocument();
   });
 
