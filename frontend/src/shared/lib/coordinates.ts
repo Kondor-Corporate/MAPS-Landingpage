@@ -6,6 +6,7 @@ export type NormalizedCoordinates = {
 };
 
 function normalizeCoordinate(value: CoordinateInput): number | null {
+  if (value == null) return null;
   if (typeof value === 'string' && value.trim() === '') return null;
 
   const normalized = typeof value === 'number' ? value : Number(value);
