@@ -1,7 +1,8 @@
 import { http, HttpResponse } from 'msw';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/axios';
 import { useAuthStore } from '@/store/authStore';
+import { resetAuthStore } from '@/tests/helpers/resetAuthStore';
 import { API_BASE, server } from '@/tests/mocks/server';
 
 /** jsdom marca `location.replace` como no escribible; reemplazamos `window.location` en tests que lo necesitan. */
@@ -19,31 +20,17 @@ function installMockLocation() {
 
 const realLocation = window.location;
 
-beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' });
-});
-
 afterAll(() => {
-  server.close();
   Object.defineProperty(window, 'location', { configurable: true, value: realLocation });
 });
 
 beforeEach(() => {
-  localStorage.clear();
-  useAuthStore.persist.clearStorage();
-  useAuthStore.setState({
-    user: null,
-    accessToken: null,
-    isInitialized: false,
-    isAuthenticated: false,
-  });
-  server.resetHandlers();
+  resetAuthStore();
   vi.restoreAllMocks();
   Object.defineProperty(window, 'location', { configurable: true, value: realLocation });
 });
 
 describe('api — interceptor de request (MSW)', () => {
-
   it('adjunta Authorization Bearer cuando hay accessToken', async () => {
     let authorization: string | null = null;
     server.use(
@@ -52,9 +39,7 @@ describe('api — interceptor de request (MSW)', () => {
         return HttpResponse.json({ ok: true });
       }),
     );
-    useAuthStore
-      .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'mi-jwt');
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'mi-jwt');
 
     await api.get('/ping');
 
@@ -100,9 +85,7 @@ describe('api — interceptor de response (MSW)', () => {
       ),
     );
 
-    useAuthStore
-      .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'viejo');
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'viejo');
 
     const res = await api.get('/foo');
 
@@ -116,14 +99,10 @@ describe('api — interceptor de response (MSW)', () => {
 
     server.use(
       http.get(`${API_BASE}/foo`, () => new HttpResponse(null, { status: 401 })),
-      http.post(`${API_BASE}/auth/refresh`, () =>
-        new HttpResponse(null, { status: 401 }),
-      ),
+      http.post(`${API_BASE}/auth/refresh`, () => new HttpResponse(null, { status: 401 })),
     );
 
-    useAuthStore
-      .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
 
     await expect(api.get('/foo')).rejects.toMatchObject({
       response: { status: 401 },
@@ -159,14 +138,10 @@ describe('api — interceptor de response (MSW)', () => {
     const replace = installMockLocation();
 
     server.use(
-      http.post(`${API_BASE}/auth/refresh`, () =>
-        new HttpResponse(null, { status: 401 }),
-      ),
+      http.post(`${API_BASE}/auth/refresh`, () => new HttpResponse(null, { status: 401 })),
     );
 
-    useAuthStore
-      .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'x');
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'x');
 
     await expect(api.post('/auth/refresh', {})).rejects.toMatchObject({
       response: { status: 401 },
@@ -174,6 +149,29 @@ describe('api — interceptor de response (MSW)', () => {
 
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('401 en /auth/logout no intenta refresh ni redirige por sí solo', async () => {
+    const replace = installMockLocation();
+    let refreshHits = 0;
+
+    server.use(
+      http.post(`${API_BASE}/auth/logout`, () => new HttpResponse(null, { status: 401 })),
+      http.post(`${API_BASE}/auth/refresh`, () => {
+        refreshHits += 1;
+        return new HttpResponse(null, { status: 401 });
+      }),
+    );
+
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
+
+    await expect(api.post('/auth/logout')).rejects.toMatchObject({
+      response: { status: 401 },
+    });
+
+    expect(refreshHits).toBe(0);
+    expect(replace).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
   });
 
   it('reintento con _retry sigue en 401: logout sin bucle de refresh', async () => {
@@ -194,9 +192,7 @@ describe('api — interceptor de response (MSW)', () => {
       ),
     );
 
-    useAuthStore
-      .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 't');
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 't');
 
     await expect(api.get('/foo')).rejects.toMatchObject({
       response: { status: 401 },
@@ -212,19 +208,14 @@ describe('api — interceptor de response (MSW)', () => {
     let refreshHits = 0;
     server.use(
       http.post(`${API_BASE}/functional`, () =>
-        HttpResponse.json(
-          { data: null, message: 'Dato inválido', error: null },
-          { status: 400 },
-        ),
+        HttpResponse.json({ data: null, message: 'Dato inválido', error: null }, { status: 400 }),
       ),
       http.post(`${API_BASE}/auth/refresh`, () => {
         refreshHits += 1;
         return new HttpResponse(null, { status: 401 });
       }),
     );
-    useAuthStore
-      .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
 
     await expect(api.post('/functional', {})).rejects.toMatchObject({
       response: { status: 400 },
@@ -241,9 +232,7 @@ describe('api — interceptor de response (MSW)', () => {
       http.get(`${API_BASE}/offline`, () => new HttpResponse(null, { status: 401 })),
       http.post(`${API_BASE}/auth/refresh`, () => HttpResponse.error()),
     );
-    useAuthStore
-      .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
 
     await expect(api.get('/offline')).rejects.toBeTruthy();
 
@@ -277,9 +266,7 @@ describe('api — interceptor de response (MSW)', () => {
         });
       }),
     );
-    useAuthStore
-      .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'old');
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'old');
 
     await Promise.all([api.get('/concurrent/1'), api.get('/concurrent/2')]);
 
