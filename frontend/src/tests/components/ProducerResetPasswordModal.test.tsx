@@ -4,11 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { ProducerResetPasswordModal } from '@/modules/admin/components/ProducerResetPasswordModal';
 import type { Producer } from '@/modules/admin/types/producer';
 
-/**
- * MAPS-016: no ejecuta todavía (sin runner de tests wireado en el frontend,
- * ver docs/TESTING.md). Escrito siguiendo el patrón de `LoginPage.test.tsx`.
- */
-
 const PRODUCER: Producer = {
   id: '1',
   slug: 'juan-perez',
@@ -109,7 +104,7 @@ describe('ProducerResetPasswordModal', () => {
       />,
     );
 
-    await user.type(screen.getByLabelText(/^nueva contraseña/i), 'debil');
+    await user.type(screen.getByLabelText(/^nueva contraseña/i), 'debilpass');
     expect(screen.getByText(/al menos una mayúscula/i)).toBeInTheDocument();
   });
 

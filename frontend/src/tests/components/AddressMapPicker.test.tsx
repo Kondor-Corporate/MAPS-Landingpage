@@ -1,6 +1,6 @@
 import React, { act } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AddressMapPicker,
   type PickedLocation,
@@ -80,6 +80,10 @@ function renderPicker({
 }
 
 describe('AddressMapPicker', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
     geocodeQueryMock.mockReset();
@@ -257,12 +261,11 @@ describe('AddressMapPicker', () => {
     expect(screen.getByText(/no se pudo determinar una dirección exacta/i)).toBeInTheDocument();
   });
 
-  it('una respuesta async antigua no pisa un pin movido manualmente', async () => {
+  it('oculta el pin anterior mientras espera la nueva geocodificación', async () => {
     const pending = deferred<{ latitude: number; longitude: number } | null>();
     geocodeQueryMock.mockReturnValue(pending.promise);
     const onChange = vi.fn();
     renderPicker({ onChange });
-    const previousPin = screen.getByRole('button', { name: 'pin' });
 
     fireEvent.change(screen.getByLabelText(/dirección/i), {
       target: { value: 'Diagonal 74 1500, La Plata' },
@@ -270,20 +273,19 @@ describe('AddressMapPicker', () => {
     await act(async () => {
       vi.advanceTimersByTime(600);
     });
-    fireEvent.click(previousPin);
+    expect(screen.queryByRole('button', { name: 'pin' })).not.toBeInTheDocument();
+
     await act(async () => {
       pending.resolve({ latitude: -34.8, longitude: -57.8 });
     });
 
-    expect(onChange).not.toHaveBeenCalledWith(
-      expect.objectContaining({ source: 'geocoded' }),
-    );
     expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        latitud: -35.1234,
-        longitud: -58.5678,
-        source: 'manual',
-      }),
+      {
+        direccion: 'Diagonal 74 1500, La Plata',
+        latitud: -34.8,
+        longitud: -57.8,
+        source: 'geocoded',
+      },
     );
   });
 

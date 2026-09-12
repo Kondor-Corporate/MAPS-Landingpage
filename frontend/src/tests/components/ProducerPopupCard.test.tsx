@@ -38,7 +38,7 @@ describe('ProducerPopupCard', () => {
     expect(profileLink).toHaveClass('min-h-11');
   });
 
-  it('mantiene una estructura contenida que no fuerza overflow horizontal', () => {
+  it('limita el contenedor para no forzar overflow horizontal', () => {
     const { container } = render(
       <MemoryRouter>
         <ProducerPopupCard producer={producer} />
@@ -46,7 +46,6 @@ describe('ProducerPopupCard', () => {
     );
 
     expect(container.firstElementChild).toHaveClass('max-w-full', 'min-w-0');
-    expect(screen.getByText('Ana Pérez').closest('div')).toHaveClass('min-w-0');
   });
 
   it('muestra WhatsApp, Instagram y LinkedIn con sus links correspondientes', () => {

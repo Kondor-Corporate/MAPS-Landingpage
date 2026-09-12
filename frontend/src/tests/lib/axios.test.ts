@@ -1,6 +1,5 @@
-import MockAdapter from 'axios-mock-adapter';
 import { http, HttpResponse } from 'msw';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/axios';
 import { useAuthStore } from '@/store/authStore';
 import { API_BASE, server } from '@/tests/mocks/server';
@@ -14,79 +13,70 @@ function installMockLocation() {
     assign: vi.fn(),
     reload: vi.fn(),
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  delete (window as any).location;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (window as any).location = stub;
+  Object.defineProperty(window, 'location', { configurable: true, value: stub });
   return replace;
 }
 
-describe('api — interceptor de request (axios-mock-adapter)', () => {
-  let mock: MockAdapter;
+const realLocation = window.location;
 
-  beforeEach(() => {
-    localStorage.clear();
-    useAuthStore.persist.clearStorage();
-    useAuthStore.setState({
-      user: null,
-      accessToken: null,
-      isInitialized: false,
-      isAuthenticated: false,
-    });
-    mock = new MockAdapter(api);
-  });
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'error' });
+});
 
-  afterEach(() => {
-    mock.restore();
+afterAll(() => {
+  server.close();
+  Object.defineProperty(window, 'location', { configurable: true, value: realLocation });
+});
+
+beforeEach(() => {
+  localStorage.clear();
+  useAuthStore.persist.clearStorage();
+  useAuthStore.setState({
+    user: null,
+    accessToken: null,
+    isInitialized: false,
+    isAuthenticated: false,
   });
+  server.resetHandlers();
+  vi.restoreAllMocks();
+  Object.defineProperty(window, 'location', { configurable: true, value: realLocation });
+});
+
+describe('api — interceptor de request (MSW)', () => {
 
   it('adjunta Authorization Bearer cuando hay accessToken', async () => {
+    let authorization: string | null = null;
+    server.use(
+      http.get(`${API_BASE}/ping`, ({ request }) => {
+        authorization = request.headers.get('Authorization');
+        return HttpResponse.json({ ok: true });
+      }),
+    );
     useAuthStore
       .getState()
       .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'mi-jwt');
 
-    mock.onGet('/ping').reply(200, { ok: true });
-
     await api.get('/ping');
 
-    expect(mock.history.get[0]?.headers?.Authorization).toBe('Bearer mi-jwt');
+    expect(authorization).toBe('Bearer mi-jwt');
   });
 
   it('no envía Authorization si no hay token', async () => {
-    mock.onGet('/ping').reply(200, { ok: true });
+    let authorization: string | null = null;
+    server.use(
+      http.get(`${API_BASE}/ping`, ({ request }) => {
+        authorization = request.headers.get('Authorization');
+        return HttpResponse.json({ ok: true });
+      }),
+    );
 
     await api.get('/ping');
 
-    expect(mock.history.get[0]?.headers?.Authorization).toBeUndefined();
+    expect(authorization).toBeNull();
   });
 });
 
 describe('api — interceptor de response (MSW)', () => {
-  const realLocation = window.location;
-
-  beforeAll(() => {
-    server.listen({ onUnhandledRequest: 'error' });
-  });
-
-  afterAll(() => {
-    server.close();
-    window.location = realLocation;
-  });
-
-  beforeEach(() => {
-    localStorage.clear();
-    useAuthStore.persist.clearStorage();
-    useAuthStore.setState({
-      user: null,
-      accessToken: null,
-      isInitialized: false,
-      isAuthenticated: false,
-    });
-    server.resetHandlers();
-    vi.restoreAllMocks();
-    window.location = realLocation;
-  });
-
   it('401: refresca token y reintenta la petición', async () => {
     let hits = 0;
     server.use(

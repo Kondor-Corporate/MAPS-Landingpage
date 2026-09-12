@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ProducerCertificationsManager } from '@/shared/components/profile/ProducerCertificationsManager';
@@ -104,20 +104,26 @@ describe('ProducerCertificationsManager', () => {
     expect(fileInput).toBeDisabled();
 
     resolveRetry();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Subir PDF' })).toBeEnabled());
-    expect(screen.getByRole('status')).toHaveTextContent('Certificación cargada correctamente.');
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Certificación cargada correctamente.',
+    );
+    expect(screen.getByRole('button', { name: 'Subir PDF' })).toBeDisabled();
     expect(onUpload).toHaveBeenCalledTimes(2);
   });
 
   it('solicita confirmación antes de eliminar una certificación', async () => {
     const user = userEvent.setup();
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderManager(undefined, [EXISTING_CERTIFICATION], onDelete);
 
     await user.click(screen.getByRole('button', { name: /eliminar/i }));
 
-    expect(confirm).toHaveBeenCalledOnce();
+    expect(
+      screen.getByRole('dialog', { name: 'Eliminar certificación' }),
+    ).toBeInTheDocument();
     expect(onDelete).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /Cancelar/ }));
+    expect(screen.queryByRole('dialog', { name: 'Eliminar certificación' })).not.toBeInTheDocument();
   });
 });

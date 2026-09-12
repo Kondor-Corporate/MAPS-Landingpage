@@ -1,18 +1,21 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ChangePasswordForm,
   PASSWORD_CHANGE_SUCCESS_REDIRECT_MS,
 } from '@/modules/auth/components/ChangePasswordForm';
 
-/**
- * MAPS-016 / D1A: no ejecuta todavía (sin runner de tests wireado en el frontend,
- * ver docs/TESTING.md). Escrito siguiendo el patrón de `LoginPage.test.tsx`.
- */
-
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    callback(0);
+    return 1;
+  });
 });
 
 function renderModal(overrides: Partial<React.ComponentProps<typeof ChangePasswordForm>> = {}) {
@@ -41,7 +44,7 @@ describe('ChangePasswordForm', () => {
     const user = userEvent.setup();
     renderModal();
 
-    await user.type(screen.getByLabelText(/^nueva contraseña/i), 'debil');
+    await user.type(screen.getByLabelText(/^nueva contraseña/i), 'debilpass');
     expect(screen.getByText(/al menos una mayúscula/i)).toBeInTheDocument();
   });
 
@@ -114,13 +117,21 @@ describe('ChangePasswordForm', () => {
 
   it('tras éxito muestra confirmación, no llama onSaved de inmediato y luego lo hace una sola vez', async () => {
     vi.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const { changePassword, onSaved, onClose } = renderModal();
 
-    await user.type(screen.getByLabelText(/contraseña actual/i), 'Temporal123');
-    await user.type(screen.getByLabelText(/^nueva contraseña/i), 'NuevaClave456');
-    await user.type(screen.getByLabelText(/confirmar nueva contraseña/i), 'NuevaClave456');
-    await user.click(screen.getByRole('button', { name: /^cambiar contraseña$/i }));
+    fireEvent.change(screen.getByLabelText(/contraseña actual/i), {
+      target: { value: 'Temporal123' },
+    });
+    fireEvent.change(screen.getByLabelText(/^nueva contraseña/i), {
+      target: { value: 'NuevaClave456' },
+    });
+    fireEvent.change(screen.getByLabelText(/confirmar nueva contraseña/i), {
+      target: { value: 'NuevaClave456' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^cambiar contraseña$/i }));
+      await Promise.resolve();
+    });
 
     expect(changePassword).toHaveBeenCalledWith({
       currentPassword: 'Temporal123',
@@ -128,7 +139,7 @@ describe('ChangePasswordForm', () => {
       confirmPassword: 'NuevaClave456',
     });
 
-    expect(await screen.findByText('Contraseña actualizada')).toBeInTheDocument();
+    expect(screen.getByText('Contraseña actualizada')).toBeInTheDocument();
     expect(screen.getByText(/por seguridad, tenés que iniciar sesión nuevamente/i)).toBeInTheDocument();
     expect(screen.getByText(/redirigiendo al inicio de sesión/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/contraseña actual/i)).not.toBeInTheDocument();
