@@ -6,6 +6,7 @@ import { AuthInitializer } from '@/components/AuthInitializer';
 import { refreshAccessToken } from '@/lib/axios';
 import { ProtectedRoutes } from '@/router/ProtectedRoutes';
 import { useAuthStore, type Rol } from '@/store/authStore';
+import { resetAuthStore } from '@/tests/helpers/resetAuthStore';
 
 vi.mock('@/lib/axios', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/axios')>();
@@ -25,14 +26,8 @@ function deferred<T>() {
 describe('AuthInitializer — reload y recuperación', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/');
-    localStorage.clear();
     refreshMock.mockReset();
-    useAuthStore.setState({
-      user: null,
-      accessToken: null,
-      isInitialized: false,
-      isAuthenticated: false,
-    });
+    resetAuthStore();
   });
 
   it.each<Rol>(['ADMIN', 'SUPERADMIN', 'PRODUCTOR'])(
@@ -136,6 +131,29 @@ describe('AuthInitializer — reload y recuperación', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
+  it('en ruta privada un refresh 401 cierra la sesión sin pantalla de red', async () => {
+    window.history.replaceState({}, '', '/admin/dashboard');
+    useAuthStore.setState({
+      user: { id: 1, usuario: 'admin', rol: 'ADMIN', slug: null },
+    });
+    refreshMock.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 401 },
+    });
+
+    render(
+      <AuthInitializer>
+        <p>Aplicación inicializada</p>
+      </AuthInitializer>,
+    );
+
+    expect(await screen.findByText('Aplicación inicializada')).toBeInTheDocument();
+    expect(screen.queryByText('No se pudo verificar la sesión')).not.toBeInTheDocument();
+    await waitFor(() => expect(useAuthStore.getState().user).toBeNull());
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().isInitialized).toBe(true);
+  });
+
   it('muestra la landing anónima sin esperar una llamada de refresh', async () => {
     const pendingRefresh = deferred<string>();
     refreshMock.mockReturnValue(pendingRefresh.promise);
@@ -148,6 +166,7 @@ describe('AuthInitializer — reload y recuperación', () => {
 
     expect(await screen.findByText('Landing pública')).toBeInTheDocument();
     expect(refreshMock).not.toHaveBeenCalled();
+    pendingRefresh.resolve('unused');
   });
 
   it('no bloquea la landing si falla el refresh en segundo plano', async () => {

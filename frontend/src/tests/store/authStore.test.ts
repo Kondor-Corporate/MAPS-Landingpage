@@ -1,16 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useAuthStore } from '@/store/authStore';
+import { resetAuthStore } from '@/tests/helpers/resetAuthStore';
 
 describe('authStore', () => {
   beforeEach(() => {
-    localStorage.clear();
-    useAuthStore.persist.clearStorage();
-    useAuthStore.setState({
-      user: null,
-      accessToken: null,
-      isInitialized: false,
-      isAuthenticated: false,
-    });
+    resetAuthStore();
   });
 
   it('estado inicial', () => {
@@ -33,9 +27,7 @@ describe('authStore', () => {
   });
 
   it('logout limpia sesión y mantiene isInitialized true', () => {
-    useAuthStore
-      .getState()
-      .login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
     useAuthStore.getState().logout();
 
     const s = useAuthStore.getState();

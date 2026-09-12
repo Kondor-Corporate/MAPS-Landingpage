@@ -1,57 +1,50 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { API_BASE_URL } from '@/lib/apiConfig';
+import type { AuthUser } from '@/store/authStore';
 
-export const API_BASE = /^https?:\/\//.test(API_BASE_URL)
-  ? API_BASE_URL
-  : `*${API_BASE_URL}`;
+export const API_BASE = /^https?:\/\//.test(API_BASE_URL) ? API_BASE_URL : `*${API_BASE_URL}`;
 
-/**
- * Handlers por defecto para LoginPage y pruebas que necesitan API mínimo.
- * Sobrescribir con `server.use(...)` en tests específicos.
- */
-export const defaultHandlers = [
-  http.post(`${API_BASE}/auth/login`, async ({ request }) => {
-    const body = (await request.json()) as {
-      usuario?: string;
-      password?: string;
-    };
+export const server = setupServer();
 
-    if (body.password === 'wrong') {
-      return HttpResponse.json(
-        { data: null, message: 'Credenciales inválidas', error: null },
-        { status: 401 },
-      );
-    }
+type LoginUser = {
+  id: number;
+  usuario: string;
+  rol: AuthUser['rol'];
+  slug: string | null;
+};
 
-    if (body.usuario === 'producer') {
-      return HttpResponse.json({
-        data: {
-          accessToken: 'token-productor',
-          user: { id: 1, usuario: 'producer', rol: 'PRODUCTOR', slug: 'producer' },
-        },
-        message: 'OK',
-        error: null,
-      });
-    }
-
-    return HttpResponse.json({
-      data: {
-        accessToken: 'token-admin',
-        user: { id: 2, usuario: 'admin', rol: 'ADMIN', slug: null },
-      },
-      message: 'OK',
-      error: null,
-    });
-  }),
-
-  http.post(`${API_BASE}/auth/refresh`, () =>
+export function loginSuccessHandler(user: LoginUser, accessToken: string) {
+  return http.post(`${API_BASE}/auth/login`, () =>
     HttpResponse.json({
-      data: { accessToken: 'refreshed-token' },
+      data: { accessToken, user },
       message: 'OK',
       error: null,
     }),
-  ),
-];
+  );
+}
 
-export const server = setupServer(...defaultHandlers);
+export function loginErrorHandler(
+  status: number,
+  body: { data: null; message: string; error: unknown } = {
+    data: null,
+    message: 'Credenciales inválidas',
+    error: null,
+  },
+) {
+  return http.post(`${API_BASE}/auth/login`, () => HttpResponse.json(body, { status }));
+}
+
+export function refreshSuccessHandler(accessToken: string, user?: AuthUser) {
+  return http.post(`${API_BASE}/auth/refresh`, () =>
+    HttpResponse.json({
+      data: user ? { accessToken, user } : { accessToken },
+      message: 'OK',
+      error: null,
+    }),
+  );
+}
+
+export function refreshErrorHandler(status: 400 | 401 | 403) {
+  return http.post(`${API_BASE}/auth/refresh`, () => new HttpResponse(null, { status }));
+}
