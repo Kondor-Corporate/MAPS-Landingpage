@@ -1,8 +1,19 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProducerFormModal } from '@/modules/admin/components/ProducerFormModal';
 import type { Producer } from '@/modules/admin/types/producer';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    callback(0);
+    return 1;
+  });
+});
 
 type PickedLocation = {
   direccion: string;
