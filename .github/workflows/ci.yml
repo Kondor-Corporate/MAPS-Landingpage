@@ -107,10 +107,116 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
-      - name: Frontend — test
+      - name: Frontend — test coverage
         working-directory: frontend
-        run: npm test
+        run: npm run test:coverage
 
       - name: Frontend — build
         working-directory: frontend
         run: npm run build
+
+  e2e:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: maps_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d maps_e2e"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/maps_e2e
+      JWT_SECRET: ci_jwt_access_secret_minimum_32_chars_long
+      REFRESH_SECRET: ci_jwt_refresh_secret_minimum_32_chars_long
+      JWT_EXPIRES_IN: 15m
+      REFRESH_EXPIRES_IN: 30d
+      DEFAULT_PRODUCER_PASSWORD: Ci_DefaultProd_12chars
+      FRONTEND_ORIGIN: http://127.0.0.1:5173
+      STORAGE_PROVIDER: local
+      API_PUBLIC_URL: http://127.0.0.1:3000
+      NOMINATIM_USER_AGENT: MAPS-Asesores-E2E/1.0
+      CI: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Backend — install
+        working-directory: backend
+        run: npm ci
+
+      - name: Backend — Prisma generate
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Backend — Prisma migrate
+        working-directory: backend
+        run: npx prisma migrate deploy
+
+      - name: Backend — seed
+        working-directory: backend
+        run: npx prisma db seed
+
+      - name: Backend — start
+        working-directory: backend
+        run: |
+          nohup npx tsx src/server.ts > /tmp/maps-e2e-backend.log 2>&1 &
+          echo $! > /tmp/maps-e2e-backend.pid
+
+      - name: Backend — wait for health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:3000/api/v1/health >/dev/null; then
+              echo "Backend healthy after ${i} attempt(s)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Backend health timeout"
+          cat /tmp/maps-e2e-backend.log || true
+          exit 1
+
+      - name: Frontend — install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Playwright — install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Frontend — e2e
+        working-directory: frontend
+        run: npm run test:e2e
+        env:
+          VITE_API_BASE_URL: /api/v1
+
+      - name: Playwright — debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e-failure
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

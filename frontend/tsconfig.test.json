@@ -3,6 +3,6 @@
   "compilerOptions": {
     "types": ["node", "vitest/importMeta", "@testing-library/jest-dom"]
   },
-  "include": ["src", "vitest.config.ts"],
+  "include": ["src", "vitest.config.ts", "playwright.config.ts", "e2e"],
   "exclude": []
 }
