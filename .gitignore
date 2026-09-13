@@ -48,6 +48,10 @@ backend/src/generated/
 # ── Testing ──────────────────────────────────────────────────
 coverage/
 .nyc_output/
+playwright-report/
+test-results/
+blob-report/
+.playwright-browsers/
 
 # ── OS ───────────────────────────────────────────────────────
 .DS_Store

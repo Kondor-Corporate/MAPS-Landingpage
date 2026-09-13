@@ -27,6 +27,8 @@ npm run typecheck
 npm run test:typecheck
 npm run lint
 npm test
+npm run test:coverage
+npm run test:e2e
 npm run test:watch
 npm run build
 ```
@@ -112,12 +114,19 @@ npm run typecheck
 npm run test:typecheck
 npm run lint
 npm test
+npm run test:coverage
 npm run test:watch
 npm run build
 ```
 
 El typecheck de produccion y el de tests son gates separados. Los tests importan
 explicitamente las APIs de Vitest; no se habilitan globals.
+
+`npm test` corre la suite sin coverage. `npm run test:coverage` usa `@vitest/coverage-v8`
+con `include: ['src/**/*.{ts,tsx}']` (Vitest 4 no usa `all: true`) para incluir también
+archivos productivos no importados por tests, y **sin thresholds**. En local se pueden
+correr ambos; en CI solo `test:coverage` para no duplicar la suite. El HTML queda en
+`frontend/coverage/index.html`.
 
 Principios:
 
@@ -126,8 +135,6 @@ Principios:
 - Mantener MapLibre/WebGL fuera de jsdom mediante mocks minimos del boundary.
 - Evitar snapshots masivos, sleeps arbitrarios, selectores CSS fragiles y detalles de implementacion.
 
-Coverage y E2E no forman parte de la fundacion D5A y permanecen pendientes.
-
 ---
 
 ## CI
@@ -135,19 +142,42 @@ Coverage y E2E no forman parte de la fundacion D5A y permanecen pendientes.
 Workflow: `.github/workflows/ci.yml` (Node 22).
 
 Los jobs de backend y frontend son independientes y corren en paralelo.
+El job `e2e` espera a ambos (`needs: [backend, frontend]`).
 
 Backend: `npm ci` → Prisma migrate/seed → typecheck → lint → build → `npm test`.
 
 Frontend: `npm ci` → typecheck de produccion → typecheck de tests → lint →
-`npm test` → build.
+`npm run test:coverage` → build.
+
+E2E: Postgres efimero → backend migrate/seed/start → Playwright Chromium contra
+Vite en `http://127.0.0.1:5173`. No apunta a staging ni a secretos GCP.
 
 ---
 
 ## E2E
 
-Estado actual: pendiente.
+Playwright (Chromium) con full-stack local. No mockea la API. No usa staging.
 
-Cuando se incorpore, la recomendacion es Playwright con entorno aislado (DB de test, seed minimo, limpieza entre suites, selectores accesibles). Flujos candidatos: login admin/productor, CRUD productor, mapa/perfil, biblioteca, noticias.
+Host canonico: `http://127.0.0.1:5173`. Playwright levanta el frontend con Vite
+dev y `VITE_API_BASE_URL=/api/v1` (proxy `/api` → backend `:3000`).
+
+Receta local (backend y Postgres ya disponibles, con migrate + seed):
+
+```bash
+# terminal 1 — PostgreSQL (p. ej. docker compose up -d db)
+# terminal 2 — backend
+cd backend
+npx prisma migrate deploy
+npm run db:seed
+npm run dev
+
+# terminal 3 — smokes (webServer de Playwright levanta el frontend)
+cd frontend
+npx playwright install chromium
+npm run test:e2e
+```
+
+Si el frontend ya corre en `127.0.0.1:5173`, Playwright reutiliza ese server fuera de CI.
 
 ---
 
@@ -156,7 +186,8 @@ Cuando se incorpore, la recomendacion es Playwright con entorno aislado (DB de t
 Elegir segun alcance:
 
 - Cambios backend: typecheck, lint, build y tests backend.
-- Cambios frontend: typecheck de produccion y tests, lint, tests y build frontend.
+- Cambios frontend: typecheck de produccion y tests, lint, tests/coverage y build frontend.
+- Cambios de auth, routing o superficies publicas: smokes Playwright (`npm run test:e2e`) con stack local.
 - Cambios de schema Prisma: migracion, `migrate deploy` y seed.
 - Cambios Docker: `docker compose up -d --build` y healthchecks.
 - Cambios UI: verificacion manual en navegador y captura si corresponde.
