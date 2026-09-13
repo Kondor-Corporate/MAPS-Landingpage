@@ -100,6 +100,8 @@ export function NewsManagementDashboard() {
 
     refetch,
 
+    getNewsDetail,
+
     createNews,
 
     updateNews,
@@ -156,6 +158,7 @@ export function NewsManagementDashboard() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const actionLockRef = useRef(false);
+  const editRequestIdRef = useRef(0);
 
 
 
@@ -206,18 +209,23 @@ export function NewsManagementDashboard() {
     });
   }
 
-  function handleEdit(n: News) {
-
-    setEditing(n);
-
-    setFormState(newsToFormState(n));
-
-    setActiveTab('crear');
-
+  async function handleEdit(n: News) {
+    const requestId = ++editRequestIdRef.current;
     setFormError(null);
+    setActionError(null);
 
-    scrollToForm();
-
+    try {
+      const detail = await getNewsDetail(n.id);
+      if (requestId !== editRequestIdRef.current) return;
+      setEditing(detail);
+      setFormState(newsToFormState(detail));
+      setActiveTab('crear');
+      scrollToForm();
+    } catch (err) {
+      if (requestId !== editRequestIdRef.current) return;
+      setFormError(getApiErrorMessage(err));
+      showError('No se pudo cargar la noticia para editar');
+    }
   }
 
 

@@ -14,6 +14,7 @@ import {
   createNews as createNewsApi,
   deleteNews as deleteNewsApi,
   deletePortada,
+  getNewsById,
   listNews,
   removeImagenGaleria,
   reorderGaleria,
@@ -154,11 +155,19 @@ export function useAdminNews() {
     [refetch],
   );
 
+  /** Detalle admin con galería. El listado no trae imágenes; usarlo al iniciar edición. */
+  const getNewsDetail = useCallback(async (id: string): Promise<News> => {
+    const numId = Number.parseInt(id, 10);
+    const row = await getNewsById(numId);
+    return mapApiNewsToUiNews(row);
+  }, []);
+
   return {
     news,
     loading,
     error,
     refetch,
+    getNewsDetail,
     createNews,
     updateNews,
     deleteNews,
