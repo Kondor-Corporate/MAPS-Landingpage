@@ -23,4 +23,12 @@ describe('normalizeCoordinates', () => {
   ])('rechaza pares incompletos o inválidos: %s / %s', (latitud, longitud) => {
     expect(normalizeCoordinates(latitud, longitud)).toBeNull();
   });
+
+  it('rechaza latitud 91', () => {
+    expect(normalizeCoordinates(91, -57.9545)).toBeNull();
+  });
+
+  it('rechaza longitud 181', () => {
+    expect(normalizeCoordinates(-34.9214, 181)).toBeNull();
+  });
 });
