@@ -4,8 +4,34 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/axios';
 import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
 import { AuthLayout } from '@/shared/layouts/AuthLayout';
+import { getWhatsappLink, MAPS_WHATSAPP_NUMBER } from '@/shared/lib/producerContact';
 import type { Rol } from '@/store/authStore';
 import { useAuthStore } from '@/store/authStore';
+
+const ACCESS_REQUEST_MESSAGE = `Hola, quiero solicitar acceso al Portal de MAPS Asesores.
+
+Por favor, completo mis datos para gestionar la solicitud:
+
+Nombre:
+Apellido:
+Teléfono:
+Correo electrónico:
+
+Quedo a la espera de indicaciones para continuar con el alta y conocer el funcionamiento del portal.`;
+
+const PASSWORD_RESET_MESSAGE = `Hola, necesito solicitar una nueva contraseña para acceder al Portal de MAPS Asesores.
+
+Mis datos son:
+
+Nombre:
+Apellido:
+Correo electrónico:
+
+Quedo a la espera de una nueva clave de acceso.
+
+Luego de ingresar al Portal realizaré el cambio de contraseña desde mi perfil.
+
+Gracias.`;
 
 type FieldErrors = {
   usuario?: string;
@@ -196,13 +222,24 @@ export function LoginPage() {
             ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
-            <span
-              className="cursor-not-allowed font-medium text-maps-muted"
-              title="La recuperación de contraseña todavía no está disponible."
-            >
-              Recuperación de contraseña no disponible
-            </span>
+          <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-center" >
+            {MAPS_WHATSAPP_NUMBER ? (
+              <a
+                href={getWhatsappLink(MAPS_WHATSAPP_NUMBER, PASSWORD_RESET_MESSAGE)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-maps-brand transition hover:text-maps-brand-hover focus:outline-none focus:ring-2 focus:ring-maps-brand/40 rounded"
+              >
+                ¿Olvidaste tu contraseña? Solicitá una nueva clave!
+              </a>
+            ) : (
+              <span
+                className="cursor-not-allowed font-medium text-maps-muted"
+                title="La recuperación de contraseña todavía no está disponible."
+              >
+                Recuperación de contraseña no disponible
+              </span>
+            )}
           </div>
 
           <button
@@ -224,18 +261,31 @@ export function LoginPage() {
             </div>
           </div>
 
-          <button
-            type="button"
-            disabled
-            title="La solicitud de acceso todavía no está disponible."
-            className="h-[3.75rem] w-full cursor-not-allowed rounded-lg border-2 border-maps-border bg-maps-surface font-semibold text-maps-muted"
-          >
-            Solicitud de acceso no disponible
-          </button>
+          {MAPS_WHATSAPP_NUMBER ? (
+            <a
+              href={getWhatsappLink(MAPS_WHATSAPP_NUMBER, ACCESS_REQUEST_MESSAGE)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-[3.75rem] w-full items-center justify-center rounded-lg border-2 border-maps-brand bg-white font-semibold text-maps-brand transition hover:bg-maps-brand hover:text-white focus:outline-none focus:ring-2 focus:ring-maps-brand/40 focus:ring-offset-2"
+            >
+              Solicitar acceso por WhatsApp
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title="La solicitud de acceso todavía no está disponible."
+              className="h-[3.75rem] w-full cursor-not-allowed rounded-lg border-2 border-maps-border bg-maps-surface font-semibold text-maps-muted"
+            >
+              Solicitud de acceso no disponible
+            </button>
+          )}
         </form>
 
         <p className="text-center text-sm text-maps-muted">
-          El canal de soporte todavía no está disponible.
+          {MAPS_WHATSAPP_NUMBER
+            ? 'Solicitá tu acceso y nuestro equipo se pondrá en contacto con vos.'
+            : 'El canal de soporte todavía no está disponible.'}
         </p>
       </div>
     </AuthLayout>
