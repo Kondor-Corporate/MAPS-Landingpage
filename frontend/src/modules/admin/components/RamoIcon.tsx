@@ -156,6 +156,104 @@ const iconPaths: Record<RamoIcono, JSX.Element> = {
       strokeLinejoin="round"
     />
   ),
+  home: (
+    <>
+      <path
+        d="M4 10 10 4.5 16 10"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M6 9v6.5h8V9" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M8.5 15.5v-3h3v3" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </>
+  ),
+  wrench: (
+    <path
+      d="M13 4a3 3 0 0 0-3.87 3.87L4 13l2 2 5.13-5.13A3 3 0 0 0 15 6l-2 2-1-1 2-2Z"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  factory: (
+    <>
+      <path
+        d="M3.5 16V10l4-2.5V10l4-2.5V10l4-2.5V16H3.5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M6 5.5V8M13 4.5V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </>
+  ),
+  wheat: (
+    <>
+      <path d="M10 17V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path
+        d="M10 6 7 4M10 6l3-2M10 9l-2.5-1.5M10 9l2.5-1.5M10 12l-2.5-1.5M10 12l2.5-1.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </>
+  ),
+  plane: (
+    <path
+      d="M10 3v5.5L16 12v1.5l-6-2V16l1.5 1v1l-2.5-.7-2.5.7v-1l1.5-1v-3.5l-6 2V12l6-3.5V3Z"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  drone: (
+    <>
+      <rect x="8.5" y="8.5" width="3" height="3" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M8.5 9 5 6M11.5 9 15 6M8.5 11 5 14M11.5 11 15 14"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <circle cx="4.5" cy="5" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="15.5" cy="5" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="4.5" cy="15" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="15.5" cy="15" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+    </>
+  ),
+  building: (
+    <>
+      <path d="M6 16V4h8v12" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path
+        d="M8 7h1M11 7h1M8 10h1M11 10h1M8 13h1M11 13h1"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </>
+  ),
+  pulse: (
+    <path
+      d="M3.5 11h3l1.5-4 2 7 1.5-4.5 1 1.5h3.5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  paw: (
+    <>
+      <circle cx="10" cy="13" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="6" cy="8.5" r="1.3" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="9" cy="6.5" r="1.3" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12.5" cy="6.5" r="1.3" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="15" cy="8.5" r="1.3" stroke="currentColor" strokeWidth="1.5" />
+    </>
+  ),
 };
 
 export function RamoIcon({ icon, size = 20, className, ...props }: Props) {

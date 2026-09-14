@@ -16,6 +16,15 @@ const ramoIconoSchema = z.enum([
   'truck',
   'umbrella',
   'boat',
+  'home',
+  'wrench',
+  'factory',
+  'wheat',
+  'plane',
+  'drone',
+  'building',
+  'pulse',
+  'paw',
 ]);
 
 const httpsUrlSchema = z

@@ -15,7 +15,16 @@ export type RamoIcono =
   | 'scales'
   | 'truck'
   | 'umbrella'
-  | 'boat';
+  | 'boat'
+  | 'home'
+  | 'wrench'
+  | 'factory'
+  | 'wheat'
+  | 'plane'
+  | 'drone'
+  | 'building'
+  | 'pulse'
+  | 'paw';
 
 export type Ramo = {
   id: string;
@@ -53,6 +62,15 @@ export const ICONO_LABEL: Record<RamoIcono, string> = {
   truck: 'Transporte',
   umbrella: 'ART / Retiro',
   boat: 'Embarcaciones',
+  home: 'Combinado Familiar',
+  wrench: 'Seguro Técnico',
+  factory: 'Todo Riesgo Operativo (TRO)',
+  wheat: 'Agro',
+  plane: 'Asistencia al viajero',
+  drone: 'Drones',
+  building: 'Consorcio',
+  pulse: 'Vida',
+  paw: 'Mascotas',
 };
 
 export const ICONO_OPTIONS: RamoIcono[] = [
@@ -71,4 +89,13 @@ export const ICONO_OPTIONS: RamoIcono[] = [
   'truck',
   'umbrella',
   'boat',
+  'home',
+  'wrench',
+  'factory',
+  'wheat',
+  'plane',
+  'drone',
+  'building',
+  'pulse',
+  'paw',
 ];
