@@ -88,10 +88,14 @@ export function WhyUsSection() {
           <h2 className="text-2xl sm:text-3xl lg:text-[36px] font-bold leading-tight lg:leading-10 tracking-[-0.9px] text-maps-heading">
             ¿Por qué elegir MAPS Asesores?
           </h2>
-          <p className="max-w-[640px] text-lg leading-[29px] text-maps-muted">
-            Ofrecemos un equipo profesional para facilitar la gestión diaria de los asesores,
-            desarrollar proyectos comerciales de crecimiento y construir vínculos de confianza con
-            los asegurados.
+          <p className="max-w-[940px] text-lg leading-[29px] text-maps-muted">
+            Porque detrás de cada asesor hay una organización que lo respalda. En MAPS trabajamos
+            para que cada uno de nuestros más de 100 asesores tenga formación permanente,
+            tecnología propia para potenciar su negocio y el acompañamiento necesario para estar
+            cada vez más cerca de sus asegurados. Así construimos, en 10 años, un método
+            diferente: el Compromiso MAPS. Una forma de trabajar que hoy nos permite mirar el
+            próximo desafío con la misma convicción del primer día; seguir creciendo, seguir
+            innovando y llevar el modelo MAPS a todo el país.
           </p>
         </div>
 

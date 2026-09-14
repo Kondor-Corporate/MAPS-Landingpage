@@ -6,11 +6,10 @@ export function CtaSection() {
     >
       <div className="mx-auto flex max-w-[948px] flex-col items-center gap-8 text-center">
         <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold leading-tight lg:leading-[48px] tracking-[-0.6px]">
-          Encontrá el asesor indicado para vos
+          Elegí cómo querés que te acompañemos
         </h2>
-        <p className="max-w-[672px] text-lg leading-[28px] text-white/85">
-          Buscá asesores MAPS cerca tuyo, conocé sus perfiles y contactalos directamente
-          a través de sus datos disponibles.
+        <p className="max-w-[872px] text-lg leading-[28px] text-white/85">
+          Buscá a tu asesor, conocé su propuesta y contactalo directamente. La elección es tuya. <br /> El compromiso es nuestro.
         </p>
         <a
           href="#mapa"
