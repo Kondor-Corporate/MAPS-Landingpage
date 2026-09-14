@@ -26,12 +26,14 @@ export function HeroSection() {
           </span>
 
           <h1 className="text-4xl sm:text-5xl lg:text-[65px] font-extrabold leading-tight lg:leading-[66px] tracking-[-1.5px] lg:tracking-[-1.98px] text-white">
-            El compromiso de asesorar está en nuestro ADN.
+            El compromiso de asesorar está en nuestro ADN
           </h1>
 
-          <p className="max-w-[540px] text-base sm:text-[18px] leading-[26px] sm:leading-[28px] text-[#e5e7eb]">
-            Somos una empresa con 10 años en el mercado. Conocé a los asesores que forman parte de
-            la red MAPS, explorá sus perfiles y elegí la mejor opción, según tu ubicación.
+          <p className="max-w-[640px] text-base sm:text-[18px] leading-[26px] sm:leading-[28px] text-[#e5e7eb]">
+            Hace 10 años elegimos una forma diferente de gestionar seguros: asesorar, acompañar y
+            construir confianza. En MAPS, cada persona y cada familia encuentra mucho más que una
+            póliza; encuentra un asesor respaldado por una organización profesional. Somos una red
+            de más de 100 asesores, unidos por una misma manera de trabajar: cercanía y compromiso.
           </p>
 
           <div className="flex flex-wrap gap-4 pt-2">

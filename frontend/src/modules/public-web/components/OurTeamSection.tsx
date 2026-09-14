@@ -64,10 +64,11 @@ export function OurTeamSection() {
       <div className="mx-auto flex max-w-[1200px] flex-col gap-12">
         <div className="text-center">
           <h2 className="text-2xl sm:text-3xl lg:text-[36px] font-bold leading-tight lg:leading-[48px] tracking-[-0.9px] text-maps-heading">
-            Conocé nuestro equipo
+            Nuestro equipo
           </h2>
           <p className="mx-auto mt-4 max-w-[571px] text-lg leading-[28px] text-maps-muted">
-            Los responsables de que MAPS funcione todos los días.
+            MAPS se construye con personas. Personas que comparten una manera de trabajar, de
+            acompañar y de pensar el futuro. Una visión y un rumbo. Un mismo ADN.
           </p>
         </div>
 
