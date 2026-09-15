@@ -5,9 +5,12 @@ import { getNewsShareUrl, getPublicNewsUrl } from '@/shared/lib/newsShare';
 type NewsShareActionsProps = {
   slug?: string;
   title: string;
+  /** `editorial` reproduce la estética sobria del detalle de noticia (docs/Noticia MAPS.html). */
+  variant?: 'default' | 'editorial';
 };
 
-export function NewsShareActions({ slug, title }: NewsShareActionsProps) {
+export function NewsShareActions({ slug, title, variant = 'default' }: NewsShareActionsProps) {
+  const editorial = variant === 'editorial';
   const resetTimer = useRef<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [showManualCopy, setShowManualCopy] = useState(false);
@@ -44,17 +47,26 @@ export function NewsShareActions({ slug, title }: NewsShareActionsProps) {
 
   if (!articleUrl) return null;
 
+  const buttonClassName = editorial
+    ? 'flex min-h-11 items-center justify-center gap-2 rounded-[3px] border border-maps-border bg-white px-4 py-2.5 text-sm font-semibold text-maps-heading transition-colors hover:border-maps-brand hover:text-maps-brand-hover'
+    : undefined;
+
   return (
     <div className="flex flex-col gap-2">
-      <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-maps-muted">
-        Compartir
-      </p>
-      <div className="grid gap-2 sm:grid-cols-3">
+      {!editorial ? (
+        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-maps-muted">
+          Compartir
+        </p>
+      ) : null}
+      <div className={editorial ? 'flex flex-wrap gap-2.5' : 'grid gap-2 sm:grid-cols-3'}>
         <button
           type="button"
           onClick={() => handleShare('whatsapp')}
           aria-label="Compartir por WhatsApp"
-          className="flex min-h-11 items-center justify-center gap-2.5 rounded-lg bg-emerald-50 px-3.5 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+          className={
+            buttonClassName ??
+            'flex min-h-11 items-center justify-center gap-2.5 rounded-lg bg-emerald-50 px-3.5 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100'
+          }
         >
           <FaWhatsapp size={16} />
           WhatsApp
@@ -63,7 +75,10 @@ export function NewsShareActions({ slug, title }: NewsShareActionsProps) {
           type="button"
           onClick={() => handleShare('linkedin')}
           aria-label="Compartir por LinkedIn"
-          className="flex min-h-11 items-center justify-center gap-2.5 rounded-lg bg-sky-50 px-3.5 py-2.5 text-sm font-semibold text-sky-700 transition-colors hover:bg-sky-100"
+          className={
+            buttonClassName ??
+            'flex min-h-11 items-center justify-center gap-2.5 rounded-lg bg-sky-50 px-3.5 py-2.5 text-sm font-semibold text-sky-700 transition-colors hover:bg-sky-100'
+          }
         >
           <FaLinkedinIn size={16} />
           LinkedIn
@@ -72,7 +87,10 @@ export function NewsShareActions({ slug, title }: NewsShareActionsProps) {
           type="button"
           onClick={() => void handleCopy()}
           aria-label={copied ? 'Enlace copiado' : 'Copiar enlace'}
-          className="flex min-h-11 items-center justify-center gap-2.5 rounded-lg bg-maps-surface px-3.5 py-2.5 text-sm font-semibold text-maps-muted transition-colors hover:bg-maps-border/40"
+          className={
+            buttonClassName ??
+            'flex min-h-11 items-center justify-center gap-2.5 rounded-lg bg-maps-surface px-3.5 py-2.5 text-sm font-semibold text-maps-muted transition-colors hover:bg-maps-border/40'
+          }
         >
           <FaLink size={13} />
           {copied ? '¡Enlace copiado!' : 'Copiar enlace'}

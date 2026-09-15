@@ -3,6 +3,7 @@
  * Muestra URL remota si carga; ante error o ausencia, usa gradiente por categoría.
  */
 import { useState } from 'react';
+import type { ReactEventHandler } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import { DEFAULT_NEWS_GRADIENT, getNewsGradientByCategory } from '@/shared/lib/mapPublicNews';
 
@@ -15,6 +16,10 @@ type Props = {
   imageClassName?: string;
   iconSize?: number;
   showIcon?: boolean;
+  /** Texto alternativo; por defecto la imagen es decorativa (alt vacío + aria-hidden). */
+  alt?: string;
+  /** Permite leer las dimensiones naturales de la imagen una vez cargada. */
+  onImageLoad?: ReactEventHandler<HTMLImageElement>;
 };
 
 export function NewsImage({
@@ -26,6 +31,8 @@ export function NewsImage({
   imageClassName = 'h-full w-full object-cover',
   iconSize = 18,
   showIcon = true,
+  alt = '',
+  onImageLoad,
 }: Props) {
   const [failed, setFailed] = useState(false);
   const resolvedGradient =
@@ -38,9 +45,10 @@ export function NewsImage({
       <div className={`overflow-hidden ${className}`}>
         <img
           src={trimmed}
-          alt=""
-          aria-hidden
+          alt={alt}
+          aria-hidden={alt ? undefined : true}
           onError={() => setFailed(true)}
+          onLoad={onImageLoad}
           className={imageClassName}
         />
       </div>

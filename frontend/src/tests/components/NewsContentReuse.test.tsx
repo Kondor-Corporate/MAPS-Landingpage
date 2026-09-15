@@ -11,12 +11,16 @@ const mockArticleContent = vi.hoisted(() =>
   )),
 );
 const mockUsePublicNewsBySlug = vi.hoisted(() => vi.fn());
+const mockUsePublicNews = vi.hoisted(() => vi.fn());
 
 vi.mock('@/modules/public-web/components/NewsArticleContent', () => ({
   NewsArticleContent: mockArticleContent,
 }));
 vi.mock('@/shared/hooks/usePublicNewsBySlug', () => ({
   usePublicNewsBySlug: mockUsePublicNewsBySlug,
+}));
+vi.mock('@/shared/hooks/usePublicNews', () => ({
+  usePublicNews: mockUsePublicNews,
 }));
 
 const newsItem = {
@@ -30,9 +34,11 @@ const newsItem = {
   publishedAt: '2026-07-18T12:00:00.000Z',
 };
 
-describe('reutilización del contenido de noticias', () => {
+describe('contenido de noticias en cada superficie', () => {
   beforeEach(() => {
     mockArticleContent.mockClear();
+    mockUsePublicNews.mockReset();
+    mockUsePublicNews.mockReturnValue({ news: [], loading: false, error: null, refetch: vi.fn() });
     vi.stubGlobal('scrollTo', vi.fn());
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
       callback(0);
@@ -40,20 +46,22 @@ describe('reutilización del contenido de noticias', () => {
     });
   });
 
-  it('modal y página renderizan el mismo NewsArticleContent', () => {
+  it('el modal de vista previa usa NewsArticleContent', () => {
     useNewsModalStore.setState({
       isOpen: true,
       selectedNews: newsItem,
       recentNews: [],
     });
-    const modal = render(
+    render(
       <MemoryRouter initialEntries={['/']}>
         <NewsDetailModal />
       </MemoryRouter>,
     );
     expect(screen.getByTestId('article-content')).toHaveTextContent('Contenido único');
-    modal.unmount();
+    expect(mockArticleContent).toHaveBeenCalledTimes(1);
+  });
 
+  it('la página de detalle muestra el contenido real de la noticia (sin pasar por el modal)', () => {
     mockUsePublicNewsBySlug.mockReturnValue({
       newsItem,
       loading: false,
@@ -69,7 +77,8 @@ describe('reutilización del contenido de noticias', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId('article-content')).toHaveTextContent('Contenido único');
-    expect(mockArticleContent).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('heading', { name: 'Contenido único' })).toBeInTheDocument();
+    expect(screen.getByText('Cuerpo compartido.')).toBeInTheDocument();
+    expect(mockArticleContent).not.toHaveBeenCalled();
   });
 });

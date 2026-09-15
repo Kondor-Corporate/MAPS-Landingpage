@@ -9,6 +9,11 @@ vi.mock('@/shared/hooks/usePublicNewsBySlug', () => ({
   usePublicNewsBySlug: mockUsePublicNewsBySlug,
 }));
 
+const mockUsePublicNews = vi.hoisted(() => vi.fn());
+vi.mock('@/shared/hooks/usePublicNews', () => ({
+  usePublicNews: mockUsePublicNews,
+}));
+
 const newsItem = {
   slug: 'noticia-directa',
   category: 'Comunicado',
@@ -36,6 +41,8 @@ function renderDirectEntry() {
 describe('NewsDetailPage', () => {
   beforeEach(() => {
     mockUsePublicNewsBySlug.mockReset();
+    mockUsePublicNews.mockReset();
+    mockUsePublicNews.mockReturnValue({ news: [], loading: false, error: null, refetch: vi.fn() });
   });
 
   it('muestra un slug válido cargado desde la API', () => {
@@ -99,11 +106,11 @@ describe('NewsDetailPage', () => {
       refetch: vi.fn(),
     });
     renderDirectEntry();
-    await userEvent.click(screen.getByRole('link', { name: /volver a todas las noticias/i }));
+    await userEvent.click(screen.getByRole('link', { name: /volver a noticias/i }));
     expect(screen.getByText('Listado público')).toBeInTheDocument();
   });
 
-  it('ofrece volver al listado y al hash real de noticias en la Home', () => {
+  it('ofrece volver al listado y el breadcrumb hacia el inicio', () => {
     mockUsePublicNewsBySlug.mockReturnValue({
       newsItem,
       loading: false,
@@ -113,13 +120,40 @@ describe('NewsDetailPage', () => {
     });
     renderDirectEntry();
 
-    expect(screen.getByRole('link', { name: /volver a todas las noticias/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /volver a noticias/i })).toHaveAttribute(
       'href',
       '/noticias',
     );
-    expect(screen.getByRole('link', { name: /volver al inicio/i })).toHaveAttribute(
-      'href',
-      '/#noticias',
-    );
+    expect(screen.getByRole('link', { name: 'Inicio' })).toHaveAttribute('href', '/#noticias');
+    expect(screen.getByRole('link', { name: 'Noticias' })).toHaveAttribute('href', '/noticias');
+  });
+
+  it('muestra "Otras noticias" y "También puede interesarte" con datos reales reutilizados', () => {
+    mockUsePublicNewsBySlug.mockReturnValue({
+      newsItem,
+      loading: false,
+      error: null,
+      notFound: false,
+      refetch: vi.fn(),
+    });
+    mockUsePublicNews.mockReturnValue({
+      news: [
+        { ...newsItem, slug: 'noticia-directa' },
+        { ...newsItem, slug: 'otra-1', title: 'Otra noticia 1' },
+        { ...newsItem, slug: 'otra-2', title: 'Otra noticia 2' },
+        { ...newsItem, slug: 'otra-3', title: 'Otra noticia 3' },
+        { ...newsItem, slug: 'otra-4', title: 'Otra noticia 4' },
+      ],
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderDirectEntry();
+
+    expect(screen.getByText('Otras noticias')).toBeInTheDocument();
+    expect(screen.getByText('También puede interesarte')).toBeInTheDocument();
+    expect(screen.getAllByText('Otra noticia 1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Otra noticia 4').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Noticia directa', { selector: 'p' })).not.toBeInTheDocument();
   });
 });
