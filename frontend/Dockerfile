@@ -29,6 +29,11 @@ ENV VITE_PUBLIC_INDEXING=$VITE_PUBLIC_INDEXING
 ARG VITE_PUBLIC_SITE_URL=
 ENV VITE_PUBLIC_SITE_URL=$VITE_PUBLIC_SITE_URL
 
+# Build-time only (baked into the SPA bundle). Not Cloud Run runtime env.
+# Optional: if omitted, the login WhatsApp CTA stays disabled.
+ARG VITE_MAPS_WHATSAPP_NUMBER=
+ENV VITE_MAPS_WHATSAPP_NUMBER=$VITE_MAPS_WHATSAPP_NUMBER
+
 COPY index.html ./
 COPY tsconfig.json tsconfig.node.json vite.config.ts tailwind.config.ts postcss.config.js ./
 COPY public ./public

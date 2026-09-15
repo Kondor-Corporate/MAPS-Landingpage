@@ -150,6 +150,12 @@ logging permanente de IPs completas.
 
 - `VITE_API_BASE_URL`: opcional en desarrollo por el proxy de Vite; construir
   staging explícitamente con `/api/v1`. No es secreto.
+- `VITE_MAPS_WHATSAPP_NUMBER`: opcional. Número de WhatsApp de MAPS para el
+  botón de solicitud de acceso en Login. Incluir código de país y área, sin
+  `+`, espacios, guiones ni paréntesis. Si se omite, el botón queda
+  deshabilitado. Debe pasarse como build-arg al construir la imagen del
+  frontend; Vite lo hornea en el bundle. No configurarla como variable
+  runtime de Cloud Run ni del entrypoint de Nginx.
 
 ### Runtime
 
