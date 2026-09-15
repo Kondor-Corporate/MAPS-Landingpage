@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Crosshair, User } from 'lucide-react';
 import Map, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import { MapPinIcon } from '@/shared/components/map/MapPinIcon';
-import { LA_PLATA_VIEW, MAP_STYLE } from '@/shared/components/map/mapStyle';
+import { MAP_STYLE } from '@/shared/components/map/mapStyle';
 import { ProducerSocialLinks } from '@/shared/components/profile/ProducerSocialLinks';
 import { useProducersMap } from '@/modules/public-web/hooks/useProducersMap';
 import type { MapProducer } from '@/modules/public-web/types/producerMap';
@@ -11,7 +11,16 @@ import { geocodeQuery } from '@/shared/lib/geocode';
 import { distanceKm, formatDistance } from '@/shared/lib/distance';
 import { getInitials } from '@/shared/utils/initials';
 
-const DEFAULT_VIEW = LA_PLATA_VIEW;
+// Vista inicial fija en La Plata y alrededores (La Plata, Gonnet, City Bell,
+// Villa Elisa, Berisso, Ensenada). Center desacoplado de LA_PLATA_VIEW (que usa
+// el picker del admin) y zoom más abierto para que las 6 localidades entren
+// cómodas en desktop y mobile. La existencia de productores lejanos no altera
+// esta vista: no hay auto-fit de bounds.
+const DEFAULT_VIEW = {
+  longitude: -57.98,
+  latitude: -34.9,
+  zoom: 11,
+};
 const NEARBY_LIST_SIZE = 4;
 
 
@@ -35,7 +44,6 @@ export function FindAdvisorMap() {
   const [status, setStatus] = useState<GeocodeStatus>('idle');
   const [geoStatus, setGeoStatus] = useState<GeolocStatus>('idle');
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const boundsFitted = useRef(false);
 
   const sortedProducers: ProducerWithDistance[] = useMemo(() => {
     if (!userLocation) {
@@ -59,39 +67,6 @@ export function FindAdvisorMap() {
     () => sortedProducers.find((p) => p.slug === activeSlug) ?? null,
     [activeSlug, sortedProducers],
   );
-
-  useEffect(() => {
-    if (loading || producers.length === 0 || boundsFitted.current) return;
-    const map = mapRef.current?.getMap();
-    if (!map) return;
-
-    if (producers.length === 1) {
-      map.flyTo({
-        center: [producers[0].longitud, producers[0].latitud],
-        zoom: 13,
-        duration: 800,
-      });
-    } else {
-      let minLng = Infinity;
-      let minLat = Infinity;
-      let maxLng = -Infinity;
-      let maxLat = -Infinity;
-      for (const p of producers) {
-        minLng = Math.min(minLng, p.longitud);
-        minLat = Math.min(minLat, p.latitud);
-        maxLng = Math.max(maxLng, p.longitud);
-        maxLat = Math.max(maxLat, p.latitud);
-      }
-      map.fitBounds(
-        [
-          [minLng, minLat],
-          [maxLng, maxLat],
-        ],
-        { padding: 48, duration: 800, maxZoom: 14 },
-      );
-    }
-    boundsFitted.current = true;
-  }, [loading, producers]);
 
   const focusOnLocation = (loc: UserLocation, openClosest = true) => {
     setUserLocation(loc);
