@@ -24,6 +24,7 @@ export default {
       },
       fontFamily: {
         sans: ['Manrope', 'system-ui', 'sans-serif'],
+        serif: ['"Source Serif 4"', 'Georgia', 'serif'],
       },
       boxShadow: {
         card: '0 1px 1px rgba(0, 0, 0, 0.05)',
