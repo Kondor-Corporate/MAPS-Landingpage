@@ -2,6 +2,7 @@
  * Mapeo de DTOs de lectura (público/intranet) al tipo `NewsItem` de cards y modales.
  * También define gradientes de fallback cuando no hay `imagenUrl`.
  */
+import { parseCoverCrop } from '@/shared/lib/coverCrop';
 import type { ApiPublicNews } from '@/shared/services/publicNews.service';
 import type { NewsItem } from '@/shared/types/news';
 import { formatNewsCardDate, formatNewsFullDate } from '@/shared/utils/newsDate';
@@ -48,6 +49,7 @@ export function mapApiPublicNewsToNewsItem(dto: ApiPublicNews, index = 0): NewsI
     href: `/noticias/${dto.slug}`,
     imageGradient: resolveGradient(dto, index),
     imageUrl: dto.imagenUrl,
+    cover: parseCoverCrop(dto.portadaEncuadre),
     galeria: dto.galeria ?? [],
     content: dto.contenido,
     description: dto.descripcion,

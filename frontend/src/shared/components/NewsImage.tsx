@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import type { ReactEventHandler } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
+import { coverCropToImageStyle, type CoverCrop } from '@/shared/lib/coverCrop';
 import { DEFAULT_NEWS_GRADIENT, getNewsGradientByCategory } from '@/shared/lib/mapPublicNews';
 
 type Props = {
@@ -18,6 +19,8 @@ type Props = {
   showIcon?: boolean;
   /** Texto alternativo; por defecto la imagen es decorativa (alt vacío + aria-hidden). */
   alt?: string;
+  /** Encuadre persistido de portada; si viene, se reproduce el crop (paneo + zoom). */
+  cover?: CoverCrop | null;
   /** Permite leer las dimensiones naturales de la imagen una vez cargada. */
   onImageLoad?: ReactEventHandler<HTMLImageElement>;
 };
@@ -32,6 +35,7 @@ export function NewsImage({
   iconSize = 18,
   showIcon = true,
   alt = '',
+  cover,
   onImageLoad,
 }: Props) {
   const [failed, setFailed] = useState(false);
@@ -41,8 +45,11 @@ export function NewsImage({
   const canShowImage = Boolean(trimmed) && !failed;
 
   if (canShowImage) {
+    // Con encuadre, el estilo inline (posición absoluta + sizing) pisa las clases
+    // de `object-cover` del consumidor; el contenedor debe ser `relative`.
+    const coverStyle = cover ? coverCropToImageStyle(cover) : undefined;
     return (
-      <div className={`overflow-hidden ${className}`}>
+      <div className={`relative overflow-hidden ${className}`}>
         <img
           src={trimmed}
           alt={alt}
@@ -50,6 +57,7 @@ export function NewsImage({
           onError={() => setFailed(true)}
           onLoad={onImageLoad}
           className={imageClassName}
+          style={coverStyle}
         />
       </div>
     );

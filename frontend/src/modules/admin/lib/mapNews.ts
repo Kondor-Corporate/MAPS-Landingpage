@@ -10,6 +10,7 @@ import type {
   NewsGaleriaImagen,
   NewsInput,
 } from '@/modules/admin/types/news';
+import { parseCoverCrop, type CoverCrop } from '@/shared/lib/coverCrop';
 
 export type ApiNewsVisibilidad = 'PUBLICA' | 'INTERNA' | 'AMBAS';
 
@@ -27,6 +28,7 @@ export type ApiNews = {
   contenido: string;
   categoria: NewsCategoria;
   imagenUrl: string | null;
+  portadaEncuadre?: unknown;
   galeria?: ApiNoticiaImagen[];
   publicada: boolean;
   publicadaEn: string | null;
@@ -42,6 +44,7 @@ export type ApiNewsCreatePayload = {
   categoria: NewsCategoria;
   visibilidad: ApiNewsVisibilidad;
   descripcion?: string | null;
+  portadaEncuadre?: CoverCrop | null;
   publicada?: boolean;
 };
 
@@ -85,8 +88,10 @@ export function mapApiNewsToUiNews(dto: ApiNews): News {
     categoria: dto.categoria,
     audiencia: visibilidadToAudiencia(dto.visibilidad),
     estado: resolveUiEstado(dto.publicada, dto.publicadaEn),
+    descripcion: dto.descripcion,
     cuerpo: dto.contenido,
     imagenPortada: dto.imagenUrl,
+    portadaEncuadre: parseCoverCrop(dto.portadaEncuadre),
     galeria: mapApiGaleria(dto.galeria),
     fechaPublicacion: dto.publicadaEn ?? dto.createdAt,
     ultimaModificacion: dto.updatedAt,
@@ -100,6 +105,12 @@ export function mapUiNewsToCreatePayload(input: NewsInput, publicada: boolean): 
     categoria: input.categoria,
     visibilidad: audienciaToVisibilidad(input.audiencia),
     publicada,
+    // `descripcion` sólo se envía si el formulario aportó un valor (incluye null
+    // explícito para limpiar la bajada); undefined se omite del payload.
+    ...(input.descripcion !== undefined ? { descripcion: input.descripcion } : {}),
+    // Encuadre de portada: se envía si el form lo aportó (null limpia el guardado);
+    // undefined se omite para no pisar el valor persistido sin intención.
+    ...(input.portadaEncuadre !== undefined ? { portadaEncuadre: input.portadaEncuadre } : {}),
   };
 }
 

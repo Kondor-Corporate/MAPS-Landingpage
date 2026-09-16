@@ -56,6 +56,8 @@ function newsToFormState(n: News): NewsFormState {
 
     titulo: n.titulo,
 
+    descripcion: n.descripcion ?? '',
+
     categoria: n.categoria,
 
     audiencia: n.audiencia,
@@ -68,7 +70,7 @@ function newsToFormState(n: News): NewsFormState {
 
     removePortada: false,
 
-    portadaCrop: null,
+    portadaCrop: n.portadaEncuadre ?? null,
 
     galeria: n.galeria,
 

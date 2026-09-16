@@ -1,4 +1,5 @@
 import { FaClock } from 'react-icons/fa';
+import { NewsBody } from '@/shared/components/NewsBody';
 import { NewsImage } from '@/shared/components/NewsImage';
 import { estimateReadingMinutes } from '@/shared/lib/mapPublicNews';
 import type { NewsItem } from '@/shared/types/news';
@@ -12,7 +13,7 @@ type NewsArticleContentProps = {
 
 export function NewsArticleContent({ item, showShare = true }: NewsArticleContentProps) {
   const body = item.content?.trim() || item.description?.trim() || '';
-  const readingMinutes = estimateReadingMinutes(body);
+  const readingMinutes = estimateReadingMinutes(body.replace(/<[^>]+>/g, ' '));
   const galeria = item.galeria ?? [];
 
   return (
@@ -50,9 +51,11 @@ export function NewsArticleContent({ item, showShare = true }: NewsArticleConten
           </p>
         ) : null}
 
-        <div className="whitespace-pre-line text-[15px] leading-8 text-maps-body sm:text-base">
-          {body || 'Esta noticia no tiene contenido disponible.'}
-        </div>
+        <NewsBody
+          content={body}
+          className="text-[15px] leading-8 text-maps-body sm:text-base"
+          emptyLabel="Esta noticia no tiene contenido disponible."
+        />
 
         {galeria.length > 0 ? <NewsImageCarousel images={galeria} /> : null}
 

@@ -13,7 +13,7 @@ const MORE_LIMIT = 3;
 function TopBar({ title }: { title?: string }) {
   return (
     <div className="border-b border-maps-border bg-white">
-      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-7 py-[11px]">
+      <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-7 py-[11px]">
         <Link
           to="/noticias"
           className="inline-flex shrink-0 items-center gap-2 text-[13.5px] font-semibold text-maps-heading"
@@ -148,11 +148,11 @@ export function NewsDetailPage() {
 
       {!loading && !error && !notFound && newsItem ? (
         <>
-          <div className="mx-auto flex max-w-[1200px] flex-wrap items-start gap-x-[clamp(40px,5vw,72px)] gap-y-10 px-7 py-[clamp(32px,5vw,64px)] pb-[clamp(48px,6vw,88px)]">
+          <div className="mx-auto flex max-w-[1400px] flex-wrap items-start gap-x-[clamp(64px,7vw,110px)] gap-y-10 px-7 py-[clamp(32px,5vw,64px)] pb-[clamp(48px,6vw,88px)]">
             <NewsArticleEditorial item={newsItem} />
 
             {sidebarItems.length > 0 ? (
-              <aside className="min-w-0 flex-1 basis-[280px] sm:sticky sm:top-7 sm:max-w-[340px]">
+              <aside className="min-w-0 flex-1 basis-[300px] sm:sticky sm:top-7 sm:max-w-[340px]">
                 <p className="mb-1.5 border-b-2 border-maps-heading pb-3 text-[11.5px] font-bold uppercase tracking-[0.14em] text-maps-heading">
                   Otras noticias
                 </p>
@@ -171,7 +171,7 @@ export function NewsDetailPage() {
 
           {moreItems.length > 0 ? (
             <section className="border-t border-maps-border bg-white">
-              <div className="mx-auto max-w-[1200px] px-7 py-[clamp(40px,5vw,64px)] pb-[clamp(56px,6vw,80px)]">
+              <div className="mx-auto max-w-[1400px] px-7 py-[clamp(40px,5vw,64px)] pb-[clamp(56px,6vw,80px)]">
                 <div className="mb-7 flex flex-wrap items-baseline justify-between gap-4">
                   <h2 className="font-serif text-[22px] font-bold tracking-[-0.015em] text-maps-heading sm:text-[28px]">
                     También puede interesarte

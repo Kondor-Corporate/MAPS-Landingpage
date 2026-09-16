@@ -103,6 +103,10 @@ model Noticia {
   descripcion String?
   contenido   String
   imagenUrl   String?          @map("imagen_url")
+  // Encuadre de la portada (paneo + zoom) elegido en el admin, en formato
+  // resolución-independiente para reproducirlo con CSS en preview y cards.
+  // { x, y, zoom, area: { x, y, width, height } }. Null = sin encuadre (centrado).
+  portadaEncuadre Json?         @map("portada_encuadre")
   publicada   Boolean          @default(false)
   publicadaEn DateTime?        @map("publicada_en")
   visibilidad Visibilidad      @default(PUBLICA)

@@ -6,7 +6,12 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Crop, ImagePlus, RefreshCw, Trash2 } from 'lucide-react';
-import { NewsCoverCropModal, type CoverCropValue } from '@/modules/admin/components/NewsCoverCropModal';
+import {
+  NEWS_COVER_ASPECT_RATIO,
+  NewsCoverCropModal,
+  type CoverCropValue,
+} from '@/modules/admin/components/NewsCoverCropModal';
+import { coverCropToImageStyle } from '@/shared/lib/coverCrop';
 
 export const NEWS_IMAGE_ACCEPT = 'image/jpeg,image/png';
 export const NEWS_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
@@ -121,9 +126,11 @@ export function NewsImageUploader({
       {displayUrl ? (
         <div className="flex flex-col gap-2">
           <div
-            className={`relative h-[180px] w-full max-w-[420px] overflow-hidden rounded-xl border bg-maps-surface transition ${
+            className={`relative w-full max-w-[420px] overflow-hidden rounded-xl border bg-maps-surface transition ${
               isDragOver ? 'border-maps-brand ring-2 ring-maps-brand/20' : 'border-maps-border'
             }`}
+            // Mismo aspecto que el encuadre y las cards, para que la preview coincida 1:1.
+            style={{ aspectRatio: String(NEWS_COVER_ASPECT_RATIO) }}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -132,7 +139,7 @@ export function NewsImageUploader({
               src={displayUrl}
               alt="Portada de la noticia"
               className="h-full w-full object-cover"
-              style={{ objectPosition: crop?.objectPosition ?? '50% 50%' }}
+              style={crop ? coverCropToImageStyle(crop) : { objectPosition: '50% 50%' }}
             />
           </div>
 
