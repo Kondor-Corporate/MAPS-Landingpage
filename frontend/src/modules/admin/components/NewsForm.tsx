@@ -21,6 +21,7 @@ import { MapsSelect } from '@/shared/components/MapsSelect';
 
 export type NewsFormState = {
   titulo: string;
+  descripcion: string;
   categoria: NewsCategoria | '';
   audiencia: NewsAudiencia;
   cuerpo: string;
@@ -59,6 +60,7 @@ export type NewsImageOps = {
 
 export const EMPTY_FORM: NewsFormState = {
   titulo: '',
+  descripcion: '',
   categoria: '',
   audiencia: 'PRODUCTORES',
   cuerpo: '',
@@ -153,9 +155,11 @@ export function NewsForm({
       await onSubmit(
         {
           titulo: state.titulo.trim(),
+          descripcion: state.descripcion.trim() || null,
           categoria: state.categoria as NewsCategoria,
           audiencia: state.audiencia,
           cuerpo: state.cuerpo.trim(),
+          portadaEncuadre: state.portadaCrop,
           estado,
           fechaPublicacion: now,
         },
@@ -214,6 +218,21 @@ export function NewsForm({
           {showErrors && errors.titulo ? (
             <span className="text-xs text-rose-600">{errors.titulo}</span>
           ) : null}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="news-descripcion" className="text-sm font-medium text-maps-heading">
+            Bajada / resumen <span className="font-normal text-maps-muted">(opcional)</span>
+          </label>
+          <textarea
+            id="news-descripcion"
+            value={state.descripcion}
+            onChange={(e) => patch({ descripcion: e.target.value })}
+            placeholder="Breve resumen que aparecerá debajo del título de la noticia"
+            rows={2}
+            disabled={isSubmitting}
+            className="resize-y rounded-xl border border-maps-border bg-white px-3 py-2.5 text-sm text-maps-heading placeholder:text-maps-muted-soft focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20 disabled:opacity-60"
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -288,7 +307,11 @@ export function NewsForm({
 
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-maps-heading">Cuerpo de la noticia</span>
-          <NewsRichTextEditor value={state.cuerpo} onChange={(value) => patch({ cuerpo: value })} />
+          <NewsRichTextEditor
+            value={state.cuerpo}
+            onChange={(value) => patch({ cuerpo: value })}
+            disabled={isSubmitting}
+          />
           {showErrors && errors.cuerpo ? (
             <span className="text-xs text-rose-600">{errors.cuerpo}</span>
           ) : null}

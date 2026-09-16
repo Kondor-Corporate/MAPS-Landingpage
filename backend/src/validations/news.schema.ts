@@ -14,6 +14,21 @@ const categoriaNoticiaSchema = z.enum([
 
 const visibilidadSchema = z.enum(['PUBLICA', 'INTERNA', 'AMBAS']);
 
+// Encuadre de portada: datos resolución-independientes para reproducir el crop
+// (paneo + zoom) con CSS. `x/y/zoom` restauran el modal; `area` (croppedArea en %)
+// alimenta el render en preview y cards. Se persiste como JSON en la noticia.
+const coverCropSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  zoom: z.number(),
+  area: z.object({
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number(),
+  }),
+});
+
 // La portada y las imágenes de galería se suben como archivo por endpoints dedicados
 // (`POST /news/:id/portada`, `POST /news/:id/imagenes`), no por el body de create/update.
 const newsCoreFields = {
@@ -26,6 +41,7 @@ const newsCoreFields = {
   categoria: categoriaNoticiaSchema,
   visibilidad: visibilidadSchema,
   publicada: z.boolean().optional(),
+  portadaEncuadre: coverCropSchema.optional().nullable(),
 };
 
 /** Alta admin: crea `Noticia`. `slug` y `autorId` se resuelven en servidor. */

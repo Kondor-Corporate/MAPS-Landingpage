@@ -3,6 +3,7 @@
  * Fiel a docs/Noticia MAPS.html: categoría, título, bajada, metadata,
  * carrusel de imágenes completas, cuerpo del artículo y compartir.
  */
+import { NewsBody } from '@/shared/components/NewsBody';
 import { estimateReadingMinutes } from '@/shared/lib/mapPublicNews';
 import type { NewsItem } from '@/shared/types/news';
 import { NewsArticleCarousel } from './NewsArticleCarousel';
@@ -14,13 +15,14 @@ type Props = {
 
 export function NewsArticleEditorial({ item }: Props) {
   const body = item.content?.trim() || item.description?.trim() || '';
-  const readingMinutes = estimateReadingMinutes(body);
+  // Para el estimado de lectura, contamos texto sin marcas HTML.
+  const readingMinutes = estimateReadingMinutes(body.replace(/<[^>]+>/g, ' '));
   const images = [item.imageUrl, ...(item.galeria ?? [])].filter(
     (url): url is string => Boolean(url?.trim()),
   );
 
   return (
-    <article className="min-w-0 flex-1 basis-[600px]">
+    <article className="min-w-0 flex-1 basis-[640px]">
       <div className="mb-5 flex items-center gap-3.5">
         <span className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-maps-brand-hover">
           {item.category}
@@ -28,7 +30,7 @@ export function NewsArticleEditorial({ item }: Props) {
         <span className="h-px max-w-[120px] flex-1 bg-maps-border" />
       </div>
 
-      <h1 className="mb-[22px] max-w-[17em] font-serif text-[33px] font-bold leading-[1.08] tracking-[-0.022em] text-maps-heading sm:text-[46px] lg:text-[58px]">
+      <h1 className="mb-[22px] font-serif text-[33px] font-bold leading-[1.08] tracking-[-0.022em] text-maps-heading sm:text-[46px] lg:text-[58px]">
         {item.title}
       </h1>
 
@@ -52,9 +54,11 @@ export function NewsArticleEditorial({ item }: Props) {
         <NewsArticleCarousel images={images} gradient={item.imageGradient} />
       ) : null}
 
-      <div className="max-w-[720px] whitespace-pre-line text-[17px] leading-[1.75] text-maps-body sm:text-[19px]">
-        {body || 'Esta noticia no tiene contenido disponible.'}
-      </div>
+      <NewsBody
+        content={body}
+        className="max-w-[720px] text-[17px] leading-[1.75] text-maps-body sm:text-[19px]"
+        emptyLabel="Esta noticia no tiene contenido disponible."
+      />
 
       <div className="mt-9 max-w-[720px] border-t border-maps-border pt-[26px] sm:mt-[52px]">
         <p className="mb-3.5 text-[11.5px] font-bold uppercase tracking-[0.14em] text-maps-muted-soft">

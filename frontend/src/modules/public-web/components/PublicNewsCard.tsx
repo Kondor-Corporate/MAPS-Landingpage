@@ -18,11 +18,12 @@ export function PublicNewsCard({ item, onOpen }: PublicNewsCardProps) {
         <NewsImage
           src={item.imageUrl}
           gradient={item.imageGradient}
+          cover={item.cover}
           className="h-[195px] w-full shrink-0"
           imageClassName="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           iconSize={22}
         />
-        <div className="flex flex-1 flex-col gap-4 p-6">
+        <div className="flex flex-1 flex-col p-6">
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <span className="rounded-md bg-maps-brand-soft px-3 py-1 font-semibold text-maps-brand">
               {item.category}
@@ -31,17 +32,21 @@ export function PublicNewsCard({ item, onOpen }: PublicNewsCardProps) {
               {item.date}
             </time>
           </div>
-          <h3 className="line-clamp-2 min-h-[50px] text-xl font-bold leading-[25px] text-maps-heading">
+          <h3 className="mt-4 line-clamp-2 min-h-[50px] text-xl font-bold leading-[25px] text-maps-heading">
             {item.title}
           </h3>
-          <p
-            className={`line-clamp-2 min-h-[48px] text-sm leading-6 text-maps-muted ${
-              item.description ? '' : 'invisible'
-            }`}
-          >
-            {item.description || 'placeholder'}
-          </p>
-          <span className="mt-auto inline-flex items-center gap-2 text-sm font-bold text-maps-brand">
+          {/* La bajada queda equidistante entre título y "Leer más": el bloque flex-1
+              la centra verticalmente, con la misma separación arriba y abajo. */}
+          <div className="flex flex-1 items-center py-4">
+            <p
+              className={`line-clamp-2 text-sm leading-6 text-maps-muted ${
+                item.description ? '' : 'invisible'
+              }`}
+            >
+              {item.description || 'placeholder'}
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-2 text-sm font-bold text-maps-brand">
             Leer más
             <span aria-hidden>→</span>
           </span>

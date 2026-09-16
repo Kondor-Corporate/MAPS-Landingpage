@@ -1,36 +1,31 @@
 /**
  * Editor de reencuadre de portada (MAPS-019 UX).
  * Permite elegir qué parte de la imagen se muestra como portada (paneo + zoom)
- * sin recortar/regenerar el archivo original: el resultado se traduce a un
- * `object-position` que se aplica temporalmente vía CSS en el preview.
+ * sin recortar/regenerar el archivo original.
  *
- * Pendiente de backend: persistir { x, y, zoom } junto a la noticia para que el
- * encuadre elegido se respete también fuera de esta sesión de edición (cards
- * públicas, otras sesiones de admin). Hoy el valor solo vive en el estado del
- * formulario mientras se crea/edita la noticia.
+ * El resultado se persiste como `CoverCrop` (paneo + zoom + `area` = croppedArea en %)
+ * y se reproduce con la misma transformación CSS en la preview del admin y en las
+ * cards públicas (ver `shared/lib/coverCrop.ts`). Así modal, preview y web coinciden.
  */
 import { useCallback, useEffect, useState } from 'react';
 import Cropper, { type Area, type Point } from 'react-easy-crop';
 import { Modal } from '@/shared/components/Modal';
+import type { CoverCrop } from '@/shared/lib/coverCrop';
 
-// Relación real usada por las cards públicas de noticias (PublicNewsCard / RecentNewsCard):
+// Relación real usada por las cards públicas de noticias (PublicNewsCard):
 // contenedor de 1200px, grid de 3 columnas con gap-7 (28px) y alto fijo de imagen de 195px.
 const CARD_COLUMN_WIDTH = (1200 - 28 * 2) / 3;
 export const NEWS_COVER_ASPECT_RATIO = CARD_COLUMN_WIDTH / 195;
 
-export type CoverCropValue = {
-  x: number;
-  y: number;
-  zoom: number;
-  objectPosition: string;
-};
+/** @deprecated Alias del tipo canónico `CoverCrop`. */
+export type CoverCropValue = CoverCrop;
 
 type Props = {
   isOpen: boolean;
   imageUrl: string | null;
-  initialValue: CoverCropValue | null;
+  initialValue: CoverCrop | null;
   onCancel: () => void;
-  onSave: (value: CoverCropValue) => void;
+  onSave: (value: CoverCrop) => void;
 };
 
 export function NewsCoverCropModal({ isOpen, imageUrl, initialValue, onCancel, onSave }: Props) {
@@ -51,13 +46,17 @@ export function NewsCoverCropModal({ isOpen, imageUrl, initialValue, onCancel, o
 
   function handleSave() {
     if (!croppedAreaPercent) return;
-    const posX = Math.min(100, Math.max(0, croppedAreaPercent.x + croppedAreaPercent.width / 2));
-    const posY = Math.min(100, Math.max(0, croppedAreaPercent.y + croppedAreaPercent.height / 2));
     onSave({
       x: crop.x,
       y: crop.y,
       zoom,
-      objectPosition: `${posX.toFixed(1)}% ${posY.toFixed(1)}%`,
+      // `croppedArea` (%) del original: única fuente de verdad para reproducir el crop.
+      area: {
+        x: croppedAreaPercent.x,
+        y: croppedAreaPercent.y,
+        width: croppedAreaPercent.width,
+        height: croppedAreaPercent.height,
+      },
     });
   }
 

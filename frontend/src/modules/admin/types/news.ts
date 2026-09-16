@@ -2,6 +2,8 @@
  * Tipos y constantes de presentación del admin de Noticias.
  * Define el shape UI (`News`), enums de dominio y labels para selects/badges.
  */
+import type { CoverCrop } from '@/shared/lib/coverCrop';
+
 export type NewsAudiencia = 'PRODUCTORES' | 'PUBLICO' | 'AMBOS';
 
 export type NewsEstado = 'BORRADOR' | 'PUBLICADO' | 'DESPUBLICADA';
@@ -20,8 +22,12 @@ export type News = {
   categoria: NewsCategoria;
   audiencia: NewsAudiencia;
   estado: NewsEstado;
+  /** Bajada/resumen editorial opcional que se muestra debajo del título. */
+  descripcion?: string | null;
   cuerpo: string;
   imagenPortada: string | null;
+  /** Encuadre persistido de la portada (paneo + zoom); null = centrado por defecto. */
+  portadaEncuadre?: CoverCrop | null;
   galeria: NewsGaleriaImagen[];
   fechaPublicacion: string;
   ultimaModificacion: string;

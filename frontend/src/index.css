@@ -8,6 +8,111 @@ html {
   scroll-behavior: smooth;
 }
 
+/*
+ * Estilos editoriales del cuerpo de una noticia enriquecida (ver NewsBody).
+ * El contenido guardado sólo aporta estructura semántica; estos estilos fijan
+ * la presentación para mantener consistencia en todo el portal de Noticias.
+ */
+.news-prose > *:first-child {
+  margin-top: 0;
+}
+.news-prose > *:last-child {
+  margin-bottom: 0;
+}
+.news-prose p {
+  margin: 0 0 1.25em;
+}
+.news-prose strong,
+.news-prose b {
+  font-weight: 700;
+}
+.news-prose em,
+.news-prose i {
+  font-style: italic;
+}
+.news-prose h2 {
+  font-family: '"Source Serif 4"', Georgia, serif;
+  font-size: clamp(23px, 2.4vw, 28px);
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: #131117;
+  margin: 44px 0 18px;
+}
+.news-prose ul,
+.news-prose ol {
+  margin: 0 0 1.25em;
+  padding-left: 1.5em;
+}
+.news-prose ul {
+  list-style: disc;
+}
+.news-prose ol {
+  list-style: decimal;
+}
+.news-prose li {
+  margin: 0.4em 0;
+}
+.news-prose blockquote {
+  border-left: 2px solid #00a4c0;
+  padding-left: 24px;
+  margin: 36px 0;
+  color: #374151;
+  font-style: italic;
+}
+.news-prose a {
+  color: #00a4c0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.news-prose a:hover {
+  color: #0089a3;
+}
+.news-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 24px 0;
+}
+
+/* Editor admin: placeholder y estructura visible mientras se edita. */
+.news-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+}
+.news-editor p {
+  margin: 0 0 0.75em;
+}
+.news-editor h2 {
+  font-family: '"Source Serif 4"', Georgia, serif;
+  font-size: 1.35em;
+  font-weight: 700;
+  margin: 0.6em 0 0.4em;
+}
+.news-editor ul,
+.news-editor ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.5em;
+}
+.news-editor ul {
+  list-style: disc;
+}
+.news-editor ol {
+  list-style: decimal;
+}
+.news-editor blockquote {
+  border-left: 2px solid #00a4c0;
+  padding-left: 16px;
+  margin: 0.75em 0;
+  color: #374151;
+  font-style: italic;
+}
+.news-editor a {
+  color: #00a4c0;
+  text-decoration: underline;
+}
+
 .maplibregl-ctrl-attrib {
   background: rgba(255, 255, 255, 0.85) !important;
   backdrop-filter: blur(6px);

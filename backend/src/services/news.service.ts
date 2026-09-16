@@ -30,6 +30,14 @@ export type NoticiaImagenDto = {
   orden: number;
 };
 
+/** Encuadre de portada persistido como JSON (paneo + zoom, resolución-independiente). */
+export type CoverCrop = {
+  x: number;
+  y: number;
+  zoom: number;
+  area: { x: number; y: number; width: number; height: number };
+};
+
 export type NewsAdminDto = {
   id: number;
   titulo: string;
@@ -38,6 +46,7 @@ export type NewsAdminDto = {
   contenido: string;
   categoria: CategoriaNoticia;
   imagenUrl: string | null;
+  portadaEncuadre: CoverCrop | null;
   galeria: NoticiaImagenDto[];
   publicada: boolean;
   publicadaEn: Date | null;
@@ -54,6 +63,7 @@ export type NewsPublicDto = {
   contenido: string;
   categoria: CategoriaNoticia;
   imagenUrl: string | null;
+  portadaEncuadre: CoverCrop | null;
   galeria: string[];
   publicadaEn: Date | null;
 };
@@ -79,12 +89,27 @@ export type CreateNewsInput = {
   categoria: CategoriaNoticia;
   visibilidad: Visibilidad;
   publicada?: boolean;
+  portadaEncuadre?: CoverCrop | null;
 };
 
 export type UpdateNewsInput = Partial<CreateNewsInput>;
 
 function toNoticiaImagenDto(row: NoticiaImagen): NoticiaImagenDto {
   return { id: row.id, url: row.url, orden: row.orden };
+}
+
+/** El JSON de Prisma es opaco; lo exponemos con la forma tipada `CoverCrop`. */
+function toCoverCrop(value: Noticia['portadaEncuadre']): CoverCrop | null {
+  if (value == null || typeof value !== 'object') return null;
+  return value as unknown as CoverCrop;
+}
+
+/** Traduce el input a lo que Prisma espera para una columna JSON nullable. */
+function toCoverCropDbValue(
+  crop: CoverCrop | null | undefined,
+): Prisma.InputJsonValue | typeof Prisma.DbNull {
+  if (crop == null) return Prisma.DbNull;
+  return crop as unknown as Prisma.InputJsonValue;
 }
 
 /** DTO admin: expone todos los campos, incluidos borradores y metadatos editoriales. */
@@ -97,6 +122,7 @@ function toNewsAdminDto(row: Noticia, imagenes: NoticiaImagen[] = []): NewsAdmin
     contenido: row.contenido,
     categoria: row.categoria,
     imagenUrl: row.imagenUrl,
+    portadaEncuadre: toCoverCrop(row.portadaEncuadre),
     galeria: imagenes.map(toNoticiaImagenDto),
     publicada: row.publicada,
     publicadaEn: row.publicadaEn,
@@ -116,6 +142,7 @@ function toNewsPublicDto(row: Noticia, imagenes: NoticiaImagen[] = []): NewsPubl
     contenido: row.contenido,
     categoria: row.categoria,
     imagenUrl: row.imagenUrl,
+    portadaEncuadre: toCoverCrop(row.portadaEncuadre),
     galeria: imagenes.map((img) => img.url),
     publicadaEn: row.publicadaEn,
   };
@@ -204,6 +231,7 @@ export const newsService = {
         contenido: input.contenido.trim(),
         categoria: input.categoria,
         visibilidad: input.visibilidad,
+        portadaEncuadre: toCoverCropDbValue(input.portadaEncuadre),
         // La portada se sube por separado vía `setPortada`; una noticia nueva nace sin imagen.
         publicada,
         publicadaEn,
@@ -229,6 +257,9 @@ export const newsService = {
     }
     if (input.categoria !== undefined) data.categoria = input.categoria;
     if (input.visibilidad !== undefined) data.visibilidad = input.visibilidad;
+    if (input.portadaEncuadre !== undefined) {
+      data.portadaEncuadre = toCoverCropDbValue(input.portadaEncuadre);
+    }
 
     if (input.publicada !== undefined) {
       data.publicada = input.publicada;

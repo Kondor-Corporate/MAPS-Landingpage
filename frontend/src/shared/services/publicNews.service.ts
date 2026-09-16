@@ -14,6 +14,8 @@ export type ApiPublicNews = {
   contenido: string;
   categoria: string;
   imagenUrl: string | null;
+  /** Encuadre de portada como JSON opaco; se valida/parsea en el mapper. */
+  portadaEncuadre?: unknown;
   galeria?: string[];
   publicadaEn: string | null;
 };

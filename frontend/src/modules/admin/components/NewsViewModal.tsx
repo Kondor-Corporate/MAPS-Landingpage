@@ -1,6 +1,7 @@
 /** Modal de vista previa de solo lectura para una noticia del listado admin. */
 import { Calendar, Pencil } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
+import { NewsBody } from '@/shared/components/NewsBody';
 import { NewsImage } from '@/shared/components/NewsImage';
 import { CATEGORIA_LABEL, type News } from '@/modules/admin/types/news';
 import { NewsAudienceBadge } from '@/modules/admin/components/NewsAudienceBadge';
@@ -38,12 +39,16 @@ export function NewsViewModal({ isOpen, news, onClose, onEdit }: Props) {
 
           <h2 className="text-lg font-bold text-maps-heading">{news.titulo}</h2>
 
+          {news.descripcion ? (
+            <p className="font-serif text-base leading-relaxed text-maps-body">{news.descripcion}</p>
+          ) : null}
+
           <div className="inline-flex items-center gap-1.5 text-xs text-maps-muted">
             <Calendar size={14} strokeWidth={1.75} />
             {formatNewsFullDate(news.fechaPublicacion)}
           </div>
 
-          <p className="whitespace-pre-line text-sm leading-relaxed text-maps-body">{news.cuerpo}</p>
+          <NewsBody content={news.cuerpo} className="text-sm leading-relaxed text-maps-body" />
 
           <div className="mt-2 flex justify-end border-t border-maps-border pt-4">
             <button
