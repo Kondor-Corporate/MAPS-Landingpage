@@ -65,7 +65,7 @@ describe('NewsListPage', () => {
     expect(backLink).not.toHaveClass('min-h-11', 'border', 'bg-white');
 
     const header = backLink.closest('header');
-    expect(header).toHaveClass('mb-8');
+    expect(header).toHaveClass('mb-6', 'sm:mb-8');
     expect(header).not.toHaveClass('mb-10');
     expect(header).toHaveClass('sm:flex-row-reverse', 'sm:justify-between');
     expect(backLink).toHaveClass('-mt-2', 'self-end');

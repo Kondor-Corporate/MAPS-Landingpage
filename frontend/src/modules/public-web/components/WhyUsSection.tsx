@@ -82,37 +82,40 @@ const features: Feature[] = [
 
 export function WhyUsSection() {
   return (
-    <section id="nosotros" className="scroll-mt-[70px] bg-white px-4 sm:px-6 lg:px-10 py-16 sm:py-20 lg:py-24">
-      <div className="mx-auto flex max-w-[1200px] flex-col gap-12">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <h2 className="text-2xl sm:text-3xl lg:text-[36px] font-bold leading-tight lg:leading-10 tracking-[-0.9px] text-maps-heading">
+    <section
+      id="nosotros"
+      className="scroll-mt-[60px] bg-white px-4 py-[clamp(2.75rem,7vw,6rem)] sm:px-6 lg:scroll-mt-[70px] lg:px-10"
+    >
+      <div className="mx-auto flex max-w-[1200px] flex-col gap-8 sm:gap-10 lg:gap-12">
+        <div className="flex flex-col items-center gap-3 text-center sm:gap-4">
+          <h2 className="text-[clamp(1.5rem,4.5vw,2.25rem)] font-bold leading-[1.15] tracking-[-0.9px] text-maps-heading">
             ¿Por qué elegir MAPS Asesores?
           </h2>
-          <p className="max-w-[940px] text-lg leading-[29px] text-maps-muted">
-            Porque detrás de cada asesor hay una organización que lo respalda. En MAPS trabajamos
-            para que cada uno de nuestros más de 100 asesores tenga formación permanente,
-            tecnología propia para potenciar su negocio y el acompañamiento necesario para estar
-            cada vez más cerca de sus asegurados. Así construimos, en 10 años, un método
-            diferente: el Compromiso MAPS. Una forma de trabajar que hoy nos permite mirar el
-            próximo desafío con la misma convicción del primer día; seguir creciendo, seguir
-            innovando y llevar el modelo MAPS a todo el país.
+          <p className="max-w-[940px] text-[clamp(1rem,2.5vw,1.125rem)] leading-relaxed text-maps-muted">
+            Porque detrás de cada asesor hay una organización que lo respalda. En
+            MAPS trabajamos para que cada uno de nuestros más de 100 asesores
+            tenga formación permanente, tecnología propia para potenciar su negocio y
+            el acompañamiento necesario para estar cada vez más cerca de sus
+            asegurados.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-6">
           {features.map((feature) => (
             <article
               key={feature.title}
-              className="flex flex-col gap-6 rounded-2xl border border-maps-border bg-white p-8 shadow-card"
+              className="flex flex-col gap-4 rounded-2xl border border-maps-border bg-white p-6 shadow-card lg:gap-6 lg:p-8"
             >
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-maps-brand-soft text-maps-brand">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-maps-brand-soft text-maps-brand lg:h-14 lg:w-14">
                 {feature.icon}
               </div>
-              <div className="flex flex-col gap-3">
-                <h3 className="text-xl font-bold leading-[25px] text-maps-heading">
+              <div className="flex flex-col gap-2 lg:gap-3">
+                <h3 className="text-lg font-bold leading-[1.3] text-maps-heading lg:text-xl">
                   {feature.title}
                 </h3>
-                <p className="text-base leading-[26px] text-maps-muted">{feature.description}</p>
+                <p className="text-[15px] leading-6 text-maps-muted lg:text-base lg:leading-[26px]">
+                  {feature.description}
+                </p>
               </div>
             </article>
           ))}

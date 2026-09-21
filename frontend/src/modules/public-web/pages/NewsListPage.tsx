@@ -16,8 +16,8 @@ function NewsListSkeleton() {
     >
       {Array.from({ length: 6 }).map((_, index) => (
         <div key={index} className="overflow-hidden rounded-2xl bg-white shadow-card animate-pulse">
-          <div className="h-[195px] bg-maps-surface" />
-          <div className="space-y-4 p-6">
+          <div className="h-[168px] bg-maps-surface sm:h-[195px]" />
+          <div className="space-y-4 p-5 sm:p-6">
             <div className="h-4 w-28 rounded bg-maps-surface" />
             <div className="h-6 rounded bg-maps-surface" />
             <div className="h-6 w-3/4 rounded bg-maps-surface" />
@@ -39,7 +39,7 @@ export function NewsListPage() {
   return (
     <div className="bg-maps-surface px-4 pb-8 pt-5 sm:px-6 sm:pb-10 sm:pt-6 lg:px-10 lg:pb-12 lg:pt-8">
       <div className="mx-auto max-w-[1200px]">
-        <header className="mb-8 flex flex-col gap-3 sm:flex-row-reverse sm:items-start sm:justify-between">
+        <header className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row-reverse sm:items-start sm:justify-between">
           <Link
             to="/#noticias"
             className="-mt-2 inline-flex w-fit shrink-0 self-end items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-maps-brand transition-colors hover:text-maps-brand-hover focus:outline-none focus:ring-2 focus:ring-maps-brand/40 focus:ring-offset-2"

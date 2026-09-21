@@ -13,7 +13,7 @@ const MORE_LIMIT = 3;
 function TopBar({ title }: { title?: string }) {
   return (
     <div className="border-b border-maps-border bg-white">
-      <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-7 py-[11px]">
+      <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-4 py-[11px] sm:px-7">
         <Link
           to="/noticias"
           className="inline-flex shrink-0 items-center gap-2 text-[13.5px] font-semibold text-maps-heading"
@@ -25,7 +25,7 @@ function TopBar({ title }: { title?: string }) {
         </Link>
 
         {title ? (
-          <nav aria-label="Ruta de navegación" className="flex flex-wrap gap-[7px] text-[12.5px] text-maps-muted-soft">
+          <nav aria-label="Ruta de navegación" className="hidden flex-wrap gap-[7px] text-[12.5px] text-maps-muted-soft sm:flex">
             <Link to="/#noticias" className="text-maps-muted-soft hover:text-maps-brand-hover">
               Inicio
             </Link>
@@ -148,7 +148,7 @@ export function NewsDetailPage() {
 
       {!loading && !error && !notFound && newsItem ? (
         <>
-          <div className="mx-auto flex max-w-[1400px] flex-wrap items-start gap-x-[clamp(64px,7vw,110px)] gap-y-10 px-7 py-[clamp(32px,5vw,64px)] pb-[clamp(48px,6vw,88px)]">
+          <div className="mx-auto flex max-w-[1400px] flex-wrap items-start gap-x-[clamp(64px,7vw,110px)] gap-y-8 px-4 py-[clamp(24px,5vw,64px)] pb-[clamp(40px,6vw,88px)] sm:gap-y-10 sm:px-7">
             <NewsArticleEditorial item={newsItem} />
 
             {sidebarItems.length > 0 ? (
@@ -171,8 +171,8 @@ export function NewsDetailPage() {
 
           {moreItems.length > 0 ? (
             <section className="border-t border-maps-border bg-white">
-              <div className="mx-auto max-w-[1400px] px-7 py-[clamp(40px,5vw,64px)] pb-[clamp(56px,6vw,80px)]">
-                <div className="mb-7 flex flex-wrap items-baseline justify-between gap-4">
+              <div className="mx-auto max-w-[1400px] px-4 py-[clamp(32px,5vw,64px)] pb-[clamp(44px,6vw,80px)] sm:px-7">
+                <div className="mb-6 flex flex-wrap items-baseline justify-between gap-4 sm:mb-7">
                   <h2 className="font-serif text-[22px] font-bold tracking-[-0.015em] text-maps-heading sm:text-[28px]">
                     También puede interesarte
                   </h2>
@@ -183,7 +183,7 @@ export function NewsDetailPage() {
                     Todas las noticias →
                   </Link>
                 </div>
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-x-[clamp(24px,3vw,40px)] gap-y-10">
+                <div className="grid grid-cols-1 gap-x-[clamp(24px,3vw,40px)] gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
                   {moreItems.map((item) => (
                     <RelatedCard key={item.slug ?? item.title} item={item} />
                   ))}

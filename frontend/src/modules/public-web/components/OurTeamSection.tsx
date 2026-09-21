@@ -59,14 +59,14 @@ export function OurTeamSection() {
   return (
     <section
       id="equipo"
-      className="bg-white px-4 sm:px-6 lg:px-10 py-16 sm:py-20 lg:py-24"
+      className="bg-white px-4 py-[clamp(2.75rem,7vw,6rem)] sm:px-6 lg:px-10"
     >
-      <div className="mx-auto flex max-w-[1200px] flex-col gap-12">
+      <div className="mx-auto flex max-w-[1200px] flex-col gap-8 sm:gap-10 lg:gap-12">
         <div className="text-center">
-          <h2 className="text-2xl sm:text-3xl lg:text-[36px] font-bold leading-tight lg:leading-[48px] tracking-[-0.9px] text-maps-heading">
+          <h2 className="text-[clamp(1.5rem,4.5vw,2.25rem)] font-bold leading-[1.15] tracking-[-0.9px] text-maps-heading lg:leading-[48px]">
             Nuestro equipo
           </h2>
-          <p className="mx-auto mt-4 max-w-[571px] text-lg leading-[28px] text-maps-muted">
+          <p className="mx-auto mt-3 max-w-[571px] text-[clamp(1rem,2.5vw,1.125rem)] leading-relaxed text-maps-muted sm:mt-4">
             MAPS se construye con personas. Personas que comparten una manera de trabajar, de
             acompañar y de pensar el futuro. Una visión y un rumbo. Un mismo ADN.
           </p>
@@ -85,13 +85,13 @@ export function OurTeamSection() {
             {ourTeam.map((member) => (
               <article
                 key={member.id}
-                className="group w-[80%] shrink-0 snap-start overflow-hidden rounded-2xl bg-white shadow-card transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl sm:w-full sm:shrink sm:snap-none"
+                className="group w-[70%] max-w-[260px] shrink-0 snap-start overflow-hidden rounded-2xl bg-white shadow-card transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl sm:w-full sm:max-w-none sm:shrink sm:snap-none"
               >
-                <div className="aspect-[3/4] w-full overflow-hidden bg-maps-brand-soft">
+                <div className="aspect-[4/5] w-full overflow-hidden bg-maps-brand-soft sm:aspect-[3/4]">
                   <TeamMemberPhoto member={member} />
                 </div>
-                <div className="p-4">
-                  <h3 className="text-lg font-bold leading-[24px] text-maps-heading">
+                <div className="p-3 sm:p-4">
+                  <h3 className="text-base font-bold leading-[1.3] text-maps-heading sm:text-lg">
                     {[member.nombre, member.apellido].filter(Boolean).join(' ')}
                   </h3>
                   <p className="text-sm text-maps-muted">{member.puesto}</p>

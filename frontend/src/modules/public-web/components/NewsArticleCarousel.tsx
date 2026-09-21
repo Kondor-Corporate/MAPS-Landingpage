@@ -74,17 +74,19 @@ export function NewsArticleCarousel({ images, gradient }: Props) {
 
   const mobile = width < MOBILE_BREAKPOINT;
   const activeRatio = ratios[active] ?? DEFAULT_RATIO;
+  // Mobile: alto acotado para no comerse el viewport. `width - 32` = ancho de página
+  // (px-4 => 16px por lado) menos `24` del padding interno del frame (p-3).
   const frameHeight = mobile
     ? Math.round(
         Math.min(
-          Math.max(240, width - 56 - 40) / activeRatio + 44,
-          Math.max(260, (typeof window === 'undefined' ? 800 : window.innerHeight) * 0.82),
+          Math.max(200, width - 32 - 24) / activeRatio + 36,
+          Math.max(220, (typeof window === 'undefined' ? 800 : window.innerHeight) * 0.6),
         ),
       )
     : Math.round(Math.min(620, Math.max(420, width * 0.44)));
 
   return (
-    <figure className="mb-9 sm:mb-[52px]">
+    <figure className="mb-7 sm:mb-[52px]">
       <div
         className="relative w-full overflow-hidden rounded border border-maps-border bg-maps-surface transition-[height] duration-300 ease-out"
         style={{ height: `${frameHeight}px` }}
@@ -94,7 +96,7 @@ export function NewsArticleCarousel({ images, gradient }: Props) {
         {images.map((url, index) => (
           <div
             key={`${url}-${index}`}
-            className="absolute inset-0 flex items-center justify-center p-5 transition-opacity duration-[400ms] ease-in-out"
+            className="absolute inset-0 flex items-center justify-center p-3 transition-opacity duration-[400ms] ease-in-out sm:p-5"
             style={{ opacity: index === active ? 1 : 0, pointerEvents: index === active ? 'auto' : 'none' }}
             aria-hidden={index !== active}
           >

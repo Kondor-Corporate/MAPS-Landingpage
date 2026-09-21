@@ -40,7 +40,7 @@ export function NewsImageCarousel({ images }: Props) {
         <div
           ref={trackRef}
           onScroll={handleScroll}
-          className="flex h-[260px] snap-x snap-mandatory overflow-x-auto scroll-smooth sm:h-[360px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex h-[220px] snap-x snap-mandatory overflow-x-auto scroll-smooth sm:h-[360px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {images.map((url, index) => (
             <div key={url} className="h-full w-full shrink-0 snap-start">
