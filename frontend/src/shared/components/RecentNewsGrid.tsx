@@ -43,8 +43,8 @@ function LoadingCards({ count }: { count: number }) {
           key={index}
           className="flex animate-pulse flex-col overflow-hidden rounded-2xl bg-white shadow-card"
         >
-          <div className="h-[150px] w-full bg-maps-surface" />
-          <div className="flex flex-col gap-3 p-5">
+          <div className="h-[195px] w-full bg-maps-surface" />
+          <div className="flex flex-col gap-4 p-6">
             <div className="h-3 w-24 rounded bg-maps-surface" />
             <div className="h-5 w-full rounded bg-maps-surface" />
             <div className="h-5 w-3/4 rounded bg-maps-surface" />
@@ -116,7 +116,6 @@ export function RecentNewsGrid({
               key={item.slug ?? item.title}
               item={item}
               onClick={handleOpen}
-              variant="compact"
             />
           ))}
         </div>

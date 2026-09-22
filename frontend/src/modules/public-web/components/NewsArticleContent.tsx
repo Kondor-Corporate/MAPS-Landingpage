@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { FaClock } from 'react-icons/fa';
 import { NewsBody } from '@/shared/components/NewsBody';
 import { NewsImage } from '@/shared/components/NewsImage';
@@ -15,15 +16,47 @@ export function NewsArticleContent({ item, showShare = true }: NewsArticleConten
   const body = item.content?.trim() || item.description?.trim() || '';
   const readingMinutes = estimateReadingMinutes(body.replace(/<[^>]+>/g, ' '));
   const galeria = item.galeria ?? [];
+  // Alto del hero: por defecto un aspect-ratio aproximado (misma sensación que el
+  // frame fijo anterior); en cuanto se conoce la proporción real de la imagen
+  // (`onImageLoad`), el frame se ajusta para mostrarla completa (`object-contain`).
+  const [heroRatio, setHeroRatio] = useState<number | null>(null);
+  const heroImage = item.imageUrl?.trim();
 
   return (
     <article className="overflow-hidden rounded-2xl bg-white shadow-card">
-      <div className="relative h-[200px] w-full overflow-hidden sm:h-[360px]">
+      <div
+        className={`relative w-full overflow-hidden bg-maps-heading transition-[height] duration-300 ease-out min-h-[200px] max-h-[45dvh] sm:min-h-[320px] sm:max-h-[60dvh] ${
+          heroRatio ? '' : 'aspect-[2/1] sm:aspect-[21/9]'
+        }`}
+        style={heroRatio ? { aspectRatio: heroRatio } : undefined}
+      >
+        {heroImage ? (
+          // Relleno decorativo: la misma foto, ampliada y con blur, para que las
+          // imágenes verticales/angostas no dejen franjas negras a los costados
+          // del recorte `object-contain` de la capa principal.
+          <img
+            src={heroImage}
+            alt=""
+            aria-hidden
+            onError={(event) => {
+              event.currentTarget.style.display = 'none';
+            }}
+            className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl"
+          />
+        ) : null}
+        {heroImage ? <div className="absolute inset-0 bg-black/25" /> : null}
         <NewsImage
           src={item.imageUrl}
           gradient={item.imageGradient}
           className="absolute inset-0 h-full w-full"
+          imageClassName="h-full w-full object-contain"
           showIcon={false}
+          onImageLoad={(event) => {
+            const img = event.currentTarget;
+            if (img.naturalWidth && img.naturalHeight) {
+              setHeroRatio(img.naturalWidth / img.naturalHeight);
+            }
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
         <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8">
