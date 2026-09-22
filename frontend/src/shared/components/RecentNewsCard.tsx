@@ -44,6 +44,7 @@ export function RecentNewsCard({
       <NewsImage
         src={item.imageUrl}
         gradient={item.imageGradient}
+        cover={item.cover}
         className={
           isCompact ? 'h-[150px] w-full shrink-0' : 'h-[195px] w-full shrink-0'
         }
