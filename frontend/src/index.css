@@ -20,7 +20,7 @@ html {
   margin-bottom: 0;
 }
 .news-prose p {
-  margin: 0 0 1.25em;
+  margin: 0 0 1.15em;
 }
 .news-prose strong,
 .news-prose b {
@@ -37,7 +37,7 @@ html {
   font-weight: 700;
   letter-spacing: -0.015em;
   color: #131117;
-  margin: 44px 0 18px;
+  margin: clamp(28px, 5vw, 44px) 0 clamp(12px, 2vw, 18px);
 }
 .news-prose ul,
 .news-prose ol {
@@ -55,8 +55,8 @@ html {
 }
 .news-prose blockquote {
   border-left: 2px solid #00a4c0;
-  padding-left: 24px;
-  margin: 36px 0;
+  padding-left: clamp(16px, 3vw, 24px);
+  margin: clamp(24px, 4vw, 36px) 0;
   color: #374151;
   font-style: italic;
 }

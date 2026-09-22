@@ -18,8 +18,8 @@ function LoadingCards() {
           key={index}
           className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-card animate-pulse"
         >
-          <div className="h-[195px] w-full bg-white/20" />
-          <div className="flex flex-col gap-3 p-6">
+          <div className="h-[168px] w-full bg-white/20 sm:h-[195px]" />
+          <div className="flex flex-col gap-3 p-5 sm:p-6">
             <div className="h-3 w-24 rounded bg-white/20" />
             <div className="h-5 w-full rounded bg-white/20" />
             <div className="h-5 w-3/4 rounded bg-white/20" />
@@ -37,8 +37,11 @@ export function NewsPreviewSection() {
   const handleOpen = (item: NewsItem) => openModal(item, news);
 
   return (
-    <section id="noticias" className="scroll-mt-[70px] bg-maps-brand px-4 sm:px-6 lg:px-10 py-16 sm:py-20 lg:py-24">
-      <div className="mx-auto flex max-w-[1200px] flex-col gap-8">
+    <section
+      id="noticias"
+      className="scroll-mt-[60px] bg-maps-brand px-4 py-[clamp(2.75rem,7vw,6rem)] sm:px-6 lg:scroll-mt-[70px] lg:px-10"
+    >
+      <div className="mx-auto flex max-w-[1200px] flex-col gap-6 sm:gap-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
@@ -47,7 +50,7 @@ export function NewsPreviewSection() {
                 Actualidad
               </span>
             </div>
-            <h2 className="text-2xl sm:text-3xl lg:text-[36px] font-bold leading-tight lg:leading-10 tracking-[-0.9px] text-white">
+            <h2 className="text-[clamp(1.5rem,4.5vw,2.25rem)] font-bold leading-[1.15] tracking-[-0.9px] text-white">
               Últimas Noticias y Novedades
             </h2>
           </div>
@@ -74,7 +77,7 @@ export function NewsPreviewSection() {
         ) : null}
 
         {!error && loading ? (
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3 sm:gap-8">
             <LoadingCards />
           </div>
         ) : null}
@@ -89,7 +92,7 @@ export function NewsPreviewSection() {
         ) : null}
 
         {!error && !loading && news.length > 0 ? (
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3 sm:gap-8">
             {news.map((item) => (
               <PublicNewsCard key={item.slug ?? item.title} item={item} onOpen={handleOpen} />
             ))}

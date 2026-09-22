@@ -71,7 +71,7 @@ export function NewsDetailModal() {
       <div className="flex flex-col">
         <NewsArticleContent item={selectedNews} showShare={isPublicPreview} />
         {isPublicPreview ? (
-          <div className="flex flex-col gap-3 border-t border-maps-border px-5 py-5 sm:flex-row sm:px-8">
+          <div className="flex flex-col gap-3 border-t border-maps-border px-5 py-4 sm:flex-row sm:px-8 sm:py-5">
             {selectedNews.slug ? (
               <Link
                 to={`/noticias/${selectedNews.slug}`}
@@ -84,7 +84,7 @@ export function NewsDetailModal() {
           </div>
         ) : null}
         {relatedContent ? (
-          <div className="border-t border-maps-border px-5 pb-8 pt-5 sm:px-8">
+          <div className="border-t border-maps-border px-5 pb-6 pt-4 sm:px-8 sm:pb-8 sm:pt-5">
             {relatedContent}
           </div>
         ) : null}

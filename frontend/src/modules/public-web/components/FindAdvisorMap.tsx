@@ -154,25 +154,25 @@ export function FindAdvisorMap() {
   return (
     <section
       id="mapa"
-      className="grid min-w-0 scroll-mt-[70px] grid-cols-1 lg:grid-cols-[420px_1fr] xl:grid-cols-[704px_1fr]"
+      className="grid min-w-0 scroll-mt-[60px] grid-cols-1 lg:scroll-mt-[70px] lg:grid-cols-[420px_1fr] xl:grid-cols-[704px_1fr]"
     >
-      <div className="flex min-w-0 items-center bg-white px-6 sm:px-10 lg:px-8 xl:px-16 py-12 sm:py-16 lg:py-16 xl:py-32">
-        <div className="flex min-w-0 w-full max-w-[560px] flex-col gap-5">
+      <div className="flex min-w-0 items-center bg-white px-6 py-8 sm:px-10 sm:py-12 lg:px-8 lg:py-16 xl:px-16 xl:py-32">
+        <div className="flex min-w-0 w-full max-w-[560px] flex-col gap-4 sm:gap-5">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-maps-brand-soft text-maps-brand">
             <MapPinIcon className="h-6 w-6" />
           </div>
 
-          <h2 className="text-2xl sm:text-3xl lg:text-[36px] font-bold leading-tight lg:leading-[48px] tracking-[-0.9px] text-maps-heading">
+          <h2 className="text-[clamp(1.5rem,4.5vw,2.25rem)] font-bold leading-[1.15] tracking-[-0.9px] text-maps-heading lg:leading-[48px]">
             Encontrá a tu asesor
           </h2>
 
-          <p className="text-lg leading-[29px] text-maps-muted">
+          <p className="text-[clamp(1rem,2.5vw,1.125rem)] leading-relaxed text-maps-muted">
             Buscá por ciudad o desde tu ubicación actual para elegir los
             asesores más cercanos.
           </p>
 
           <form
-            className="mt-4 flex min-w-0 flex-col gap-2 rounded-xl border border-maps-border bg-white p-2 shadow-card transition focus-within:border-maps-brand focus-within:ring-2 focus-within:ring-maps-brand/20 min-[420px]:h-16 min-[420px]:flex-row min-[420px]:items-stretch min-[420px]:gap-0"
+            className="mt-2 flex min-w-0 flex-col gap-2 rounded-xl border border-maps-border bg-white p-2 shadow-card transition focus-within:border-maps-brand focus-within:ring-2 focus-within:ring-maps-brand/20 sm:mt-4 min-[420px]:h-16 min-[420px]:flex-row min-[420px]:items-stretch min-[420px]:gap-0"
             onSubmit={handleSearch}
           >
             <span className="flex w-9 items-center justify-center text-maps-muted-soft">
@@ -282,7 +282,7 @@ export function FindAdvisorMap() {
         </div>
       </div>
 
-      <div className="relative min-h-[380px] min-w-0 sm:min-h-[460px] lg:min-h-[600px]">
+      <div className="relative min-h-[340px] min-w-0 sm:min-h-[440px] lg:min-h-[600px]">
         {loading && (
           <div className="absolute inset-0 z-map-loading flex items-center justify-center bg-slate-100/80">
             <p className="text-sm font-medium text-maps-muted">Cargando mapa…</p>
@@ -372,7 +372,7 @@ export function FindAdvisorMap() {
             type="button"
             aria-label="Acercar"
             onClick={() => handleZoom(1)}
-            className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-maps-heading shadow-floating hover:bg-maps-surface"
+            className="flex h-11 w-11 items-center justify-center rounded-lg bg-white text-maps-heading shadow-floating hover:bg-maps-surface"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path
@@ -387,7 +387,7 @@ export function FindAdvisorMap() {
             type="button"
             aria-label="Alejar"
             onClick={() => handleZoom(-1)}
-            className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-maps-heading shadow-floating hover:bg-maps-surface"
+            className="flex h-11 w-11 items-center justify-center rounded-lg bg-white text-maps-heading shadow-floating hover:bg-maps-surface"
           >
             <svg width="14" height="2" viewBox="0 0 14 2" fill="none">
               <path d="M1 1h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

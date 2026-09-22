@@ -56,9 +56,9 @@ function PublicBrandLink({ className }: { className: string }) {
       <img
         src={brandLogoSrc}
         alt=""
-        className="h-10 w-auto max-h-10 shrink-0 object-contain"
+        className="h-9 w-auto max-h-9 shrink-0 object-contain lg:h-10 lg:max-h-10"
       />
-      <span className="text-[20px] font-bold tracking-[-0.3px] text-maps-heading">
+      <span className="text-[17px] font-bold tracking-[-0.3px] text-maps-heading lg:text-[20px]">
         MAPSASESORES
       </span>
     </>
@@ -121,7 +121,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
   return (
     <div className="flex min-h-screen flex-col bg-white font-sans text-maps-body antialiased">
       <header className="sticky top-0 z-40 border-b border-maps-border bg-white/90 backdrop-blur-md">
-        <div className="relative flex h-[70px] w-full items-center px-4 sm:px-6 lg:px-10">
+        <div className="relative flex h-[60px] w-full items-center px-4 sm:px-6 lg:h-[70px] lg:px-10">
           <PublicBrandLink className="relative z-10 flex shrink-0 items-center gap-2" />
 
           <nav
@@ -150,7 +150,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
             <button
               type="button"
               onClick={() => setIsMenuOpen((prev) => !prev)}
-              className="flex h-10 w-10 items-center justify-center rounded-lg text-maps-heading transition-colors hover:bg-maps-surface lg:hidden"
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-maps-heading transition-colors hover:bg-maps-surface lg:hidden"
               aria-label={isMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
               aria-expanded={isMenuOpen}
               aria-controls="public-mobile-nav"
@@ -212,7 +212,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
       {isMenuOpen && (
         <button
           type="button"
-          className="fixed inset-0 top-[70px] z-30 bg-black/40 lg:hidden"
+          className="fixed inset-0 top-[60px] z-30 bg-black/40 lg:top-[70px] lg:hidden"
           aria-label="Cerrar menú de navegación"
           onClick={() => setIsMenuOpen(false)}
         />
@@ -221,22 +221,22 @@ export function PublicLayout({ children }: PublicLayoutProps) {
       <main className="flex-1">{children}</main>
       <NewsDetailModal />
 
-      <footer className="relative overflow-hidden bg-white px-4 pb-8 pt-14 text-maps-body sm:px-6 lg:px-10 lg:pt-16">
+      <footer className="relative overflow-hidden bg-white px-4 pb-8 pt-10 text-maps-body sm:px-6 lg:px-10 lg:pt-16">
         <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute -left-24 -top-32 h-80 w-80 rounded-full bg-maps-brand/[0.06] blur-3xl" />
           <div className="absolute -bottom-24 right-0 h-96 w-96 rounded-full bg-maps-brand/[0.05] blur-3xl" />
         </div>
 
         <div className="relative mx-auto max-w-[1188px]">
-          <div className="grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-[1.5fr_0.8fr_1fr] lg:gap-8">
-            <div className="flex flex-col gap-5 lg:pr-8">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-10 lg:grid-cols-[1.5fr_0.8fr_1fr] lg:gap-8">
+            <div className="flex flex-col gap-4 lg:gap-5 lg:pr-8">
               <div className="flex items-center gap-3">
                 <img
                   src={brandLogoSrc}
                   alt=""
-                  className="h-11 w-auto max-h-11 shrink-0 object-contain"
+                  className="h-9 w-auto max-h-9 shrink-0 object-contain lg:h-11 lg:max-h-11"
                 />
-                <span className="text-2xl font-bold tracking-[-0.3px] text-maps-heading">
+                <span className="text-xl font-bold tracking-[-0.3px] text-maps-heading lg:text-2xl">
                   MAPSASESORES
                 </span>
               </div>
@@ -247,7 +247,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
 
               <span aria-hidden className="h-[3px] w-10 rounded-full bg-maps-brand" />
 
-              <ul className="flex flex-wrap gap-x-6 gap-y-4">
+              <ul className="flex flex-wrap gap-x-5 gap-y-2.5">
                 {footerHighlights.map(({ icon: Icon, label }) => (
                   <li key={label} className="flex items-center gap-2">
                     <Icon className="h-5 w-5 shrink-0 text-maps-brand" aria-hidden />
@@ -257,15 +257,15 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               </ul>
             </div>
 
-            <div className="flex flex-col gap-4 border-maps-border lg:border-l lg:pl-8">
+            <div className="flex flex-col gap-3 border-maps-border lg:gap-4 lg:border-l lg:pl-8">
               <h3 className="text-base font-semibold text-maps-heading">Navegación</h3>
               <nav aria-label="Footer">
-                <ul className="flex flex-col gap-3 text-sm">
+                <ul className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm sm:flex sm:flex-col sm:gap-3">
                   {navLinks.map((link) => (
                     <li key={link.to}>
                       <Link
                         to={link.to}
-                        className="text-maps-muted transition-colors hover:text-maps-brand focus-visible:text-maps-brand focus-visible:outline-none"
+                        className="inline-flex min-h-[32px] items-center text-maps-muted transition-colors hover:text-maps-brand focus-visible:text-maps-brand focus-visible:outline-none"
                       >
                         {link.label}
                       </Link>
@@ -275,7 +275,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               </nav>
             </div>
 
-            <div className="flex flex-col gap-4 border-maps-border lg:border-l lg:pl-8">
+            <div className="flex flex-col gap-3 border-maps-border lg:gap-4 lg:border-l lg:pl-8">
               <h3 className="text-base font-semibold text-maps-heading">Acceso Productores</h3>
               <p className="text-sm leading-[22px] text-maps-muted">
                 Si sos productor, accedé a tu cuenta para gestionar tu información.
@@ -291,7 +291,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
             </div>
           </div>
 
-          <div className="mt-10 flex flex-col items-start justify-between gap-4 border-t border-maps-border pt-6 text-sm text-maps-muted md:flex-row md:items-center">
+          <div className="mt-8 flex flex-col items-start justify-between gap-3 border-t border-maps-border pt-5 text-sm text-maps-muted md:mt-10 md:flex-row md:items-center md:gap-4 md:pt-6">
             <p>© 2026 MAPS Asesores. Todos los derechos reservados.</p>
             <p className="flex items-center gap-2">
               Desarrollado por

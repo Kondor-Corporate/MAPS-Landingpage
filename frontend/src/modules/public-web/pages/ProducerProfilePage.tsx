@@ -34,7 +34,7 @@ export function ProducerProfilePage() {
 
   if (loading) {
     return (
-      <article className="bg-maps-surface px-6 py-8 sm:px-8 sm:py-12">
+      <article className="bg-maps-surface px-4 py-6 sm:px-8 sm:py-12">
         <div className="mx-auto max-w-[1232px]">
           <ProfileSkeleton />
         </div>
@@ -60,9 +60,9 @@ export function ProducerProfilePage() {
   }
 
   return (
-    <article className="bg-maps-surface px-6 py-8 sm:px-8 sm:py-12">
+    <article className="bg-maps-surface px-4 py-6 sm:px-8 sm:py-12">
       <div className="mx-auto max-w-[1232px]">
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-6 sm:gap-8">
           <Link
             to="/#mapa"
             className="inline-flex w-fit items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-maps-brand transition-colors hover:text-maps-brand-hover focus:outline-none focus:ring-2 focus:ring-maps-brand/40 focus:ring-offset-2"
@@ -72,8 +72,8 @@ export function ProducerProfilePage() {
           </Link>
           <ProfileHeaderCard profile={profile} variant="public" />
 
-          <div className="grid gap-8 lg:grid-cols-[1fr_390px]">
-            <div className="flex flex-col gap-8">
+          <div className="grid gap-6 sm:gap-8 lg:grid-cols-[1fr_390px]">
+            <div className="flex flex-col gap-6 sm:gap-8">
               <ProfileTrajectorySection
                 bio={profile.bio}
                 emptyMessage="Sin información disponible."

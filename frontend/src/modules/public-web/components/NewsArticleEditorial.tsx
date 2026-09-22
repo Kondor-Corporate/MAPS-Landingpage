@@ -23,24 +23,24 @@ export function NewsArticleEditorial({ item }: Props) {
 
   return (
     <article className="min-w-0 flex-1 basis-[640px]">
-      <div className="mb-5 flex items-center gap-3.5">
+      <div className="mb-4 flex items-center gap-3.5 sm:mb-5">
         <span className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-maps-brand-hover">
           {item.category}
         </span>
         <span className="h-px max-w-[120px] flex-1 bg-maps-border" />
       </div>
 
-      <h1 className="mb-[22px] font-serif text-[33px] font-bold leading-[1.08] tracking-[-0.022em] text-maps-heading sm:text-[46px] lg:text-[58px]">
+      <h1 className="mb-4 font-serif text-[clamp(1.75rem,6vw,3.625rem)] font-bold leading-[1.1] tracking-[-0.022em] text-maps-heading sm:mb-[22px] sm:leading-[1.08]">
         {item.title}
       </h1>
 
       {item.description ? (
-        <p className="mb-[26px] max-w-[32em] font-serif text-[19px] leading-[1.5] text-maps-body sm:text-[23px]">
+        <p className="mb-5 max-w-[32em] font-serif text-[17px] leading-[1.5] text-maps-body sm:mb-[26px] sm:text-[23px]">
           {item.description}
         </p>
       ) : null}
 
-      <div className="mb-8 flex flex-wrap items-center gap-3 border-y border-maps-border py-4 text-[13px] text-maps-muted-soft sm:mb-10">
+      <div className="mb-6 flex flex-wrap items-center gap-3 border-y border-maps-border py-3 text-[13px] text-maps-muted-soft sm:mb-10 sm:py-4">
         {item.publishedAtLabel ? (
           <span>
             Publicado el <time dateTime={item.publishedAt}>{item.publishedAtLabel}</time>
@@ -56,11 +56,11 @@ export function NewsArticleEditorial({ item }: Props) {
 
       <NewsBody
         content={body}
-        className="max-w-[720px] text-[17px] leading-[1.75] text-maps-body sm:text-[19px]"
+        className="max-w-[720px] text-[16px] leading-[1.7] text-maps-body sm:text-[19px] sm:leading-[1.75]"
         emptyLabel="Esta noticia no tiene contenido disponible."
       />
 
-      <div className="mt-9 max-w-[720px] border-t border-maps-border pt-[26px] sm:mt-[52px]">
+      <div className="mt-8 max-w-[720px] border-t border-maps-border pt-6 sm:mt-[52px] sm:pt-[26px]">
         <p className="mb-3.5 text-[11.5px] font-bold uppercase tracking-[0.14em] text-maps-muted-soft">
           Compartir esta noticia
         </p>
