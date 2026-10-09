@@ -7,6 +7,7 @@ import { newsRouter } from './routes/news.routes.js';
 import { libraryRouter } from './routes/library.routes.js';
 import { geocodeRouter } from './routes/geocode.routes.js';
 import { uploadsRouter } from './routes/uploads.routes.js';
+import { postulacionesRouter } from './routes/postulaciones.routes.js';
 
 export const v1Router = Router();
 
@@ -18,3 +19,4 @@ v1Router.use('/news', newsRouter);
 v1Router.use('/library', libraryRouter);
 v1Router.use('/geocode', geocodeRouter);
 v1Router.use('/uploads', uploadsRouter);
+v1Router.use('/postulaciones', postulacionesRouter);

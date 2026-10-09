@@ -134,6 +134,20 @@ model NoticiaImagen {
   @@index([noticiaId])
 }
 
+model Postulacion {
+  id             Int                  @id @default(autoincrement())
+  nombreCompleto String               @map("nombre_completo")
+  dni            String
+  telefono       String
+  matricula      String
+  localidad      String
+  situacion      PostulacionSituacion
+  createdAt      DateTime             @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("postulacion")
+}
+
 model Biblioteca {
   id          Int      @id @default(autoincrement())
   nombre      String
@@ -191,6 +205,11 @@ enum Visibilidad {
 enum RamoTipo {
   PRINCIPAL
   SECUNDARIO
+}
+
+enum PostulacionSituacion {
+  PRODUCTOR_NUEVO
+  TRABAJA_CON_OTRAS
 }
 
 enum CategoriaNoticia {

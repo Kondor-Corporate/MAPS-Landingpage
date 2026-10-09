@@ -1,11 +1,17 @@
 import { z } from 'zod';
-import { PRODUCER_SPECIALTY_KEYS } from '../constants/producerSpecialties.js';
 import {
   LATITUDE_MAX,
   LATITUDE_MIN,
   LONGITUDE_MAX,
   LONGITUDE_MIN,
 } from '../lib/coordinates.js';
+
+/**
+ * Especialidades: catálogo dinámico tomado de los ramos de la Biblioteca Digital.
+ * No se valida contra un enum fijo; se aceptan strings acotados (nombre del ramo)
+ * y se preservan valores históricos. El mapper deduplica y normaliza al persistir.
+ */
+export const especialidadesSchema = z.array(z.string().trim().min(1).max(80)).max(50);
 
 const LATITUDE_MESSAGE = 'La latitud debe estar entre -90 y 90';
 const LONGITUDE_MESSAGE = 'La longitud debe estar entre -180 y 180';
@@ -57,7 +63,7 @@ export const updateMyProfileSchema = z
     idiomas: z.array(z.string().trim().min(1)).optional(),
     latitud: boundedLatitude,
     longitud: boundedLongitude,
-    especialidades: z.array(z.enum(PRODUCER_SPECIALTY_KEYS)).optional(),
+    especialidades: especialidadesSchema.optional(),
     redesSociales: redesSocialesSchema,
   })
   .strict()

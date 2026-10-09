@@ -194,6 +194,32 @@ const NewsIcon: ComponentType<IconProps> = (props) => (
   </svg>
 );
 
+const PostulacionesIcon: ComponentType<IconProps> = (props) => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 20 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+    {...props}
+  >
+    <path
+      d="M2.5 11.5 4 4.25A1.75 1.75 0 0 1 5.71 2.9h8.58a1.75 1.75 0 0 1 1.71 1.35L17.5 11.5"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M2.5 11.5h4l1 2h5l1-2h4v4.25A1.75 1.75 0 0 1 15.75 17.5H4.25A1.75 1.75 0 0 1 2.5 15.75V11.5Z"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 export type SidebarItem = {
   label: string;
   to: string;
@@ -230,6 +256,7 @@ const adminItems: SidebarItem[] = [
   { label: 'Dashboard', to: '/admin/dashboard', icon: DashboardIcon },
   { label: 'Productores', to: '/admin/productores', icon: ProducersIcon },
   { label: 'Productores inactivos', to: '/admin/inactivos', icon: ProducersIcon },
+  { label: 'Postulaciones', to: '/admin/postulaciones', icon: PostulacionesIcon },
   { label: 'Noticias', to: '/admin/noticias', icon: NewsIcon },
   { label: 'Biblioteca Digital', to: '/admin/biblioteca', icon: LibraryIcon },
   accesoSelfItem,
@@ -240,6 +267,7 @@ const superadminItems: SidebarItem[] = [
   { label: 'Dashboard', to: '/admin/dashboard', icon: DashboardIcon },
   { label: 'Productores', to: '/admin/productores', icon: ProducersIcon },
   { label: 'Productores inactivos', to: '/admin/inactivos', icon: ProducersIcon },
+  { label: 'Postulaciones', to: '/admin/postulaciones', icon: PostulacionesIcon },
   { label: 'Administradores', to: '/admin/admins', icon: AdminsIcon },
   { label: 'Noticias', to: '/admin/noticias', icon: NewsIcon },
   { label: 'Biblioteca Digital', to: '/admin/biblioteca', icon: LibraryIcon },

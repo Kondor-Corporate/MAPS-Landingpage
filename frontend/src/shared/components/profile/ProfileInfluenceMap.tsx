@@ -4,18 +4,23 @@ import type { ProfileViewModel } from '@/shared/types/producerProfile';
 
 type Props = {
   profile: Pick<ProfileViewModel, 'ciudad' | 'latitud' | 'longitud'>;
+  showTitle?: boolean;
 };
 
-export function ProfileInfluenceMap({ profile }: Props) {
+export function ProfileInfluenceMap({ profile, showTitle = true }: Props) {
   const hasCoords = profile.latitud != null && profile.longitud != null;
 
   return (
     <section className="rounded-2xl border border-maps-border bg-white p-6 shadow-profile sm:p-8">
-      <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-        <MapPin className="size-5 text-maps-brand" aria-hidden />
-        Zona de influencia
-      </h2>
-      <div className="mt-4 overflow-hidden rounded-2xl border border-maps-border bg-slate-50">
+      {showTitle && (
+        <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+          <MapPin className="size-5 text-maps-brand" aria-hidden />
+          Zona de influencia
+        </h2>
+      )}
+      <div
+        className={`overflow-hidden rounded-2xl border border-maps-border bg-slate-50${showTitle ? ' mt-4' : ''}`}
+      >
         {hasCoords ? (
           <SingleProducerMap
             latitud={profile.latitud!}

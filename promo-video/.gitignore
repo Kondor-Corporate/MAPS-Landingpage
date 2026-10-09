@@ -1,0 +1,24 @@
+node_modules
+dist
+.DS_Store
+.env
+
+# Ignore the output video from Git but not videos you import into src/.
+out
+
+# --- Captura Playwright (Etapa 1) ---
+# Sesión autenticada del productor: NUNCA debe commitearse.
+.auth/
+
+# Reportes / artefactos de Playwright.
+playwright-report/
+test-results/
+
+# Assets generados por las capturas (se conservan solo los .gitkeep de las carpetas).
+public/screenshots/**
+public/recordings/**
+!public/screenshots/public-web/
+!public/screenshots/intranet/
+!public/screenshots/public-web/.gitkeep
+!public/screenshots/intranet/.gitkeep
+!public/recordings/.gitkeep

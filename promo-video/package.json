@@ -1,0 +1,41 @@
+{
+  "name": "promo-video",
+  "version": "1.0.0",
+  "description": "My Remotion video",
+  "repository": {},
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@remotion/cli": "4.0.527",
+    "@remotion/google-fonts": "^4.0.527",
+    "@remotion/tailwind-v4": "4.0.527",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.527",
+    "tailwindcss": "4.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@remotion/eslint-config-flat": "4.0.527",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "9.19.0",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion bundle",
+    "upgrade": "remotion upgrade",
+    "lint": "eslint src && tsc",
+    "capture:setup": "playwright test --config=playwright.capture.config.ts --project=setup",
+    "capture:public": "playwright test --config=playwright.capture.config.ts --project=public-web",
+    "capture:intranet": "playwright test --config=playwright.capture.config.ts --project=intranet",
+    "capture:map": "playwright test --config=playwright.capture.config.ts --project=map",
+    "capture:login": "playwright test --config=playwright.capture.config.ts --project=login-dashboard",
+    "capture:all": "playwright test --config=playwright.capture.config.ts"
+  },
+  "sideEffects": [
+    "*.css"
+  ]
+}

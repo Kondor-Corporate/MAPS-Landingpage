@@ -1,10 +1,10 @@
 import type { Certificacion, Prisma, Productor, RedSocial, Usuario } from '@prisma/client';
-import {
-  PRODUCER_SPECIALTY_KEYS,
-  specialtyKeyToLabel,
-  type ProducerSpecialtyKey,
-} from '../constants/producerSpecialties.js';
+import { specialtyKeyToLabel } from '../constants/producerSpecialties.js';
 import { normalizeCoordinates } from './coordinates.js';
+
+/** Tope defensivo para el campo libre de especialidades (catálogo dinámico de la Biblioteca). */
+const MAX_ESPECIALIDADES = 50;
+const MAX_ESPECIALIDAD_LENGTH = 80;
 
 export type ProductorWithRelations = Productor & {
   usuario: Pick<Usuario, 'usuario' | 'activo'>;
@@ -21,22 +21,45 @@ export type AdminProducerRow = Productor & {
   certificaciones: Certificacion[];
 };
 
-export function parseEspecialidadesJson(raw: string | null): ProducerSpecialtyKey[] {
+/**
+ * Las especialidades se almacenan como JSON array de strings. El catálogo ahora
+ * proviene de los ramos de la Biblioteca Digital (valores = nombre del ramo), por
+ * lo que no se valida contra un enum fijo; se aceptan strings arbitrarios acotados
+ * y se conservan los valores históricos (claves antiguas como `viajero`, `mascotas`).
+ */
+export function parseEspecialidadesJson(raw: string | null): string[] {
   if (!raw || raw.trim() === '') return [];
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((k): k is ProducerSpecialtyKey =>
-      typeof k === 'string' && (PRODUCER_SPECIALTY_KEYS as readonly string[]).includes(k),
-    );
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const item of parsed) {
+      if (typeof item !== 'string') continue;
+      const value = item.trim();
+      if (value === '' || value.length > MAX_ESPECIALIDAD_LENGTH || seen.has(value)) continue;
+      seen.add(value);
+      result.push(value);
+      if (result.length >= MAX_ESPECIALIDADES) break;
+    }
+    return result;
   } catch {
     return [];
   }
 }
 
-export function serializeEspecialidades(keys: ProducerSpecialtyKey[]): string | null {
-  if (keys.length === 0) return null;
-  return JSON.stringify(keys);
+export function serializeEspecialidades(keys: string[]): string | null {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const key of keys) {
+    const value = key.trim();
+    if (value === '' || value.length > MAX_ESPECIALIDAD_LENGTH || seen.has(value)) continue;
+    seen.add(value);
+    normalized.push(value);
+    if (normalized.length >= MAX_ESPECIALIDADES) break;
+  }
+  if (normalized.length === 0) return null;
+  return JSON.stringify(normalized);
 }
 
 function mapCertificaciones(rows: Certificacion[]) {
@@ -124,7 +147,7 @@ export type MapProducerDto = {
   foto: string | null;
   whatsapp: string | null;
   verificado: boolean;
-  especialidades: { clave: ProducerSpecialtyKey; label: string }[];
+  especialidades: { clave: string; label: string }[];
   redesSociales: { plataforma: string; url: string; orden: number }[];
 };
 
@@ -199,7 +222,7 @@ export type UpdateMyProfileInput = {
   idiomas?: string[];
   latitud?: number;
   longitud?: number;
-  especialidades?: ProducerSpecialtyKey[];
+  especialidades?: string[];
   redesSociales?: { plataforma: string; url: string; orden?: number }[];
 };
 
