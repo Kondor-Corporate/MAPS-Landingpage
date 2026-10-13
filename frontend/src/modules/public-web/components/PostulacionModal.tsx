@@ -20,6 +20,8 @@ type FormState = {
   matricula: string;
   localidad: string;
   situacion: PostulacionSituacion | '';
+  /** Honeypot anti-bot: oculto para usuarios legítimos; debe permanecer vacío. */
+  website: string;
 };
 
 type FieldErrors = Partial<Record<keyof FormState, string>>;
@@ -31,6 +33,7 @@ const EMPTY_FORM: FormState = {
   matricula: '',
   localidad: '',
   situacion: '',
+  website: '',
 };
 
 const SITUACION_OPTIONS: { value: PostulacionSituacion; label: string }[] = [
@@ -128,6 +131,7 @@ export function PostulacionModal({ isOpen, onClose }: Props) {
       matricula: form.matricula.trim(),
       localidad: form.localidad.trim(),
       situacion: form.situacion as PostulacionSituacion,
+      website: form.website,
     };
 
     submitLockRef.current = true;
@@ -185,6 +189,27 @@ export function PostulacionModal({ isOpen, onClose }: Props) {
                 {submitError}
               </p>
             ) : null}
+
+            {/*
+              Honeypot anti-bot: invisible y fuera del tab-order para personas; las
+              automatizaciones simples que completan todos los campos lo llenan y el
+              backend descarta la postulación en silencio. No afecta accesibilidad
+              (aria-hidden) ni autocompletado legítimo (autoComplete off).
+            */}
+            <div
+              aria-hidden="true"
+              style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}
+            >
+              <label htmlFor={`${fieldId}-website`}>No completar este campo</label>
+              <input
+                id={`${fieldId}-website`}
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                value={form.website}
+                onChange={(e) => updateField('website', e.target.value)}
+              />
+            </div>
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor={`${fieldId}-nombre`} className={labelClass}>

@@ -7,4 +7,6 @@ export type CreatePostulacionPayload = {
   matricula: string;
   localidad: string;
   situacion: PostulacionSituacion;
+  /** Honeypot anti-bot: siempre vacío para usuarios legítimos (campo señuelo oculto). */
+  website?: string;
 };

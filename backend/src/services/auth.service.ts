@@ -95,7 +95,9 @@ export const authService = {
     const env = getEnv();
     let payload: jwt.JwtPayload & { sub?: string; role?: Rol; typ?: string };
     try {
-      payload = jwt.verify(refreshToken, env.REFRESH_SECRET) as typeof payload;
+      payload = jwt.verify(refreshToken, env.REFRESH_SECRET, {
+        algorithms: ['HS256'],
+      }) as typeof payload;
     } catch {
       throw new AppError(401, 'Refresh token inválido o expirado');
     }
@@ -171,6 +173,7 @@ export const authService = {
     let payload: jwt.JwtPayload & { typ?: string };
     try {
       payload = jwt.verify(refreshToken, env.REFRESH_SECRET, {
+        algorithms: ['HS256'],
         ignoreExpiration: true,
       }) as typeof payload;
     } catch {

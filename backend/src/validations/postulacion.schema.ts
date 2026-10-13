@@ -38,6 +38,13 @@ export const createPostulacionSchema = z
     situacion: z.enum(['PRODUCTOR_NUEVO', 'TRABAJA_CON_OTRAS'], {
       errorMap: () => ({ message: 'Seleccioná una opción' }),
     }),
+    /**
+     * Honeypot anti-bot: campo señuelo que el formulario mantiene oculto y fuera
+     * del tab-order. Los usuarios legítimos lo envían vacío; si llega con valor es
+     * automatización. Se acepta en el schema (no se devuelve 422) para no revelar
+     * la detección: el descarte ocurre silenciosamente en el servicio.
+     */
+    website: z.string().max(200).optional(),
   })
   .strict();
 

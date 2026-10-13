@@ -145,6 +145,8 @@ model Postulacion {
   createdAt      DateTime             @default(now()) @map("created_at")
 
   @@index([createdAt])
+  // Soporta la deduplicación blanda (DNI + matrícula dentro de una ventana).
+  @@index([dni, matricula, createdAt])
   @@map("postulacion")
 }
 

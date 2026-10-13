@@ -1,12 +1,32 @@
+import type { Request, Response } from 'express';
 import type {
   IncrementResponse,
   Options,
+  RateLimitInfo,
   Store,
 } from 'express-rate-limit';
 import { MemoryStore } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import type { RedisReply } from 'rate-limit-redis';
 import { getRedisClient, isRedisHealthy } from '../lib/redis.js';
+
+/**
+ * Handler 429 compartido por los limiters: responde con el envelope estándar de la
+ * API y añade `Retry-After` (hint de reintento razonable) **sin** exponer los
+ * encabezados `RateLimit-*`/`X-RateLimit-*`, para no revelar umbral ni ventana de
+ * la regla. Usar junto con `standardHeaders: false` y `legacyHeaders: false`.
+ */
+export function rateLimitJsonHandler(message: string) {
+  return (req: Request, res: Response): void => {
+    const info = (req as unknown as { rateLimit?: RateLimitInfo }).rateLimit;
+    const resetTime = info?.resetTime;
+    if (resetTime instanceof Date) {
+      const seconds = Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000));
+      res.setHeader('Retry-After', String(seconds));
+    }
+    res.status(429).json({ data: null, message, error: null });
+  };
+}
 
 /**
  * Store resiliente para express-rate-limit: usa Redis mientras esté sano

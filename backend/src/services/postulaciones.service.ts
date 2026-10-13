@@ -42,10 +42,48 @@ function toPostulacionDto(row: PostulacionRow): PostulacionDto {
   };
 }
 
+/**
+ * Ventana de deduplicación blanda: una postulación idéntica (mismo DNI + matrícula)
+ * recibida dentro de este lapso se considera reenvío (accidental o automatizado) y
+ * no genera una fila nueva. No es un bloqueo duro: pasada la ventana, la misma
+ * persona puede volver a postularse.
+ */
+const DEDUP_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export type CreatePostulacionResult = {
+  /** `false` si se descartó por honeypot o por ser un duplicado reciente. */
+  persisted: boolean;
+};
+
 export const postulacionesService = {
-  /** Alta pública de una postulación. No expone datos; sólo confirma la recepción. */
-  async create(input: CreatePostulacionInput): Promise<{ id: number }> {
-    const created = await prisma.postulacion.create({
+  /**
+   * Alta pública de una postulación. No expone datos; sólo confirma la recepción.
+   * Aplica honeypot anti-bot y deduplicación blanda antes de persistir. En ambos
+   * casos de descarte devuelve igual (sin error) para no revelar la detección ni
+   * la existencia previa de la postulación (anti-enumeración).
+   */
+  async create(input: CreatePostulacionInput): Promise<CreatePostulacionResult> {
+    // Honeypot: campo señuelo oculto. Si llega con valor es automatización simple;
+    // se acepta en silencio (misma respuesta 201) pero no se persiste.
+    if (typeof input.website === 'string' && input.website.trim() !== '') {
+      return { persisted: false };
+    }
+
+    // Deduplicación blanda por DNI + matrícula dentro de la ventana.
+    const since = new Date(Date.now() - DEDUP_WINDOW_MS);
+    const duplicate = await prisma.postulacion.findFirst({
+      where: {
+        dni: input.dni,
+        matricula: input.matricula,
+        createdAt: { gte: since },
+      },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return { persisted: false };
+    }
+
+    await prisma.postulacion.create({
       data: {
         nombreCompleto: input.nombreCompleto,
         dni: input.dni,
@@ -56,7 +94,7 @@ export const postulacionesService = {
       },
       select: { id: true },
     });
-    return { id: created.id };
+    return { persisted: true };
   },
 
   /** Listado para consulta administrativa (lectura restringida a ADMIN/SUPERADMIN). */
