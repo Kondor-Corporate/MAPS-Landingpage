@@ -85,7 +85,7 @@ export function ProducerProfilePage() {
                 anosExperiencia={profile.anosExperiencia}
                 clientesActivos={profile.clientesActivos}
               />
-              <ProfileInfluenceMap profile={profile} />
+              <ProfileInfluenceMap profile={profile} showTitle={false} />
               <ProfileCertificationsList
                 certificaciones={profile.certificaciones}
                 emptyMessage="No hay certificaciones disponibles."

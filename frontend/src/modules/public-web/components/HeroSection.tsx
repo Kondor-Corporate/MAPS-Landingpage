@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import heroBg from '@/assets/images/hero-bg.webp';
+import { PostulacionModal } from '@/modules/public-web/components/PostulacionModal';
 
 export function HeroSection() {
+  const [postulacionOpen, setPostulacionOpen] = useState(false);
+
   return (
     <section
       id="inicio"
@@ -49,6 +53,13 @@ export function HeroSection() {
             >
               Acceso Productores
             </Link>
+            <button
+              type="button"
+              onClick={() => setPostulacionOpen(true)}
+              className="inline-flex h-11 min-w-[150px] items-center justify-center rounded-lg bg-white px-6 text-[15px] font-bold text-maps-brand shadow-cta transition-colors hover:bg-white/90 sm:h-12 sm:min-w-[160px] sm:text-base"
+            >
+              Postularse
+            </button>
           </div>
 
           <p className="mt-2 border-t border-white/10 pt-4 text-sm text-white/70 sm:mt-4 sm:pt-6">
@@ -56,6 +67,8 @@ export function HeroSection() {
           </p>
         </div>
       </div>
+
+      <PostulacionModal isOpen={postulacionOpen} onClose={() => setPostulacionOpen(false)} />
     </section>
   );
 }

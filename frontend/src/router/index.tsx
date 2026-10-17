@@ -61,6 +61,12 @@ const InactiveProducersPage = lazy(() =>
   })),
 );
 
+const PostulacionesPage = lazy(() =>
+  import('@/modules/admin/pages/PostulacionesPage').then((module) => ({
+    default: module.PostulacionesPage,
+  })),
+);
+
 const NewsManagementPage = lazy(() =>
   import('@/modules/admin/pages/NewsManagementPage').then((module) => ({
     default: module.NewsManagementPage,
@@ -251,6 +257,14 @@ const adminBranch = {
               element: (
                 <LazyRoute>
                   <InactiveProducersPage />
+                </LazyRoute>
+              ),
+            },
+            {
+              path: 'postulaciones',
+              element: (
+                <LazyRoute>
+                  <PostulacionesPage />
                 </LazyRoute>
               ),
             },

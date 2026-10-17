@@ -27,7 +27,7 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
   let payload: JWTPayload;
   try {
     const env = loadEnv();
-    payload = jwt.verify(token, env.JWT_SECRET) as JWTPayload;
+    payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as JWTPayload;
   } catch {
     next(new AppError(401, 'Token inválido o expirado'));
     return;

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { PRODUCER_SPECIALTY_KEYS } from '../constants/producerSpecialties.js';
 import {
   LATITUDE_MAX,
   LATITUDE_MIN,
@@ -7,7 +6,7 @@ import {
   LONGITUDE_MIN,
 } from '../lib/coordinates.js';
 import { passwordSchema } from '../lib/passwordPolicy.js';
-import { redesSocialesSchema } from './producerProfile.schema.js';
+import { especialidadesSchema, redesSocialesSchema } from './producerProfile.schema.js';
 
 const LATITUDE_MESSAGE = 'La latitud debe estar entre -90 y 90';
 const LONGITUDE_MESSAGE = 'La longitud debe estar entre -180 y 180';
@@ -73,7 +72,7 @@ const optionalSpecialtyArray = z.preprocess(
     }
     return value;
   },
-  z.array(z.enum(PRODUCER_SPECIALTY_KEYS)).optional(),
+  especialidadesSchema.optional(),
 );
 
 const producerCoreFields = {
