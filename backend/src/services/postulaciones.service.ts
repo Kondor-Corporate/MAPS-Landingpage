@@ -43,10 +43,12 @@ function toPostulacionDto(row: PostulacionRow): PostulacionDto {
 }
 
 /**
- * Ventana de deduplicación blanda: una postulación idéntica (mismo DNI + matrícula)
- * recibida dentro de este lapso se considera reenvío (accidental o automatizado) y
- * no genera una fila nueva. No es un bloqueo duro: pasada la ventana, la misma
- * persona puede volver a postularse.
+ * Ventana de deduplicación blanda: un reenvío con el mismo payload persistido
+ * (nombre, DNI, teléfono, matrícula, localidad y situación) dentro de este lapso
+ * se considera accidental o automatizado y no genera una fila nueva. Cambiar
+ * cualquiera de esos campos es una corrección legítima y sí se persiste. No se
+ * actualiza una postulación previa. Pasada la ventana, el mismo payload puede
+ * volver a postularse.
  */
 const DEDUP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -69,12 +71,17 @@ export const postulacionesService = {
       return { persisted: false };
     }
 
-    // Deduplicación blanda por DNI + matrícula dentro de la ventana.
+    // Deduplicación blanda: solo descarta si todo el payload persistido coincide.
+    // El honeypot `website` no participa porque no se guarda.
     const since = new Date(Date.now() - DEDUP_WINDOW_MS);
     const duplicate = await prisma.postulacion.findFirst({
       where: {
         dni: input.dni,
         matricula: input.matricula,
+        nombreCompleto: input.nombreCompleto,
+        telefono: input.telefono,
+        localidad: input.localidad,
+        situacion: input.situacion,
         createdAt: { gte: since },
       },
       select: { id: true },

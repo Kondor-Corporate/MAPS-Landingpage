@@ -13,6 +13,7 @@ import { geocodeAddress } from '../lib/geocode.js';
 import {
   buildProductorUpdateFromAdmin,
   buildProductorUpdateFromMyProfile,
+  parseEspecialidadesJson,
   serializeEspecialidades,
   toAdminProducerDto,
   toMapProducerDto,
@@ -31,6 +32,9 @@ import {
   compensateUploadFailure,
 } from '../lib/storageConsistency.js';
 import { assertAllowedUploadContent } from '../lib/uploadContentValidation.js';
+
+/** Biblioteca principal (misma que library.service y el seed). */
+const BIBLIOTECA_ID = 1;
 
 const usuarioListSelect = {
   id: true,
@@ -299,6 +303,40 @@ async function resolveFinalLocation(input: {
   return {};
 }
 
+/**
+ * Las especialidades nuevas deben ser nombres de ramos activos de la Biblioteca.
+ * Un productor existente también puede conservar valores que ya tenía, aunque
+ * ya no existan como ramo actual.
+ */
+async function assertEspecialidadesPermitidas(
+  especialidades: string[] | undefined,
+  historicasRaw?: string | null,
+): Promise<void> {
+  if (especialidades === undefined || especialidades.length === 0) return;
+
+  const requested = [
+    ...new Set(especialidades.map((value) => value.trim()).filter(Boolean)),
+  ];
+
+  const ramosActivos = await prisma.ramo.findMany({
+    where: {
+      bibliotecaId: BIBLIOTECA_ID,
+      activo: true,
+    },
+    select: { nombre: true },
+  });
+
+  const allowed = new Set(ramosActivos.map((ramo) => ramo.nombre.trim()));
+
+  for (const historical of parseEspecialidadesJson(historicasRaw ?? null)) {
+    allowed.add(historical);
+  }
+
+  if (requested.some((value) => !allowed.has(value))) {
+    throw new AppError(422, 'Una o más especialidades no están disponibles');
+  }
+}
+
 export const producersService = {
   async list(query: ListProducersQuery): Promise<AdminProducerRow[]> {
     const where: Prisma.ProductorWhereInput =
@@ -329,6 +367,8 @@ export const producersService = {
     },
     options?: { creadoPorId?: number },
   ): Promise<AdminProducerRow> {
+    await assertEspecialidadesPermitidas(input.especialidades);
+
     const emailNorm = input.email.trim().toLowerCase();
     const existing = await prisma.usuario.findUnique({
       where: { usuario: emailNorm },
@@ -416,6 +456,8 @@ export const producersService = {
     if (!current) {
       throw new AppError(404, 'Productor no encontrado');
     }
+
+    await assertEspecialidadesPermitidas(input.especialidades, current.especialidades);
 
     const dataProductor = buildProductorUpdateFromAdmin(input);
 
@@ -546,6 +588,8 @@ export const producersService = {
     if (!current) {
       throw new AppError(404, 'Perfil de productor no encontrado');
     }
+
+    await assertEspecialidadesPermitidas(input.especialidades, current.especialidades);
 
     const dataProductor = buildProductorUpdateFromMyProfile(input);
 

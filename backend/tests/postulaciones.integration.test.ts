@@ -69,7 +69,7 @@ describe('postulaciones API (integración)', () => {
     expect(rows).toHaveLength(1);
   });
 
-  it('POST / — reenvío duplicado (mismo DNI + matrícula) → 201 pero una sola fila', async () => {
+  it('POST / — payload idéntico dentro de 24h → 201 pero una sola fila', async () => {
     const payload = validPayload({ dni: '27888999' });
 
     await request(app).post(BASE).send(payload).expect(201);
@@ -78,6 +78,27 @@ describe('postulaciones API (integración)', () => {
 
     const rows = await prisma.postulacion.findMany({ where: { matricula: payload.matricula } });
     expect(rows).toHaveLength(1);
+  });
+
+  it('POST / — mismo DNI y matrícula con teléfono corregido → 201 y dos filas', async () => {
+    const payload = validPayload({ dni: '27888998' });
+
+    await request(app).post(BASE).send(payload).expect(201);
+
+    const corrected = {
+      ...payload,
+      telefono: '+54 221 444-7788',
+    };
+
+    await request(app).post(BASE).send(corrected).expect(201);
+
+    const rows = await prisma.postulacion.findMany({
+      where: { matricula: payload.matricula },
+      orderBy: { id: 'asc' },
+    });
+
+    expect(rows).toHaveLength(2);
+    expect(rows[1]?.telefono).toBe(corrected.telefono);
   });
 
   // ─── Validación / anti-abuso de entrada ──────────────────────────────────────

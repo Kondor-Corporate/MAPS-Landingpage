@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { loadEnv } from '../src/config/env.js';
+import { prisma } from '../src/lib/prisma.js';
 
 vi.mock('../src/lib/geocode.js', () => ({
   geocodeAddress: vi.fn(async () => ({ latitud: -34.9214, longitud: -57.9545 })),
@@ -308,6 +309,50 @@ describe('producers API (integración)', () => {
       r.usuario.usuario.toLowerCase(),
     );
     expect(emails).toContain(email.toLowerCase());
+  });
+
+  it('POST / — especialidad de ramo activo → 201', async () => {
+    const adminToken = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+    const res = await createProducer(app, adminToken, {
+      especialidades: ['Automotores'],
+    }).expect(201);
+
+    const claves = (res.body.data.especialidades as { clave: string }[]).map((item) => item.clave);
+    expect(claves).toContain('Automotores');
+  });
+
+  it('POST / — especialidad inventada → 422', async () => {
+    const adminToken = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+    const res = await createProducer(app, adminToken, {
+      especialidades: ['Especialidad inventada release test'],
+    }).expect(422);
+
+    expect(res.body.message).toBe('Una o más especialidades no están disponibles');
+  });
+
+  it('PATCH /:id — conserva especialidad histórica y rechaza una nueva inventada', async () => {
+    const adminToken = await loginUsuarioPassword(app, 'admin', 'Admin1234!');
+    const createRes = await createProducer(app, adminToken).expect(201);
+    const id = createRes.body.data.id as number;
+
+    await prisma.productor.update({
+      where: { id },
+      data: { especialidades: JSON.stringify(['legacy-release-test']) },
+    });
+
+    await request(app)
+      .patch(`${BASE}/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ especialidades: ['legacy-release-test'] })
+      .expect(200);
+
+    const rejected = await request(app)
+      .patch(`${BASE}/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ especialidades: ['legacy-release-test', 'inventada-nueva'] })
+      .expect(422);
+
+    expect(rejected.body.message).toBe('Una o más especialidades no están disponibles');
   });
 
   // ─── Cambio de contraseña self-service (PATCH /producers/me/password) ─────────
