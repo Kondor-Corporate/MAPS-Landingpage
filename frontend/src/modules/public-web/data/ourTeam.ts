@@ -5,7 +5,7 @@ export const ourTeam: OurTeamMember[] = [
   {
     id: '1',
     nombre: 'Maximiliano',
-    apellido: 'Perez',
+    apellido: 'Pérez',
     puesto: 'Líder Organización',
     foto: '/team/maximiliano-perez.webp',
   },

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal } from '@/shared/components/Modal';
 import { AddressMapPicker } from '@/shared/components/map/AddressMapPicker';
 import { ProducerCertificationsManager } from '@/shared/components/profile/ProducerCertificationsManager';
-import { PRODUCER_SPECIALTY_CATALOG } from '@/modules/intranet/constants/producerSpecialties';
+import { specialtyLabel } from '@/modules/intranet/constants/producerSpecialties';
+import { useLibraryRamos } from '@/modules/intranet/hooks/useLibraryRamos';
 import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
 import type {
   ProducerProfile,
@@ -66,6 +67,13 @@ export function ProducerProfileForm({
   const [error, setError] = useState<string | null>(null);
   const wasOpenRef = useRef(false);
   const submitLockRef = useRef(false);
+  const { ramos, loading: ramosLoading, error: ramosError } = useLibraryRamos();
+
+  // Catálogo vigente: ramos activos de la Biblioteca Digital (fuente única).
+  const ramoOptions = ramos.filter((r) => r.activo).map((r) => r.nombre);
+  // Especialidades guardadas que ya no están entre los ramos activos (históricas o
+  // ramos desactivados): se muestran igualmente para no perder la selección previa.
+  const extraSelected = [...form.especialidades].filter((v) => !ramoOptions.includes(v));
 
   useEffect(() => {
     if (open && !wasOpenRef.current) {
@@ -217,21 +225,47 @@ export function ProducerProfileForm({
 
           <fieldset>
             <legend className="text-sm font-medium text-maps-heading">Especialidades</legend>
-            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {PRODUCER_SPECIALTY_CATALOG.map((esp) => (
-                <label
-                  key={esp.clave}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-maps-border px-2 py-2 text-xs"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.especialidades.has(esp.clave)}
-                    onChange={() => toggleEspecialidad(esp.clave)}
-                  />
-                  {esp.label}
-                </label>
-              ))}
-            </div>
+            <p className="mt-1 text-xs text-maps-muted">
+              Seleccioná los ramos de la Biblioteca Digital en los que te especializás.
+            </p>
+            {ramosError ? (
+              <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
+                No pudimos cargar los ramos de la Biblioteca. {ramosError}
+              </p>
+            ) : null}
+            {ramosLoading ? (
+              <p className="mt-2 text-xs text-maps-muted">Cargando ramos…</p>
+            ) : (
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {ramoOptions.map((nombre) => (
+                  <label
+                    key={nombre}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-maps-border px-2 py-2 text-xs"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.especialidades.has(nombre)}
+                      onChange={() => toggleEspecialidad(nombre)}
+                    />
+                    {nombre}
+                  </label>
+                ))}
+                {extraSelected.map((value) => (
+                  <label
+                    key={value}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-2 py-2 text-xs"
+                    title="Especialidad previa que no figura entre los ramos activos de la Biblioteca"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.especialidades.has(value)}
+                      onChange={() => toggleEspecialidad(value)}
+                    />
+                    {specialtyLabel(value)}
+                  </label>
+                ))}
+              </div>
+            )}
           </fieldset>
 
           <label className="block text-sm font-medium text-maps-heading">
