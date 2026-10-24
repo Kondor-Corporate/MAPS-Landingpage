@@ -39,6 +39,16 @@ export const createPostulacionSchema = z
       errorMap: () => ({ message: 'Seleccioná una opción' }),
     }),
     /**
+     * Señal explícita de consentimiento. Sólo el literal `true` es válido:
+     * `false`, ausente, `null`, `"true"` o `1` se rechazan. El servidor registra
+     * el timestamp y la versión; el cliente no puede enviarlos.
+     */
+    consentimiento: z.literal(true, {
+      errorMap: () => ({
+        message: 'Debés aceptar el uso de tus datos para enviar la postulación.',
+      }),
+    }),
+    /**
      * Honeypot anti-bot: campo señuelo que el formulario mantiene oculto y fuera
      * del tab-order. Los usuarios legítimos lo envían vacío; si llega con valor es
      * automatización. Se acepta en el schema (no se devuelve 422) para no revelar
@@ -49,3 +59,8 @@ export const createPostulacionSchema = z
   .strict();
 
 export type CreatePostulacionInput = z.infer<typeof createPostulacionSchema>;
+
+/** `id` numérico positivo en `DELETE /postulaciones/:id`. Local a este recurso. */
+export const postulacionIdParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});

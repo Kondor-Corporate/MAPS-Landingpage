@@ -12,3 +12,8 @@ export async function listPostulaciones(): Promise<Postulacion[]> {
   const res = await api.get<ApiSuccess<Postulacion[]>>('/postulaciones');
   return unwrap(res);
 }
+
+/** Eliminación física. El backend sólo la autoriza a SUPERADMIN. */
+export async function deletePostulacion(id: number): Promise<void> {
+  await api.delete<ApiSuccess<null>>(`/postulaciones/${id}`);
+}

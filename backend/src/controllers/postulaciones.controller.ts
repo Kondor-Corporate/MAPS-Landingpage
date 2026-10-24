@@ -31,4 +31,19 @@ export const postulacionesController = {
       next(err);
     }
   }) satisfies RequestHandler,
+
+  /** DELETE /postulaciones/:id (solo SUPERADMIN): eliminación física de una fila. */
+  remove: (async (req, res, next) => {
+    try {
+      const id = Number(req.params.id);
+      await postulacionesService.remove(id);
+      res.status(200).json({
+        data: null,
+        message: 'Postulación eliminada',
+        error: null,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }) satisfies RequestHandler,
 };

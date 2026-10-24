@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
-import { listPostulaciones } from '@/modules/admin/services/postulaciones.service';
+import {
+  deletePostulacion,
+  listPostulaciones,
+} from '@/modules/admin/services/postulaciones.service';
 import type { Postulacion } from '@/modules/admin/types/postulacion';
 
-/** Fetch de postulaciones (solo lectura). Misma estrategia que `useAdminAdmins`. */
+/** Fetch de postulaciones y baja local tras un DELETE exitoso. */
 export function useAdminPostulaciones() {
   const [data, setData] = useState<Postulacion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,5 +30,10 @@ export function useAdminPostulaciones() {
     void refetch();
   }, [refetch]);
 
-  return { data, loading, error, refetch };
+  const remove = useCallback(async (id: number) => {
+    await deletePostulacion(id);
+    setData((prev) => prev.filter((row) => row.id !== id));
+  }, []);
+
+  return { data, loading, error, refetch, remove };
 }

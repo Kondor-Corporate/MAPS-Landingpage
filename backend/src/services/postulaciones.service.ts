@@ -1,4 +1,6 @@
 import { Prisma, type Postulacion, type PostulacionSituacion } from '@prisma/client';
+import { POSTULACION_PRIVACY_VERSION } from '../constants/postulacionPrivacy.js';
+import { AppError } from '../lib/errors.js';
 import { prisma } from '../lib/prisma.js';
 import type { CreatePostulacionInput } from '../validations/postulacion.schema.js';
 
@@ -72,7 +74,8 @@ export const postulacionesService = {
     }
 
     // Deduplicación blanda: solo descarta si todo el payload persistido coincide.
-    // El honeypot `website` no participa porque no se guarda.
+    // `website` no se guarda. `consentimiento` tampoco entra en la comparación:
+    // un duplicado descartado no reescribe consentedAt ni privacyVersion.
     const since = new Date(Date.now() - DEDUP_WINDOW_MS);
     const duplicate = await prisma.postulacion.findFirst({
       where: {
@@ -98,10 +101,23 @@ export const postulacionesService = {
         matricula: input.matricula,
         localidad: input.localidad,
         situacion: input.situacion,
+        consentedAt: new Date(),
+        privacyVersion: POSTULACION_PRIVACY_VERSION,
       },
       select: { id: true },
     });
     return { persisted: true };
+  },
+
+  /**
+   * Baja física de una sola postulación, por id. No borra otras filas aunque
+   * compartan DNI o matrícula. `deleteMany` evita un 500 por P2025.
+   */
+  async remove(id: number): Promise<void> {
+    const result = await prisma.postulacion.deleteMany({ where: { id } });
+    if (result.count === 0) {
+      throw new AppError(404, 'Postulación no encontrada');
+    }
   },
 
   /** Listado para consulta administrativa (lectura restringida a ADMIN/SUPERADMIN). */

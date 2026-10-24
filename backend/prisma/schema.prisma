@@ -143,6 +143,8 @@ model Postulacion {
   localidad      String
   situacion      PostulacionSituacion
   createdAt      DateTime             @default(now()) @map("created_at")
+  consentedAt    DateTime?            @map("consented_at")
+  privacyVersion String?              @map("privacy_version")
 
   @@index([createdAt])
   // Soporta la deduplicación blanda (DNI + matrícula dentro de una ventana).
