@@ -213,6 +213,350 @@ describe('auth API (integración)', () => {
     expect(res.body.message).toBeDefined();
   });
 
+  // ─── R4-C: rotación de refresh ────────────────────────────────────────────
+
+  describe('POST /refresh — rotación', () => {
+    const TEST_PASSWORD = 'Temporal123';
+
+    function hashRefresh(token: string): string {
+      return createHash('sha256').update(token).digest('hex');
+    }
+
+    function setCookieList(res: request.Response): string[] {
+      const cookies = res.headers['set-cookie'] as string[] | string | undefined;
+      if (!cookies) return [];
+      return Array.isArray(cookies) ? cookies : [cookies];
+    }
+
+    function refreshCookieHeader(res: request.Response): string {
+      const header = setCookieList(res).find((c) => c.startsWith(`${REFRESH_COOKIE_NAME}=`));
+      expect(header).toBeDefined();
+      return header!;
+    }
+
+    function refreshFromSetCookie(res: request.Response): string {
+      return refreshCookieHeader(res).split('=')[1].split(';')[0];
+    }
+
+    function cookieAttributes(header: string): string {
+      const semi = header.indexOf(';');
+      return semi === -1 ? '' : header.slice(semi + 1);
+    }
+
+    function maxAgeSeconds(res: request.Response): number {
+      const match = /max-age=(\d+)/i.exec(cookieAttributes(refreshCookieHeader(res)));
+      expect(match).not.toBeNull();
+      return Number(match![1]);
+    }
+
+    function refreshExp(token: string): number {
+      const exp = (jwt.decode(token) as jwt.JwtPayload).exp;
+      expect(exp).toEqual(expect.any(Number));
+      return exp!;
+    }
+
+    function uniqueUsuario(prefix: string): string {
+      return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;
+    }
+
+    async function createTempUser(): Promise<{ id: number; usuario: string }> {
+      const usuario = uniqueUsuario('r4c');
+      const passwordHash = await bcrypt.hash(TEST_PASSWORD, 12);
+      const row = await prisma.usuario.create({
+        data: { usuario, passwordHash, rol: 'ADMIN', activo: true },
+      });
+      return { id: row.id, usuario };
+    }
+
+    async function deleteTempUser(id: number): Promise<void> {
+      await prisma.sesionToken.deleteMany({ where: { usuarioId: id } });
+      await prisma.usuario.delete({ where: { id } }).catch(() => undefined);
+    }
+
+    function expectRefreshJson(res: request.Response, usuario: string): void {
+      expect(res.body).toEqual({
+        data: {
+          accessToken: expect.stringMatching(/^[\w-]+\.[\w-]+\.[\w-]+$/),
+          user: expect.objectContaining({ usuario, rol: 'ADMIN' }),
+        },
+        message: 'OK',
+        error: null,
+      });
+      expect(res.body.data).not.toHaveProperty('refreshToken');
+    }
+
+    function expectSessionCookie(res: request.Response, secure: boolean): void {
+      const attrs = cookieAttributes(refreshCookieHeader(res)).toLowerCase();
+      expect(attrs).toContain('httponly');
+      expect(attrs).toContain('path=/');
+      expect(attrs).toContain('samesite=lax');
+      expect(attrs.includes('secure')).toBe(secure);
+    }
+
+    it('rota R1→R2→R3, invalida el anterior y conserva la misma fila', async () => {
+      const temp = await createTempUser();
+      try {
+        const agent = request.agent(app);
+        const loginRes = await agent
+          .post(`${BASE}/login`)
+          .send({ usuario: temp.usuario, password: TEST_PASSWORD })
+          .expect(200);
+        const r1 = refreshFromSetCookie(loginRes);
+        const before = await prisma.sesionToken.findUniqueOrThrow({
+          where: { tokenHash: hashRefresh(r1) },
+        });
+        const absoluteExp = Math.floor(before.expiresAt.getTime() / 1000);
+
+        const first = await agent.post(`${BASE}/refresh`).expect(200);
+        expectRefreshJson(first, temp.usuario);
+        const r2 = refreshFromSetCookie(first);
+        expect(r2).not.toBe(r1);
+        expect(JSON.stringify(first.body)).not.toContain(r2);
+        expect(refreshExp(r2)).toBe(absoluteExp);
+        expect(refreshExp(r2)).toBe(refreshExp(r1));
+        expectSessionCookie(first, loadEnv().NODE_ENV === 'production');
+        const remaining = absoluteExp - Math.floor(Date.now() / 1000);
+        expect(maxAgeSeconds(first)).toBeLessThanOrEqual(remaining + 2);
+        expect(maxAgeSeconds(first)).toBeGreaterThan(remaining - 5);
+
+        const afterFirst = await prisma.sesionToken.findUniqueOrThrow({ where: { id: before.id } });
+        expect(afterFirst.tokenHash).toBe(hashRefresh(r2));
+        expect(afterFirst.createdAt.getTime()).toBe(before.createdAt.getTime());
+        expect(afterFirst.expiresAt.getTime()).toBe(before.expiresAt.getTime());
+        expect(await prisma.sesionToken.count({ where: { usuarioId: temp.id } })).toBe(1);
+        expect(await prisma.sesionToken.findUnique({ where: { tokenHash: hashRefresh(r1) } })).toBeNull();
+
+        const reused = await request(app).post(`${BASE}/refresh`).send({ refreshToken: r1 }).expect(401);
+        expect(reused.body.message).toBe('Sesión no encontrada o revocada');
+        expect(cookieAttributes(refreshCookieHeader(reused)).toLowerCase()).toMatch(/max-age=0|expires=/);
+
+        const second = await agent.post(`${BASE}/refresh`).expect(200);
+        expectRefreshJson(second, temp.usuario);
+        const r3 = refreshFromSetCookie(second);
+        expect(r3).not.toBe(r2);
+        expect(JSON.stringify(second.body)).not.toContain(r3);
+        expect(refreshExp(r3)).toBe(absoluteExp);
+        expect(maxAgeSeconds(second)).toBeLessThanOrEqual(maxAgeSeconds(first) + 1);
+
+        const afterSecond = await prisma.sesionToken.findUniqueOrThrow({ where: { id: before.id } });
+        expect(afterSecond.tokenHash).toBe(hashRefresh(r3));
+        expect(afterSecond.createdAt.getTime()).toBe(before.createdAt.getTime());
+        expect(afterSecond.expiresAt.getTime()).toBe(before.expiresAt.getTime());
+        expect(await prisma.sesionToken.count({ where: { usuarioId: temp.id } })).toBe(1);
+        expect(await prisma.sesionToken.findUnique({ where: { tokenHash: hashRefresh(r2) } })).toBeNull();
+
+        await request(app).post(`${BASE}/refresh`).send({ refreshToken: r2 }).expect(401);
+        await request(app).post(`${BASE}/refresh`).send({ refreshToken: r3 }).expect(200);
+      } finally {
+        await deleteTempUser(temp.id);
+      }
+    });
+
+    it('no extiende la sesión: el exp rotado sigue el expiresAt persistido, no un nuevo plazo de 30 días', async () => {
+      const temp = await createTempUser();
+      try {
+        const agent = request.agent(app);
+        const loginRes = await agent
+          .post(`${BASE}/login`)
+          .send({ usuario: temp.usuario, password: TEST_PASSWORD })
+          .expect(200);
+        const r1 = refreshFromSetCookie(loginRes);
+        const created = await prisma.sesionToken.findUniqueOrThrow({
+          where: { tokenHash: hashRefresh(r1) },
+        });
+        const shortened = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+        await prisma.sesionToken.update({
+          where: { id: created.id },
+          data: { expiresAt: shortened },
+        });
+        const anchored = await prisma.sesionToken.findUniqueOrThrow({ where: { id: created.id } });
+
+        const rotated = await agent.post(`${BASE}/refresh`).expect(200);
+        const r2 = refreshFromSetCookie(rotated);
+        const absoluteExp = Math.floor(anchored.expiresAt.getTime() / 1000);
+        expect(refreshExp(r2)).toBe(absoluteExp);
+        expect(refreshExp(r2)).toBeLessThan(refreshExp(r1));
+        const maxAge = maxAgeSeconds(rotated);
+        expect(maxAge).toBeLessThanOrEqual(2 * 24 * 60 * 60);
+        expect(maxAge).toBeGreaterThan(2 * 24 * 60 * 60 - 30);
+
+        const again = await agent.post(`${BASE}/refresh`).expect(200);
+        expect(refreshExp(refreshFromSetCookie(again))).toBe(absoluteExp);
+        const after = await prisma.sesionToken.findUniqueOrThrow({ where: { id: created.id } });
+        expect(after.expiresAt.getTime()).toBe(anchored.expiresAt.getTime());
+        expect(after.createdAt.getTime()).toBe(created.createdAt.getTime());
+        expect(await prisma.sesionToken.count({ where: { usuarioId: temp.id } })).toBe(1);
+      } finally {
+        await deleteTempUser(temp.id);
+      }
+    });
+
+    it('refresh por body rota la sesión y entrega el nuevo refresh solo por cookie', async () => {
+      const temp = await createTempUser();
+      try {
+        const loginRes = await request(app)
+          .post(`${BASE}/login`)
+          .send({ usuario: temp.usuario, password: TEST_PASSWORD })
+          .expect(200);
+        const r1 = refreshFromSetCookie(loginRes);
+        const before = await prisma.sesionToken.findUniqueOrThrow({
+          where: { tokenHash: hashRefresh(r1) },
+        });
+
+        const rotated = await request(app).post(`${BASE}/refresh`).send({ refreshToken: r1 }).expect(200);
+        expectRefreshJson(rotated, temp.usuario);
+        const r2 = refreshFromSetCookie(rotated);
+        expect(r2).not.toBe(r1);
+        expect(JSON.stringify(rotated.body)).not.toContain(r2);
+        expect(await prisma.sesionToken.findUnique({ where: { tokenHash: hashRefresh(r1) } })).toBeNull();
+        expect(
+          await prisma.sesionToken.findUnique({ where: { tokenHash: hashRefresh(r2) } }),
+        ).toMatchObject({ id: before.id });
+
+        await request(app).post(`${BASE}/refresh`).send({ refreshToken: r1 }).expect(401);
+        const third = await request(app).post(`${BASE}/refresh`).send({ refreshToken: r2 }).expect(200);
+        expect(third.body.data).not.toHaveProperty('refreshToken');
+        expect(refreshFromSetCookie(third)).not.toBe(r2);
+      } finally {
+        await deleteTempUser(temp.id);
+      }
+    });
+
+    it('en production la cookie rotada incluye Secure', async () => {
+      const temp = await createTempUser();
+      const realEnv = loadEnv();
+      try {
+        const agent = request.agent(app);
+        await agent.post(`${BASE}/login`).send({ usuario: temp.usuario, password: TEST_PASSWORD }).expect(200);
+
+        const envSpy = vi.spyOn(envModule, 'loadEnv').mockReturnValue({
+          ...realEnv,
+          NODE_ENV: 'production',
+        });
+        try {
+          const rotated = await agent.post(`${BASE}/refresh`).expect(200);
+          expectSessionCookie(rotated, true);
+          const remaining = refreshExp(refreshFromSetCookie(rotated)) - Math.floor(Date.now() / 1000);
+          expect(maxAgeSeconds(rotated)).toBeLessThanOrEqual(remaining + 2);
+        } finally {
+          envSpy.mockRestore();
+        }
+      } finally {
+        await deleteTempUser(temp.id);
+      }
+    });
+
+    it('dos refresh concurrentes con el mismo token producen una sola rotación y un 409', async () => {
+      const temp = await createTempUser();
+      try {
+        const loginRes = await request(app)
+          .post(`${BASE}/login`)
+          .send({ usuario: temp.usuario, password: TEST_PASSWORD })
+          .expect(200);
+        const r1 = refreshFromSetCookie(loginRes);
+        const before = await prisma.sesionToken.findUniqueOrThrow({
+          where: { tokenHash: hashRefresh(r1) },
+        });
+
+        let waiting = 0;
+        let releaseBoth!: () => void;
+        const bothEntered = new Promise<void>((resolve) => {
+          releaseBoth = resolve;
+        });
+        const timeout = setTimeout(() => releaseBoth(), 8_000);
+        const originalUpdateMany = prisma.sesionToken.updateMany.bind(prisma.sesionToken);
+        const spy = vi.spyOn(prisma.sesionToken, 'updateMany').mockImplementation(async (args) => {
+          waiting += 1;
+          if (waiting >= 2) releaseBoth();
+          await bothEntered;
+          return originalUpdateMany(args);
+        });
+
+        let winner: request.Response;
+        let loser: request.Response;
+        try {
+          const [a, b] = await Promise.all([
+            request(app).post(`${BASE}/refresh`).send({ refreshToken: r1 }),
+            request(app).post(`${BASE}/refresh`).send({ refreshToken: r1 }),
+          ]);
+          expect(waiting).toBe(2);
+          const ok = [a, b].filter((res) => res.status === 200);
+          const conflict = [a, b].filter((res) => res.status === 409);
+          expect(ok).toHaveLength(1);
+          expect(conflict).toHaveLength(1);
+          winner = ok[0];
+          loser = conflict[0];
+        } finally {
+          clearTimeout(timeout);
+          spy.mockRestore();
+        }
+
+        expect(loser.body).toEqual({
+          data: null,
+          message: 'Conflicto al renovar la sesión',
+          error: null,
+        });
+        expect(setCookieList(loser).some((c) => c.startsWith(`${REFRESH_COOKIE_NAME}=`))).toBe(false);
+        expectRefreshJson(winner, temp.usuario);
+        const r2 = refreshFromSetCookie(winner);
+        expect(r2).not.toBe(r1);
+        expect(JSON.stringify(winner.body)).not.toContain(r2);
+
+        const sessions = await prisma.sesionToken.findMany({ where: { usuarioId: temp.id } });
+        expect(sessions).toHaveLength(1);
+        expect(sessions[0]).toMatchObject({
+          id: before.id,
+          tokenHash: hashRefresh(r2),
+        });
+        expect(sessions[0].createdAt.getTime()).toBe(before.createdAt.getTime());
+        expect(sessions[0].expiresAt.getTime()).toBe(before.expiresAt.getTime());
+        expect(await prisma.sesionToken.findUnique({ where: { tokenHash: hashRefresh(r1) } })).toBeNull();
+
+        await request(app).post(`${BASE}/refresh`).send({ refreshToken: r1 }).expect(401);
+        await request(app).post(`${BASE}/refresh`).send({ refreshToken: r2 }).expect(200);
+      } finally {
+        await deleteTempUser(temp.id);
+      }
+    });
+
+    it('logout con el refresh vigente revoca solo esa sesión', async () => {
+      const temp = await createTempUser();
+      try {
+        const agent1 = request.agent(app);
+        const agent2 = request.agent(app);
+        const login1 = await agent1
+          .post(`${BASE}/login`)
+          .send({ usuario: temp.usuario, password: TEST_PASSWORD })
+          .expect(200);
+        const login2 = await agent2
+          .post(`${BASE}/login`)
+          .send({ usuario: temp.usuario, password: TEST_PASSWORD })
+          .expect(200);
+        const r1 = refreshFromSetCookie(login1);
+        const other = refreshFromSetCookie(login2);
+
+        const rotated = await agent1.post(`${BASE}/refresh`).expect(200);
+        const r2 = refreshFromSetCookie(rotated);
+
+        const staleLogout = await request(app).post(`${BASE}/logout`).send({ refreshToken: r1 }).expect(200);
+        expect(staleLogout.body.message).toBe('Sesión cerrada');
+        expect(await prisma.sesionToken.findUnique({ where: { tokenHash: hashRefresh(r2) } })).not.toBeNull();
+        expect(await prisma.sesionToken.findUnique({ where: { tokenHash: hashRefresh(other) } })).not.toBeNull();
+
+        const logoutRes = await agent1.post(`${BASE}/logout`).expect(200);
+        expect(logoutRes.body.message).toBe('Sesión cerrada');
+        expect(await prisma.sesionToken.findUnique({ where: { tokenHash: hashRefresh(r2) } })).toBeNull();
+        expect(await prisma.sesionToken.findUnique({ where: { tokenHash: hashRefresh(other) } })).not.toBeNull();
+        expect(await prisma.sesionToken.count({ where: { usuarioId: temp.id } })).toBe(1);
+
+        await agent1.post(`${BASE}/refresh`).expect(401);
+        await agent2.post(`${BASE}/refresh`).expect(200);
+      } finally {
+        await deleteTempUser(temp.id);
+      }
+    });
+  });
+
   // ─── Logout (D2A) ─────────────────────────────────────────────────────────
 
   describe('POST /logout', () => {

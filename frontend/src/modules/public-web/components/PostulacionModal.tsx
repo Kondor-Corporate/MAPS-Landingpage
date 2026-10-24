@@ -20,6 +20,8 @@ type FormState = {
   matricula: string;
   localidad: string;
   situacion: PostulacionSituacion | '';
+  /** Consentimiento explícito para usar los datos de esta postulación. */
+  consentimiento: boolean;
   /** Honeypot anti-bot: oculto para usuarios legítimos; debe permanecer vacío. */
   website: string;
 };
@@ -33,6 +35,7 @@ const EMPTY_FORM: FormState = {
   matricula: '',
   localidad: '',
   situacion: '',
+  consentimiento: false,
   website: '',
 };
 
@@ -69,6 +72,10 @@ function validate(form: FormState): FieldErrors {
   else if (localidad.length > 120) errors.localidad = 'Máximo 120 caracteres';
 
   if (!form.situacion) errors.situacion = 'Seleccioná una opción';
+
+  if (!form.consentimiento) {
+    errors.consentimiento = 'Debés aceptar el uso de tus datos para enviar la postulación.';
+  }
 
   return errors;
 }
@@ -131,6 +138,7 @@ export function PostulacionModal({ isOpen, onClose }: Props) {
       matricula: form.matricula.trim(),
       localidad: form.localidad.trim(),
       situacion: form.situacion as PostulacionSituacion,
+      consentimiento: true,
       website: form.website,
     };
 
@@ -332,6 +340,29 @@ export function PostulacionModal({ isOpen, onClose }: Props) {
                 <span className="text-xs text-rose-600">{errors.situacion}</span>
               ) : null}
             </fieldset>
+
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-start gap-3">
+                <input
+                  id={`${fieldId}-consentimiento`}
+                  type="checkbox"
+                  checked={form.consentimiento}
+                  onChange={(e) => updateField('consentimiento', e.target.checked)}
+                  aria-invalid={Boolean(errors.consentimiento)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-maps-brand"
+                />
+                <label
+                  htmlFor={`${fieldId}-consentimiento`}
+                  className="cursor-pointer text-sm text-maps-body"
+                >
+                  Acepto que los datos ingresados sean utilizados para gestionar y evaluar mi
+                  postulación.
+                </label>
+              </div>
+              {errors.consentimiento ? (
+                <span className="text-xs text-rose-600">{errors.consentimiento}</span>
+              ) : null}
+            </div>
           </div>
 
           <footer className="flex flex-col-reverse gap-2 border-t border-maps-border bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">

@@ -1,14 +1,28 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { PostulacionesTable } from '@/modules/admin/components/PostulacionesTable';
 import { useAdminPostulaciones } from '@/modules/admin/hooks/useAdminPostulaciones';
+import type { Postulacion } from '@/modules/admin/types/postulacion';
+import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
+import { useAuthStore } from '@/store/authStore';
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import {
+  MapsFeedbackToastHost,
+  useMapsFeedback,
+} from '@/shared/components/MapsFeedbackToast';
 import { TablePagination } from '@/shared/components/TablePagination';
 
 export function PostulacionesDashboard() {
-  const { data, loading, error, refetch } = useAdminPostulaciones();
+  const { data, loading, error, refetch, remove } = useAdminPostulaciones();
+  const canDelete = useAuthStore((s) => s.user?.rol === 'SUPERADMIN');
+  const { toast, dismiss, showSuccess } = useMapsFeedback();
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
+  const [pendingDelete, setPendingDelete] = useState<Postulacion | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteLockRef = useRef(false);
 
   const hasSearch = search.trim() !== '';
 
@@ -29,8 +43,39 @@ export function PostulacionesDashboard() {
     [filtered, safePage, pageSize],
   );
 
+  function requestDelete(postulacion: Postulacion) {
+    setDeleteError(null);
+    setPendingDelete(postulacion);
+  }
+
+  function closeDeleteConfirm() {
+    if (deleting || deleteLockRef.current) return;
+    setPendingDelete(null);
+    setDeleteError(null);
+  }
+
+  async function handleConfirmDelete() {
+    if (!pendingDelete || deleting || deleteLockRef.current) return;
+    deleteLockRef.current = true;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await remove(pendingDelete.id);
+      setPendingDelete(null);
+      showSuccess('Postulación eliminada');
+    } catch (err) {
+      setDeleteError(
+        getApiErrorMessage(err, 'No se pudo eliminar la postulación. Intentá nuevamente.'),
+      );
+    } finally {
+      deleteLockRef.current = false;
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="flex min-w-0 flex-col gap-6 px-4 py-5 sm:px-8 sm:py-6">
+      <MapsFeedbackToastHost toast={toast} onDismiss={dismiss} />
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold text-maps-heading">Postulaciones</h1>
         <p className="text-sm text-maps-muted">
@@ -67,6 +112,7 @@ export function PostulacionesDashboard() {
       ) : !error || data.length > 0 ? (
         <PostulacionesTable
           postulaciones={paginated}
+          onDelete={canDelete ? requestDelete : undefined}
           emptyMessage={
             hasSearch
               ? 'No encontramos postulaciones con esos criterios.'
@@ -88,6 +134,28 @@ export function PostulacionesDashboard() {
           }}
         />
       ) : null}
+
+      <ConfirmDialog
+        isOpen={pendingDelete !== null}
+        onClose={closeDeleteConfirm}
+        onConfirm={handleConfirmDelete}
+        title="¿Eliminar esta postulación?"
+        description={
+          pendingDelete ? (
+            <>
+              Se eliminarán definitivamente los datos de{' '}
+              <strong className="text-maps-heading">{pendingDelete.nombreCompleto}</strong>.
+              <span className="mt-1 block">Esta acción no se puede deshacer.</span>
+            </>
+          ) : null
+        }
+        tone="danger"
+        busy={deleting}
+        error={deleteError}
+        confirmLabel="Eliminar definitivamente"
+        confirmLoadingLabel="Eliminando…"
+        ariaLabel="Confirmar eliminación de postulación"
+      />
     </div>
   );
 }

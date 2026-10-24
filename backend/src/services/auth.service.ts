@@ -140,6 +140,12 @@ export const authService = {
       throw new AppError(401, 'Cuenta desactivada');
     }
 
+    const absoluteExp = Math.floor(session.expiresAt.getTime() / 1000);
+    if (absoluteExp <= Math.floor(Date.now() / 1000)) {
+      await prisma.sesionToken.delete({ where: { id: session.id } }).catch(() => undefined);
+      throw new AppError(401, 'Refresh token expirado');
+    }
+
     const accessPayload: JWTPayload = {
       sub: payload.sub,
       role: session.usuario.rol,
@@ -150,8 +156,38 @@ export const authService = {
     };
     const accessToken = jwt.sign(accessPayload, env.JWT_SECRET, accessOpts);
 
+    /**
+     * `exp` queda anclado a `session.expiresAt`. No se usa `REFRESH_EXPIRES_IN`:
+     * rotar no puede convertir la sesión en "30 días desde el último refresh".
+     */
+    const newRefreshToken = jwt.sign(
+      {
+        sub: String(session.usuario.id),
+        role: session.usuario.rol,
+        typ: 'refresh' as const,
+        jti: randomUUID(),
+        exp: absoluteExp,
+      },
+      env.REFRESH_SECRET,
+      { algorithm: 'HS256' },
+    );
+
+    /**
+     * Compare-and-swap: solo una request que todavía presenta este hash puede
+     * reemplazarlo. `count === 0` significa que otra request ya rotó o revocó
+     * la fila; no es un 500 y no se borra la sesión ganadora.
+     */
+    const rotated = await prisma.sesionToken.updateMany({
+      where: { id: session.id, tokenHash },
+      data: { tokenHash: hashToken(newRefreshToken) },
+    });
+    if (rotated.count !== 1) {
+      throw new AppError(409, 'Conflicto al renovar la sesión');
+    }
+
     return {
       accessToken,
+      refreshToken: newRefreshToken,
       user: {
         id: session.usuario.id,
         usuario: session.usuario.usuario,

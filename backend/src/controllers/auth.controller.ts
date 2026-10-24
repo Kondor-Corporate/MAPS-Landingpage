@@ -23,6 +23,14 @@ function resolveRefreshToken(
   return (req.body as { refreshToken?: string }).refreshToken;
 }
 
+/** `maxAge` en ms hasta el `exp` del refresh. El login y la rotación comparten el cálculo. */
+function refreshCookieMaxAgeMs(refreshToken: string): number {
+  const decoded = JSON.parse(
+    Buffer.from(refreshToken.split('.')[1], 'base64url').toString(),
+  ) as { exp?: number };
+  return decoded.exp !== undefined ? decoded.exp * 1000 - Date.now() : 30 * 24 * 60 * 60 * 1000;
+}
+
 export const authController: Record<string, RequestHandler> = {
   login: async (req, res, next) => {
     const parsed = loginSchema.safeParse(req.body);
@@ -39,16 +47,10 @@ export const authController: Record<string, RequestHandler> = {
       const env = loadEnv();
       const result = await authService.login(parsed.data.usuario, parsed.data.password);
 
-      const decoded = JSON.parse(
-        Buffer.from(result.refreshToken.split('.')[1], 'base64url').toString(),
-      ) as { exp?: number };
-      const maxAgeMs =
-        decoded.exp !== undefined ? decoded.exp * 1000 - Date.now() : 30 * 24 * 60 * 60 * 1000;
-
       res.cookie(
         REFRESH_COOKIE_NAME,
         result.refreshToken,
-        getRefreshCookieSetOptions(env, maxAgeMs),
+        getRefreshCookieSetOptions(env, refreshCookieMaxAgeMs(result.refreshToken)),
       );
 
       res.json({
@@ -87,8 +89,16 @@ export const authController: Record<string, RequestHandler> = {
 
     try {
       const result = await authService.refresh(refreshToken);
+      res.cookie(
+        REFRESH_COOKIE_NAME,
+        result.refreshToken,
+        getRefreshCookieSetOptions(env, refreshCookieMaxAgeMs(result.refreshToken)),
+      );
       res.json({
-        data: result,
+        data: {
+          accessToken: result.accessToken,
+          user: result.user,
+        },
         message: 'OK',
         error: null,
       });

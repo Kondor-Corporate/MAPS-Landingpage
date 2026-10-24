@@ -20,6 +20,21 @@ export const api = axios.create({
 let refreshLock: Promise<string> | null = null;
 let sessionInvalidationStarted = false;
 
+/** Nombre estable del Web Lock que serializa el refresh entre pestañas. */
+const REFRESH_LOCK_NAME = 'maps-auth-refresh';
+
+/**
+ * Ejecuta el POST de refresh dentro de un lock exclusivo del navegador.
+ * Sin `navigator.locks` se conserva el comportamiento de una sola pestaña.
+ */
+function withCrossTabRefreshLock<T>(task: () => Promise<T>): Promise<T> {
+  const locks = globalThis.navigator?.locks;
+  if (!locks?.request) return task();
+  // lib.dom tipa el callback como `() => T` y no aplana la promesa.
+  // El navegador sí espera ese callback; este then solo corrige el tipo.
+  return locks.request(REFRESH_LOCK_NAME, () => task()).then((result) => result);
+}
+
 function isAuthEndpoint(url?: string) {
   return (
     url?.includes('/auth/login') ||
@@ -28,7 +43,10 @@ function isAuthEndpoint(url?: string) {
   );
 }
 
-/** Un fallo con respuesta 4xx de refresh confirma que la sesión ya no es válida. */
+/**
+ * Un fallo con respuesta 4xx de refresh confirma que la sesión ya no es válida.
+ * 409 queda afuera: es una rotación que perdió la carrera, no una sesión revocada.
+ */
 export function isInvalidRefreshError(error: unknown): boolean {
   if (!axios.isAxiosError(error)) return false;
   const status = error.response?.status;
@@ -50,7 +68,7 @@ function endSessionOnce() {
  */
 export function refreshAccessToken() {
   if (!refreshLock) {
-    refreshLock = (async () => {
+    refreshLock = withCrossTabRefreshLock(async () => {
       const { data } = await refreshClient.post<ApiSuccess<RefreshPayload>>('/auth/refresh', {});
       const token = data.data?.accessToken;
       if (!token) {
@@ -63,7 +81,7 @@ export function refreshAccessToken() {
       }
       sessionInvalidationStarted = false;
       return token;
-    })().finally(() => {
+    }).finally(() => {
       refreshLock = null;
     });
   }

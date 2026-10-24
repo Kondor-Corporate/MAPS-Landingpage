@@ -1,10 +1,12 @@
-import { Inbox } from 'lucide-react';
+import { Inbox, Trash2 } from 'lucide-react';
 import type { Postulacion, PostulacionSituacion } from '@/modules/admin/types/postulacion';
 import { formatDateShort } from '@/shared/utils/date';
 
 type Props = {
   postulaciones: Postulacion[];
   emptyMessage?: string;
+  /** Presente sólo cuando el usuario puede eliminar (SUPERADMIN). */
+  onDelete?: (postulacion: Postulacion) => void;
 };
 
 const COLUMNS = ['Nombre completo', 'DNI', 'Teléfono', 'Matrícula', 'Localidad', 'Situación', 'Recibida'];
@@ -13,6 +15,27 @@ const SITUACION_LABEL: Record<PostulacionSituacion, string> = {
   PRODUCTOR_NUEVO: 'Productor nuevo',
   TRABAJA_CON_OTRAS: 'Trabaja con otras compañías',
 };
+
+function DeletePostulacionButton({
+  postulacion,
+  onDelete,
+}: {
+  postulacion: Postulacion;
+  onDelete: (postulacion: Postulacion) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onDelete(postulacion)}
+      className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
+      aria-label={`Eliminar postulación de ${postulacion.nombreCompleto}`}
+      title="Eliminar"
+    >
+      <Trash2 size={16} strokeWidth={1.75} aria-hidden />
+      Eliminar
+    </button>
+  );
+}
 
 function SituacionBadge({ situacion }: { situacion: PostulacionSituacion }) {
   const isNuevo = situacion === 'PRODUCTOR_NUEVO';
@@ -31,6 +54,7 @@ function SituacionBadge({ situacion }: { situacion: PostulacionSituacion }) {
 export function PostulacionesTable({
   postulaciones,
   emptyMessage = 'Todavía no hay postulaciones.',
+  onDelete,
 }: Props) {
   if (postulaciones.length === 0) {
     return (
@@ -44,13 +68,15 @@ export function PostulacionesTable({
     );
   }
 
+  const columns = onDelete ? [...COLUMNS, 'Acciones'] : COLUMNS;
+
   return (
     <div className="overflow-hidden rounded-2xl border border-maps-border bg-white shadow-card">
       <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full">
           <thead className="bg-maps-surface">
             <tr>
-              {COLUMNS.map((col) => (
+              {columns.map((col) => (
                 <th
                   key={col}
                   scope="col"
@@ -88,6 +114,11 @@ export function PostulacionesTable({
                 <td className="whitespace-nowrap px-6 py-3.5 text-sm text-maps-muted">
                   {formatDateShort(p.createdAt)}
                 </td>
+                {onDelete ? (
+                  <td className="whitespace-nowrap px-6 py-3.5">
+                    <DeletePostulacionButton postulacion={p} onDelete={onDelete} />
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>
@@ -125,6 +156,11 @@ export function PostulacionesTable({
                 <dd>{formatDateShort(p.createdAt)}</dd>
               </div>
             </dl>
+            {onDelete ? (
+              <div>
+                <DeletePostulacionButton postulacion={p} onDelete={onDelete} />
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>
