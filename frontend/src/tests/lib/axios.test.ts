@@ -19,14 +19,25 @@ function installMockLocation() {
 }
 
 const realLocation = window.location;
+const originalLocks = Object.getOwnPropertyDescriptor(navigator, 'locks');
+
+function restoreNavigatorLocks() {
+  if (originalLocks) {
+    Object.defineProperty(navigator, 'locks', originalLocks);
+    return;
+  }
+  Reflect.deleteProperty(navigator, 'locks');
+}
 
 afterAll(() => {
   Object.defineProperty(window, 'location', { configurable: true, value: realLocation });
+  restoreNavigatorLocks();
 });
 
 beforeEach(() => {
   resetAuthStore();
   vi.restoreAllMocks();
+  restoreNavigatorLocks();
   Object.defineProperty(window, 'location', { configurable: true, value: realLocation });
 });
 
@@ -272,5 +283,108 @@ describe('api — interceptor de response (MSW)', () => {
 
     expect(refreshHits).toBe(1);
     expect(useAuthStore.getState().accessToken).toBe('shared-token');
+  });
+
+  it('409 de rotación no cierra la sesión ni reintenta el refresh', async () => {
+    const replace = installMockLocation();
+    let refreshHits = 0;
+    server.use(
+      http.get(`${API_BASE}/foo`, () => new HttpResponse(null, { status: 401 })),
+      http.post(`${API_BASE}/auth/refresh`, () => {
+        refreshHits += 1;
+        return HttpResponse.json(
+          { data: null, message: 'Conflicto al renovar la sesión', error: null },
+          { status: 409 },
+        );
+      }),
+    );
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'tok');
+
+    await expect(api.get('/foo')).rejects.toMatchObject({
+      response: { status: 409 },
+    });
+
+    expect(refreshHits).toBe(1);
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().accessToken).toBe('tok');
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('ejecuta el refresh dentro de navigator.locks y los 401 de la pestaña siguen compartiendo uno', async () => {
+    const order: string[] = [];
+    const request = vi.fn(async (name: string, callback: () => Promise<unknown>) => {
+      order.push(`acquire:${name}`);
+      try {
+        return await callback();
+      } finally {
+        order.push('release');
+      }
+    });
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: { request },
+    });
+
+    let refreshHits = 0;
+    const resourceHits = new Map<string, number>();
+    server.use(
+      http.get(`${API_BASE}/tab/:id`, ({ params }) => {
+        const id = String(params.id);
+        const hits = (resourceHits.get(id) ?? 0) + 1;
+        resourceHits.set(id, hits);
+        return hits === 1
+          ? new HttpResponse(null, { status: 401 })
+          : HttpResponse.json({ data: { id }, message: 'OK', error: null });
+      }),
+      http.post(`${API_BASE}/auth/refresh`, async () => {
+        refreshHits += 1;
+        order.push('refresh');
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return HttpResponse.json({
+          data: { accessToken: 'desde-lock' },
+          message: 'OK',
+          error: null,
+        });
+      }),
+    );
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'old');
+
+    await Promise.all([api.get('/tab/1'), api.get('/tab/2')]);
+
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith('maps-auth-refresh', expect.any(Function));
+    expect(refreshHits).toBe(1);
+    expect(order).toEqual(['acquire:maps-auth-refresh', 'refresh', 'release']);
+    expect(useAuthStore.getState().accessToken).toBe('desde-lock');
+  });
+
+  it('refresh funciona si navigator.locks no está disponible', async () => {
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: undefined,
+    });
+    let hits = 0;
+    server.use(
+      http.get(`${API_BASE}/sin-locks`, () => {
+        hits += 1;
+        return hits === 1
+          ? new HttpResponse(null, { status: 401 })
+          : HttpResponse.json({ data: { ok: true }, message: 'OK', error: null });
+      }),
+      http.post(`${API_BASE}/auth/refresh`, () =>
+        HttpResponse.json({
+          data: { accessToken: 'sin-locks' },
+          message: 'OK',
+          error: null,
+        }),
+      ),
+    );
+    useAuthStore.getState().login({ id: 1, usuario: 'a', rol: 'ADMIN', slug: null }, 'old');
+
+    const res = await api.get('/sin-locks');
+
+    expect(res.data.data).toEqual({ ok: true });
+    expect(useAuthStore.getState().accessToken).toBe('sin-locks');
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
   });
 });
