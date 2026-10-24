@@ -44,6 +44,7 @@ RUN npm run build
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS runner
 
 COPY nginx.conf /etc/nginx/templates/default.conf.template
+COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --chmod=755 docker-entrypoint.d/15-validate-backend-origin.sh /docker-entrypoint.d/15-validate-backend-origin.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 
