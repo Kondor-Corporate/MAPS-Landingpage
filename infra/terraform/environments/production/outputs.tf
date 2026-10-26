@@ -57,3 +57,8 @@ output "build_service_account_email" {
   description = "Production build service account email."
   value       = module.iam.build_service_account_email
 }
+
+output "artifact_registry_repository" {
+  description = "Production Artifact Registry repository ID."
+  value       = module.artifact_registry.repository_id
+}

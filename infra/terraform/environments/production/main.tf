@@ -52,3 +52,18 @@ module "iam" {
     module.storage,
   ]
 }
+
+module "artifact_registry" {
+  source = "../../modules/artifact-registry"
+
+  project_id                  = var.project_id
+  region                      = var.region
+  prefix                      = local.prefix
+  labels                      = local.labels
+  build_service_account_email = module.iam.build_service_account_email
+
+  depends_on = [
+    module.project_services,
+    module.iam,
+  ]
+}
