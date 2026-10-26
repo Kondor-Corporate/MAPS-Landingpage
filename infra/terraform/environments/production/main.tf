@@ -27,3 +27,14 @@ module "database" {
 
   depends_on = [module.network]
 }
+
+module "storage" {
+  source = "../../modules/storage"
+
+  project_id  = var.project_id
+  region      = var.region
+  bucket_name = var.assets_bucket_name
+  labels      = local.labels
+
+  depends_on = [module.project_services]
+}

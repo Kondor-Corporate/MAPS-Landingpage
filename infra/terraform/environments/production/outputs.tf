@@ -27,3 +27,8 @@ output "database_private_ip" {
   description = "Private IPv4 address of the production Cloud SQL instance."
   value       = module.database.private_ip_address
 }
+
+output "assets_bucket_name" {
+  description = "Production assets bucket name."
+  value       = module.storage.bucket_name
+}

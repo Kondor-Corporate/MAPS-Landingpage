@@ -18,3 +18,13 @@ variable "region" {
     error_message = "MAPS production is currently designed for southamerica-east1."
   }
 }
+
+variable "assets_bucket_name" {
+  description = "Globally unique name of the production MAPS assets bucket. Confirm availability before apply."
+  type        = string
+
+  validation {
+    condition     = length(var.assets_bucket_name) >= 3 && length(var.assets_bucket_name) <= 63 && var.assets_bucket_name == trimspace(var.assets_bucket_name)
+    error_message = "assets_bucket_name must be 3 to 63 characters and must not have leading or trailing spaces."
+  }
+}
