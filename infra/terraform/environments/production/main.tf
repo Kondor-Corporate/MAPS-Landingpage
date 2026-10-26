@@ -38,3 +38,17 @@ module "storage" {
 
   depends_on = [module.project_services]
 }
+
+module "iam" {
+  source = "../../modules/iam"
+
+  project_id         = var.project_id
+  prefix             = local.prefix
+  labels             = local.labels
+  assets_bucket_name = module.storage.bucket_name
+
+  depends_on = [
+    module.project_services,
+    module.storage,
+  ]
+}

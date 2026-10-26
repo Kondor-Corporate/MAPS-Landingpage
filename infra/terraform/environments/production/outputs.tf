@@ -32,3 +32,28 @@ output "assets_bucket_name" {
   description = "Production assets bucket name."
   value       = module.storage.bucket_name
 }
+
+output "backend_service_account_email" {
+  description = "Production backend service account email."
+  value       = module.iam.backend_service_account_email
+}
+
+output "frontend_service_account_email" {
+  description = "Production frontend service account email."
+  value       = module.iam.frontend_service_account_email
+}
+
+output "migrate_service_account_email" {
+  description = "Production database migrate service account email."
+  value       = module.iam.migrate_service_account_email
+}
+
+output "bootstrap_service_account_email" {
+  description = "Production bootstrap service account email."
+  value       = module.iam.bootstrap_service_account_email
+}
+
+output "build_service_account_email" {
+  description = "Production build service account email."
+  value       = module.iam.build_service_account_email
+}
