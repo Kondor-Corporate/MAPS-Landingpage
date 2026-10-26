@@ -60,7 +60,7 @@ variable "public_origin" {
 }
 
 variable "alert_email" {
-  description = "Email address that receives production uptime alerts. This is not a secret."
+  description = "Email address that receives production monitoring alerts. This is not a secret."
   type        = string
 
   validation {

@@ -28,8 +28,18 @@ variable "public_origin" {
   }
 }
 
+variable "database_instance_name" {
+  description = "Cloud SQL instance name. Monitoring identifies the instance as project_id:instance_name."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z](?:[a-z0-9-]{0,96}[a-z0-9])?$", var.database_instance_name))
+    error_message = "database_instance_name must be a Cloud SQL instance name: lowercase letters, numbers, and hyphens."
+  }
+}
+
 variable "alert_email" {
-  description = "Email address that receives production uptime alerts. This is not a secret."
+  description = "Email address that receives production monitoring alerts. This is not a secret."
   type        = string
 
   validation {

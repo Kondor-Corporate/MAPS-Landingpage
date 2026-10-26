@@ -167,8 +167,11 @@ module "observability" {
   public_origin = var.public_origin
   alert_email   = var.alert_email
 
+  database_instance_name = module.database.instance_name
+
   depends_on = [
     module.project_services,
+    module.database,
     module.edge,
   ]
 }
