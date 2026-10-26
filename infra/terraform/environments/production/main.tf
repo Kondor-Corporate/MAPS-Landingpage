@@ -42,10 +42,11 @@ module "storage" {
 module "iam" {
   source = "../../modules/iam"
 
-  project_id         = var.project_id
-  prefix             = local.prefix
-  labels             = local.labels
-  assets_bucket_name = module.storage.bucket_name
+  project_id               = var.project_id
+  prefix                   = local.prefix
+  labels                   = local.labels
+  assets_bucket_name       = module.storage.bucket_name
+  build_source_bucket_name = module.storage.build_source_bucket_name
 
   depends_on = [
     module.project_services,

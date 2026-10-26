@@ -33,6 +33,11 @@ output "assets_bucket_name" {
   value       = module.storage.bucket_name
 }
 
+output "build_source_bucket_name" {
+  description = "Temporary Cloud Build source bucket name."
+  value       = module.storage.build_source_bucket_name
+}
+
 output "backend_service_account_email" {
   description = "Production backend service account email."
   value       = module.iam.backend_service_account_email

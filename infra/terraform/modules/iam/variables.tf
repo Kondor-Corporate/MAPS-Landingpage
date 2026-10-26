@@ -40,3 +40,13 @@ variable "assets_bucket_name" {
     error_message = "assets_bucket_name must be 3 to 63 characters and must not have leading or trailing spaces."
   }
 }
+
+variable "build_source_bucket_name" {
+  description = "Temporary Cloud Build source bucket. The build service account receives roles/storage.objectViewer on this bucket only."
+  type        = string
+
+  validation {
+    condition     = length(var.build_source_bucket_name) >= 3 && length(var.build_source_bucket_name) <= 63 && var.build_source_bucket_name == trimspace(var.build_source_bucket_name) && var.build_source_bucket_name != var.assets_bucket_name
+    error_message = "build_source_bucket_name must be 3 to 63 characters, without surrounding spaces, and must not be the assets bucket."
+  }
+}

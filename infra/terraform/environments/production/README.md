@@ -6,12 +6,20 @@ Cómo se despliega y opera está en
 
 ## Estado
 
-**Implementado en código. No desplegado.**
+**Bootstrap parcial al 26/10/2026.** El proyecto `maps-prod-landing-page`
+existe. Terraform tiene 44 recursos aplicados: 41 de la fundación y 3 de
+Cloud Build. No hay certificado `ACTIVE`, DNS ni tráfico.
 
-No hay, en este repositorio, un proyecto de producción creado, un
-`terraform apply` ejecutado, un certificado `ACTIVE` ni DNS publicado. Los
-nombres de abajo son los que el código va a crear. No son un inventario de
-recursos vivos.
+Verificado en GCP: red, Cloud SQL `maps-prod-db` (`RUNNABLE`, IP privada
+`10.30.0.3`), bucket de assets, service accounts, contenedores de Secret
+Manager con la versión 1 habilitada, Artifact Registry `maps-prod` y el
+bucket de fuentes `maps-prod-landing-page-build-source`. `maps-prod-build`
+tiene `roles/logging.logWriter`, lectura de ese bucket y
+`roles/artifactregistry.writer` en el repositorio.
+
+Pendiente: imágenes Docker, Cloud Run, jobs, balanceador, DNS, certificado
+y monitoring. Esos nombres de más abajo siguen siendo lo que el código va a
+crear. No son recursos vivos.
 
 Directorio de trabajo: `infra/terraform/environments/production/`.
 
@@ -149,6 +157,26 @@ Un bucket regional, nombre en `assets_bucket_name`.
 El backend tiene `roles/storage.objectUser` sobre ese bucket. El navegador
 no lee el bucket: descarga por el API.
 
+### Fuentes temporales de Cloud Build
+
+Bucket aparte, ya creado: `maps-prod-landing-page-build-source`. No es el
+bucket de assets ni el bucket de state de Terraform.
+
+| Ajuste | Valor |
+|--------|-------|
+| Clase | `STANDARD` |
+| Ubicación | La misma región del root (`southamerica-east1`) |
+| Acceso uniforme | UBLA activado |
+| Acceso público | `public_access_prevention = enforced` |
+| Soft delete | Desactivado (`0`). No es un archivo durable. |
+| Ciclo de vida | Borra objetos a los 7 días. |
+| `force_destroy` | `false` |
+| Lectura | `maps-prod-build` tiene `roles/storage.objectViewer` solo en este bucket. |
+
+`maps-prod-build` no puede escribir objetos ahí. Quien ejecuta el submit
+sube el archivo y necesita permiso de creación sobre ese bucket. Esa
+identidad no se declara en Terraform.
+
 ## Secretos
 
 Terraform crea seis contenedores, replicación automática y
@@ -176,7 +204,7 @@ No hay un rol de Secret Manager a nivel proyecto.
 | `maps-prod-backend` | Runtime del backend. Tres secretos y objetos del bucket. |
 | `maps-prod-migrate` | Job migrate. Solo la URL de migrate. |
 | `maps-prod-bootstrap` | Job bootstrap. URL de la app y secretos de bootstrap. |
-| `maps-prod-build` | `roles/artifactregistry.writer` en el repositorio. |
+| `maps-prod-build` | `roles/artifactregistry.writer` en `maps-prod`. `roles/logging.logWriter` en el proyecto. `roles/storage.objectViewer` solo en el bucket de fuentes. |
 
 No hay `roles/cloudsql.client`. La conexión es IP privada más la URL en
 Secret Manager, no Cloud SQL Auth Proxy ni un usuario IAM de base.
@@ -186,6 +214,39 @@ Run, no las service accounts de runtime. No hace falta suponer que esas
 cuentas lleven `roles/artifactregistry.reader`. Verificar el pull en el
 primer deployment. Si falla, revisar primero los permisos del Cloud Run
 service agent.
+
+`maps-prod-build` está en el mismo proyecto que el build. En ese caso la
+documentación actual de Cloud Build no pide un `roles/iam.serviceAccountUser`
+extra para el service agent. El grant del service agent aparece para una
+cuenta en otro proyecto, y ahí el rol es `roles/iam.serviceAccountTokenCreator`.
+No se declara ninguno de los dos.
+
+Quien ejecuta `gcloud builds submit` sí necesita `iam.serviceAccounts.actAs`
+sobre `maps-prod-build`. Eso es `roles/iam.serviceAccountUser` en esa cuenta,
+no en el proyecto. La identidad que dispara el build no está en Terraform.
+
+## Cloud Build
+
+Terraform no define el pipeline. Un build productivo usa la cuenta dedicada,
+no la cuenta de Compute Engine que Cloud Build toma por defecto.
+
+El config del build debe pedir logs solo en Cloud Logging:
+
+```yaml
+options:
+  logging: CLOUD_LOGGING_ONLY
+```
+
+Con eso alcanza `roles/logging.logWriter`. No hace falta un rol sobre un
+bucket de logs ni `roles/storage.admin`.
+
+El submit sube el contexto a un prefijo del bucket de fuentes, por ejemplo
+`gs://maps-prod-landing-page-build-source/source`, e indica la cuenta
+`maps-prod-build`. Se corre desde `backend/` o desde `frontend/`, no desde la
+raíz del repo: así no entran `infra/terraform`, el state ni el otro
+servicio. Cada directorio tiene un `.gcloudignore` que deja afuera `.env`,
+`.env.*`, claves, `node_modules` y archivos locales. `.dockerignore` solo
+actúa después, dentro de Docker; no evita que el archivo llegue al bucket.
 
 ## Artifact Registry
 
@@ -291,7 +352,7 @@ que existir antes del primer plan. Los payloads no van en `terraform.tfvars`.
 
 | Variable | Qué es | Cuándo tiene un valor real |
 |----------|--------|----------------------------|
-| `project_id` | ID del proyecto. No está elegido en el repo. | Al crear el proyecto, fase 0. |
+| `project_id` | ID del proyecto. El aplicado es `maps-prod-landing-page`. | Ya existe. |
 | `assets_bucket_name` | Nombre global del bucket de assets. | Antes de crear storage. Confirmar que esté libre. |
 | `billing_account_id` | Cuenta de facturación `XXXXXX-XXXXXX-XXXXXX`. No es secreto. | Al vincular billing. Lo usa el presupuesto. |
 | `public_origin` | `https://hostname` en minúsculas, sin usuario, puerto, path, query, fragmento ni barra final. | Antes de runtime, borde y uptime. |

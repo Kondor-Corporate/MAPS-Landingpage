@@ -11,26 +11,39 @@ solo hecho de leerlo. No incluye payloads, contraseñas ni claves.
 Staging es otro entorno y otra topología:
 [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md).
 
-## Estado
+## Estado al 26/10/2026
 
-**La infraestructura está escrita. No está desplegada.**
+**Bootstrap parcial.** El proyecto existe y Terraform ya se aplicó. La
+aplicación no atiende tráfico.
 
-No presentar como hecho nada de esta lista:
+### Verificado
 
-- proyecto de producción creado;
-- bucket de state creado;
-- `terraform apply` ejecutado;
-- imágenes de producción publicadas;
-- versiones de Secret Manager cargadas;
-- usuarios SQL creados;
-- certificado en `ACTIVE`;
-- DNS publicado;
-- jobs de migrate o bootstrap ejecutados;
-- restore drill hecho;
-- producción atendiendo tráfico.
+| Pieza | Estado |
+|-------|--------|
+| Proyecto | `maps-prod-landing-page` |
+| Región | `southamerica-east1` |
+| Terraform | 44 recursos: 41 de fundación y 3 de Cloud Build |
+| Cloud SQL | `maps-prod-db`, PostgreSQL 17, `RUNNABLE`, IP privada `10.30.0.3` |
+| Usuarios SQL | `maps-app` y `maps-migrate`, creados fuera de Terraform, con roles diferenciados |
+| Privilegios SQL | Predeterminados sobre tablas y secuencias futuras, también fuera de Terraform |
+| Data API | Deshabilitada de nuevo. No la administra este Terraform. |
+| Secretos | Los seis contenedores tienen la versión 1 habilitada |
+| Fuentes de Cloud Build | Bucket `maps-prod-landing-page-build-source` |
+| `maps-prod-build` | Logs, lectura de ese bucket y escritura en Artifact Registry `maps-prod` |
 
-El nombre del proyecto y el nombre del bucket de state todavía no están en
-el repositorio. No se inventan aquí.
+No hay contraseñas, payloads ni el nombre del bucket de state en este
+documento. El state existe y no se versiona.
+
+### Pendiente
+
+- Imágenes Docker. Todavía no se construyeron.
+- Cloud Run, jobs, balanceador, DNS, certificado y monitoring.
+- Ejecutar migrate y, después, el bootstrap.
+- Tras el migrate, validar los privilegios sobre el esquema real. En
+  particular, `maps-app` no debe usar `_prisma_migrations`.
+- El primer `SUPERADMIN` será una cuenta técnica temporal de Kondor. Después
+  se transfiere a MAPS. El job todavía no creó la fila.
+- Restore drill, `TRUST_PROXY` con tráfico real, Billing anomaly detection.
 
 ## Qué hace Terraform y qué no
 
@@ -116,23 +129,29 @@ terraform apply -target=module.project_services -target=module.network -target=m
 `-target` puede saltear dependencias. Sirve para este bootstrap. No es el
 flujo de los deploys de después.
 
-Al terminar, los seis secretos existen vacíos. Cloud SQL tiene IP privada y
-todavía no tiene usuarios de aplicación.
+Al 26/10/2026 esta fase está aplicada, junto con los tres recursos de Cloud
+Build. `maps-prod-db` está `RUNNABLE` en `10.30.0.3`. Los seis secretos tienen
+la versión 1 habilitada. Los usuarios SQL están en la fase 2.
 
 ### Fase 2 — Preparación fuera de Terraform
 
 Hacer esto antes de crear Cloud Run.
 
-**Usuarios SQL.** Terraform no los crea. El procedimiento de grants todavía
-no está en el repositorio: hay que dejarlo escrito y ejecutarlo antes del
-primer migrate.
+**Usuarios SQL.** Terraform no los crea y el SQL no está en el repositorio.
+Al 26/10/2026 ya quedaron configurados fuera de Terraform:
 
-| Usuario | Para qué |
-|---------|----------|
+| Usuario | Rol |
+|---------|-----|
 | `maps-app` | Runtime del backend y job de bootstrap. |
-| `maps-migrate` | Job de migraciones. |
+| `maps-migrate` | Migraciones. |
 
-No documentar ni commitear las contraseñas.
+Los roles están diferenciados. También quedaron los privilegios
+predeterminados sobre tablas y secuencias futuras. La Data API de Cloud SQL
+quedó deshabilitada de nuevo. No hay contraseñas en este documento.
+
+Después del primer migrate hay que validar ese esquema. Sigue pendiente
+restringir el acceso de `maps-app` a `_prisma_migrations`: esa tabla la
+administra `maps-migrate`.
 
 **URLs.** Leer `database_private_ip` del output. Las dos URLs usan el mismo
 host, puerto, base y parámetros, y distinto usuario. Forma conceptual, sin
@@ -176,12 +195,18 @@ para que el navegador llame al mismo origen. `VITE_PUBLIC_INDEXING` default
 ve. Si el sitio público debe indexarse, es una decisión de build todavía no
 tomada en esta IaC. `VITE_MAPS_WHATSAPP_NUMBER` es opcional y de build.
 
-La service account `maps-prod-build` puede escribir en el repositorio. En el
-mismo proyecto, el pull normalmente lo hace la infraestructura de Cloud Run
-(su service agent), no las service accounts de runtime. Esas cuentas no
-tienen por qué llevar `roles/artifactregistry.reader`. Verificar el pull en
-el primer deployment. Si falla, revisar primero los permisos del Cloud Run
-service agent.
+La service account `maps-prod-build` escribe en el repositorio. En el mismo
+proyecto, el pull normalmente lo hace el service agent de Cloud Run, no las
+cuentas de runtime. Esas cuentas no tienen por qué llevar
+`roles/artifactregistry.reader`. Verificar el pull en el primer deployment.
+Si falla, revisar primero los permisos del Cloud Run service agent.
+
+Cloud Build no debe usar la cuenta de Compute Engine por defecto. El build
+corre como `maps-prod-build`, con `options.logging: CLOUD_LOGGING_ONLY`, y
+el fuente temporal se sube al bucket `${project_id}-build-source`. El
+detalle está en el README de producción. Enviar el contexto desde `backend/`
+o `frontend/`, nunca desde la raíz, y no incluir `.env`, credenciales, state
+de Terraform ni `node_modules`.
 
 Actualizar las variables de digests y de versiones numéricas con los valores
 reales. Recién ahí la fase 3 puede crear los servicios.
@@ -238,6 +263,11 @@ a propósito.
 No ejecutar `prisma migrate dev`, `migrate reset` ni `db:seed`. El seed demo
 no entra en producción.
 
+El `SUPERADMIN` de ese bootstrap es una cuenta técnica temporal de Kondor.
+No es el administrador permanente de MAPS. Cuando la operación pase a MAPS,
+la cuenta se transfiere. El email y la contraseña quedan solo en Secret
+Manager. El job todavía no corrió, así que la fila aún no existe.
+
 La forma de lanzarlos, con el proyecto creado en la fase 0:
 
 ```bash
@@ -245,8 +275,9 @@ gcloud run jobs execute maps-prod-migrate --region southamerica-east1 --project 
 gcloud run jobs execute maps-prod-bootstrap --region southamerica-east1 --project PROJECT_ID --wait
 ```
 
-Esos comandos todavía no se corrieron. Si migrate falla por permisos SQL, el
-hueco está en los grants de la fase 2, no en otro apply.
+Esos comandos todavía no se corrieron. Los usuarios y los privilegios
+predeterminados ya están. Si migrate falla, revisar esa configuración antes
+de otro apply. Después, validar que `maps-app` no use `_prisma_migrations`.
 
 Después del bootstrap inicial, la versión de la contraseña de bootstrap
 puede deshabilitarse. El contenedor queda: tiene protección contra borrado.
@@ -392,16 +423,21 @@ autoriza apagarlo ahora. Su topología sigue siendo la del runbook de staging.
 
 ### Antes del primer migrate
 
-- Escribir y ejecutar los grants de `maps-app` y `maps-migrate`. No están en
-  el repo y Terraform no los crea.
-- En el primer deployment, verificar el pull de imágenes. Si falla, revisar
-  primero los permisos del Cloud Run service agent. Las service accounts de
-  runtime no tienen por qué tener `roles/artifactregistry.reader`.
+- Construir y publicar las imágenes. Todavía no existen.
+- Los usuarios SQL, sus roles y los privilegios predeterminados ya están,
+  fuera de Terraform. Después del migrate, validar el esquema y restringir
+  `maps-app` sobre `_prisma_migrations`.
+- En el primer deployment de Cloud Run, verificar el pull de imágenes. Si
+  falla, revisar primero los permisos del Cloud Run service agent. Las
+  service accounts de runtime no tienen por qué tener
+  `roles/artifactregistry.reader`.
 
 ### Antes del go-live
 
-- Elegir y crear proyecto, bucket de state y bucket de assets.
-- Completar las fases 0 a 7. Nada de eso ocurrió.
+- Fases 3 a 7: Cloud Run, jobs, balanceador, DNS, certificado y monitoring.
+  La fundación y Cloud Build ya están aplicados.
+- Ejecutar migrate y el bootstrap. El `SUPERADMIN` inicial es la cuenta
+  técnica temporal de Kondor; después se transfiere a MAPS.
 - Validar `TRUST_PROXY=2` con tráfico real.
 - Hacer el restore drill sobre una instancia nueva.
 - Activar Billing anomaly detection en la cuenta de facturación.

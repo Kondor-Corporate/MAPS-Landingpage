@@ -32,7 +32,8 @@ URLs internas ni credenciales.
 
 La producción tiene otra topología. Su IaC está en `infra/terraform/` y su
 operación en [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md). Este
-documento no la describe. Producción todavía no está desplegada.
+documento no la describe. La aplicación de producción todavía no atiende
+tráfico. El bootstrap parcial está en el runbook de producción.
 
 ## Topología
 
