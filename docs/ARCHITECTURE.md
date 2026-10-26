@@ -17,6 +17,7 @@ MAPS es un monorepo full-stack compuesto por:
 | Base de datos | `backend/prisma/` | Prisma schema + migraciones SQL |
 | Infra local | `docker-compose.yml` | PostgreSQL, backend y frontend de desarrollo |
 | Staging | GCP (`maps-staging-landing-page`) | Cloud Run + Cloud SQL + GCS — ver [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md) |
+| Producción | GCP, proyecto todavía no creado | IaC en `infra/terraform/`. Operación en [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md). No desplegada. |
 
 No se usan npm workspaces: `frontend/` y `backend/` tienen `package.json` y `package-lock.json` independientes.
 
@@ -66,7 +67,15 @@ Proyecto GCP: `maps-staging-landing-page`. Region: `southamerica-east1`.
 
 Local y staging son entornos distintos: Compose + seed demo vs Cloud Run + migrate/bootstrap. Contrato operativo: [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md).
 
-Produccion no esta documentada como desplegada.
+---
+
+## Topologia de produccion GCP
+
+La produccion esta definida como infraestructura como codigo en `infra/terraform/`. El root module vive en `infra/terraform/environments/production/`. Todavia no hay proyecto creado, `terraform apply` ni despliegue.
+
+La topologia no es la de staging. Un balanceador global externo enruta `/api` y `/api/*` al backend de Cloud Run y el resto al frontend. El backend llega a Cloud SQL por IP privada con Direct VPC. Esa arquitectura inicial no incluye Memorystore ni un conector VPC.
+
+El contrato operativo esta en [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md). Este documento no lo duplica.
 
 ---
 
@@ -295,3 +304,4 @@ En Docker desarrollo, Compose define los defaults. En ejecucion local host, usar
 - No usar TDDs/work-logs como fuente de verdad del estado actual.
 - Documentar cambios de arquitectura en este archivo cuando afecten a mas de un modulo.
 - El detalle de provision y variables de staging vive en [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md), no aqui.
+- La produccion como codigo y su operacion viven en `infra/terraform/` y en [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md).
