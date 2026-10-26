@@ -184,6 +184,10 @@ module "observability" {
 module "cost_controls" {
   source = "../../modules/cost-controls"
 
+  providers = {
+    google = google.billing
+  }
+
   project_id                = var.project_id
   billing_account_id        = var.billing_account_id
   monthly_budget_usd        = var.monthly_budget_usd
