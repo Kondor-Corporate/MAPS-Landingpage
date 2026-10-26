@@ -12,3 +12,18 @@ output "private_services_range_name" {
   description = "Private Services Access allocated range."
   value       = module.network.private_services_range_name
 }
+
+output "database_instance_name" {
+  description = "Production Cloud SQL instance name."
+  value       = module.database.instance_name
+}
+
+output "database_name" {
+  description = "Production logical PostgreSQL database name."
+  value       = module.database.database_name
+}
+
+output "database_private_ip" {
+  description = "Private IPv4 address of the production Cloud SQL instance."
+  value       = module.database.private_ip_address
+}
