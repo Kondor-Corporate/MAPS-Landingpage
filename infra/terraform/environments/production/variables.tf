@@ -98,3 +98,43 @@ variable "refresh_secret_version" {
     error_message = "refresh_secret_version must be a positive integer string such as 1."
   }
 }
+
+variable "jobs_image" {
+  description = "Immutable jobs image reference ending in @sha256 and 64 hexadecimal digits."
+  type        = string
+
+  validation {
+    condition     = can(regex("@sha256:[0-9a-fA-F]{64}$", var.jobs_image))
+    error_message = "jobs_image must be an immutable reference ending in @sha256 and 64 hexadecimal digits."
+  }
+}
+
+variable "database_url_migrate_secret_version" {
+  description = "Existing numeric version of the migrate database URL secret. Terraform does not create it."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*$", var.database_url_migrate_secret_version))
+    error_message = "database_url_migrate_secret_version must be a positive integer string such as 1."
+  }
+}
+
+variable "bootstrap_admin_email_secret_version" {
+  description = "Existing numeric version of the bootstrap admin email secret. Terraform does not create it."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*$", var.bootstrap_admin_email_secret_version))
+    error_message = "bootstrap_admin_email_secret_version must be a positive integer string such as 1."
+  }
+}
+
+variable "bootstrap_admin_password_secret_version" {
+  description = "Existing numeric version of the bootstrap admin password secret. Terraform does not create it."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*$", var.bootstrap_admin_password_secret_version))
+    error_message = "bootstrap_admin_password_secret_version must be a positive integer string such as 1."
+  }
+}

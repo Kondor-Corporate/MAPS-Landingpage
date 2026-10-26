@@ -72,3 +72,13 @@ output "backend_service_name" {
   description = "Production backend Cloud Run service name."
   value       = module.runtime_services.backend_service_name
 }
+
+output "migrate_job_name" {
+  description = "Production database migrate Cloud Run job name."
+  value       = module.runtime_jobs.migrate_job_name
+}
+
+output "bootstrap_job_name" {
+  description = "Production bootstrap admin Cloud Run job name."
+  value       = module.runtime_jobs.bootstrap_job_name
+}

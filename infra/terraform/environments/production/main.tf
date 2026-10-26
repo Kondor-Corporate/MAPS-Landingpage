@@ -106,3 +106,37 @@ module "runtime_services" {
     module.artifact_registry,
   ]
 }
+
+module "runtime_jobs" {
+  source = "../../modules/runtime-jobs"
+
+  project_id = var.project_id
+  region     = var.region
+  prefix     = local.prefix
+  labels     = local.labels
+
+  migrate_service_account_email   = module.iam.migrate_service_account_email
+  bootstrap_service_account_email = module.iam.bootstrap_service_account_email
+
+  network_name           = module.network.network_name
+  serverless_subnet_name = module.network.serverless_subnet_name
+
+  jobs_image = var.jobs_image
+
+  database_url_migrate_secret_id     = module.iam.database_url_migrate_secret_id
+  database_url_app_secret_id         = module.iam.database_url_app_secret_id
+  bootstrap_admin_email_secret_id    = module.iam.bootstrap_admin_email_secret_id
+  bootstrap_admin_password_secret_id = module.iam.bootstrap_admin_password_secret_id
+
+  database_url_migrate_secret_version     = var.database_url_migrate_secret_version
+  database_url_app_secret_version         = var.database_url_app_secret_version
+  bootstrap_admin_email_secret_version    = var.bootstrap_admin_email_secret_version
+  bootstrap_admin_password_secret_version = var.bootstrap_admin_password_secret_version
+
+  depends_on = [
+    module.project_services,
+    module.network,
+    module.iam,
+    module.artifact_registry,
+  ]
+}
