@@ -169,9 +169,14 @@ module "observability" {
 
   database_instance_name = module.database.instance_name
 
+  region                = var.region
+  frontend_service_name = module.runtime_services.frontend_service_name
+  backend_service_name  = module.runtime_services.backend_service_name
+
   depends_on = [
     module.project_services,
     module.database,
     module.edge,
+    module.runtime_services,
   ]
 }

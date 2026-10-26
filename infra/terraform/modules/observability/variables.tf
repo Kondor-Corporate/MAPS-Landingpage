@@ -28,6 +28,36 @@ variable "public_origin" {
   }
 }
 
+variable "region" {
+  description = "Region of the Cloud Run services. Uptime checks are global; Cloud Run alerts filter on this location."
+  type        = string
+
+  validation {
+    condition     = length(trimspace(var.region)) > 0 && var.region == trimspace(var.region)
+    error_message = "region must not be empty."
+  }
+}
+
+variable "frontend_service_name" {
+  description = "Cloud Run frontend service name used by the production alerts."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$", var.frontend_service_name))
+    error_message = "frontend_service_name must be a Cloud Run service name: lowercase letters, numbers, and hyphens."
+  }
+}
+
+variable "backend_service_name" {
+  description = "Cloud Run backend service name used by the production alerts."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$", var.backend_service_name))
+    error_message = "backend_service_name must be a Cloud Run service name: lowercase letters, numbers, and hyphens."
+  }
+}
+
 variable "database_instance_name" {
   description = "Cloud SQL instance name. Monitoring identifies the instance as project_id:instance_name."
   type        = string
