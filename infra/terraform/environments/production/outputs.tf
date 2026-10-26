@@ -102,3 +102,8 @@ output "api_uptime_check_id" {
   description = "ID of the production API health uptime check."
   value       = module.observability.api_uptime_check_id
 }
+
+output "monthly_budget_usd" {
+  description = "Gross monthly production budget in whole US dollars."
+  value       = module.cost_controls.monthly_budget_usd
+}

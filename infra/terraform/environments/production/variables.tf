@@ -69,6 +69,27 @@ variable "alert_email" {
   }
 }
 
+variable "billing_account_id" {
+  description = "Cloud Billing account ID that pays for MAPS production. Format is XXXXXX-XXXXXX-XXXXXX. This is not a secret."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9]{6}-[A-Za-z0-9]{6}-[A-Za-z0-9]{6}$", var.billing_account_id))
+    error_message = "billing_account_id must be a Cloud Billing account ID in the form XXXXXX-XXXXXX-XXXXXX."
+  }
+}
+
+variable "monthly_budget_usd" {
+  description = "Gross monthly production budget in whole US dollars, before credits."
+  type        = number
+  default     = 110
+
+  validation {
+    condition     = var.monthly_budget_usd > 0 && var.monthly_budget_usd == floor(var.monthly_budget_usd)
+    error_message = "monthly_budget_usd must be a positive whole number of US dollars."
+  }
+}
+
 variable "nominatim_user_agent" {
   description = "User-Agent the production backend sends to Nominatim."
   type        = string
