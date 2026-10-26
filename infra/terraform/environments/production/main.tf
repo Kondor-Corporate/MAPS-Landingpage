@@ -67,3 +67,42 @@ module "artifact_registry" {
     module.iam,
   ]
 }
+
+module "runtime_services" {
+  source = "../../modules/runtime-services"
+
+  project_id = var.project_id
+  region     = var.region
+  prefix     = local.prefix
+  labels     = local.labels
+
+  frontend_service_account_email = module.iam.frontend_service_account_email
+  backend_service_account_email  = module.iam.backend_service_account_email
+
+  network_name           = module.network.network_name
+  serverless_subnet_name = module.network.serverless_subnet_name
+
+  assets_bucket_name = module.storage.bucket_name
+
+  database_url_app_secret_id = module.iam.database_url_app_secret_id
+  jwt_secret_id              = module.iam.jwt_secret_id
+  refresh_secret_id          = module.iam.refresh_secret_id
+
+  frontend_image = var.frontend_image
+  backend_image  = var.backend_image
+
+  database_url_app_secret_version = var.database_url_app_secret_version
+  jwt_secret_version              = var.jwt_secret_version
+  refresh_secret_version          = var.refresh_secret_version
+
+  public_origin        = var.public_origin
+  nominatim_user_agent = var.nominatim_user_agent
+
+  depends_on = [
+    module.project_services,
+    module.network,
+    module.iam,
+    module.storage,
+    module.artifact_registry,
+  ]
+}

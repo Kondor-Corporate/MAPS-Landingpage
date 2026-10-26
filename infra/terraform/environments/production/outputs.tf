@@ -62,3 +62,13 @@ output "artifact_registry_repository" {
   description = "Production Artifact Registry repository ID."
   value       = module.artifact_registry.repository_id
 }
+
+output "frontend_service_name" {
+  description = "Production frontend Cloud Run service name."
+  value       = module.runtime_services.frontend_service_name
+}
+
+output "backend_service_name" {
+  description = "Production backend Cloud Run service name."
+  value       = module.runtime_services.backend_service_name
+}
