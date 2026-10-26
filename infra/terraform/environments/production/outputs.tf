@@ -92,3 +92,13 @@ output "public_origin" {
   description = "Production public HTTPS origin."
   value       = module.edge.https_url
 }
+
+output "frontend_uptime_check_id" {
+  description = "ID of the production frontend uptime check."
+  value       = module.observability.frontend_uptime_check_id
+}
+
+output "api_uptime_check_id" {
+  description = "ID of the production API health uptime check."
+  value       = module.observability.api_uptime_check_id
+}

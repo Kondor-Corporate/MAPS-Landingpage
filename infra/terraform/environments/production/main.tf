@@ -158,3 +158,17 @@ module "edge" {
     module.runtime_services,
   ]
 }
+
+module "observability" {
+  source = "../../modules/observability"
+
+  project_id    = var.project_id
+  prefix        = local.prefix
+  public_origin = var.public_origin
+  alert_email   = var.alert_email
+
+  depends_on = [
+    module.project_services,
+    module.edge,
+  ]
+}

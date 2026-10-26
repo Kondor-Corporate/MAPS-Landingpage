@@ -59,6 +59,16 @@ variable "public_origin" {
   }
 }
 
+variable "alert_email" {
+  description = "Email address that receives production uptime alerts. This is not a secret."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_email)) && length(var.alert_email) <= 254
+    error_message = "alert_email must be an email address."
+  }
+}
+
 variable "nominatim_user_agent" {
   description = "User-Agent the production backend sends to Nominatim."
   type        = string
