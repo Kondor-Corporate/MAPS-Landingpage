@@ -26,11 +26,18 @@ Datos no sensibles conocidos (sin inventario de URLs ni secretos):
 | IAM | Service accounts dedicadas |
 | Observabilidad | Monitoring y alertas configurados |
 
-Este runbook sigue siendo la fuente del **contrato** (imágenes, variables, IAM
-conceptual, secuencia reproducible). No es un inventario de URLs internas ni
-credenciales. Producción no se documenta aquí como desplegada.
+Este runbook sigue siendo la fuente del **contrato de staging** (imágenes,
+variables, IAM conceptual, secuencia reproducible). No es un inventario de
+URLs internas ni credenciales.
+
+La producción tiene otra topología. Su IaC está en `infra/terraform/` y su
+operación en [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md). Este
+documento no la describe. Producción todavía no está desplegada.
 
 ## Topología
+
+Esta topología es la de staging. No es la de producción: producción usa un
+balanceador global y Direct VPC, no el proxy público de este entorno.
 
 - **Frontend Cloud Run:** servicio público. Sirve la SPA y recibe todo el tráfico del navegador.
 - **Backend Cloud Run:** servicio públicamente invocable en este staging. Recibe desde
@@ -117,23 +124,23 @@ privado y el acceso público ocurre exclusivamente mediante el backend.
 
 ## Redis / Memorystore (rate limiting y caché de geocoding)
 
-MAPS-020 agrega un store distribuido compartido por el rate limiting de
-`/geocode`, `/geocode/reverse`, `/producers/map` y la caché de resultados de
-geocoding. En staging/producción es un recurso nuevo a provisionar
-(Memorystore for Redis, tier básico, sin acceso público, en la misma VPC que
-el backend Cloud Run vía conector serverless VPC access).
+MAPS-020 puede usar un store distribuido para el rate limiting de
+`/geocode`, `/geocode/reverse` y `/producers/map`, y para la caché de
+geocoding. El código trata `REDIS_URL` como opcional. Si no está, o si Redis
+no responde, el backend degrada a un `MemoryStore` local por instancia y
+consulta Nominatim sin caché compartida. No responde 429/503 solo porque
+Redis falte. El detalle está en
+`docs/tdd/MAPS-020-tdd-rate-limiting-geocoding-mapa.md`.
 
-- Redis **no es un punto único de falla**: si no está disponible, el backend
-  degrada solo (fail-open) a un `MemoryStore` local por instancia para rate
-  limiting y a consultar Nominatim directamente sin caché. Nunca se responde
-  429/503 únicamente por la caída de Redis. El detalle de la degradación en 3
-  niveles está en `docs/tdd/MAPS-020-tdd-rate-limiting-geocoding-mapa.md`.
-- `REDIS_URL` es **opcional** en dev/test (sin ella, todo corre en memoria) y
-  **obligatoria** en staging/producción para que el rate limiting y la caché
-  sean efectivos entre instancias.
-- IAM conceptual: el backend necesita conectividad de red a la instancia de
-  Memorystore (misma VPC / conector serverless); Memorystore no usa IAM de
-  objeto como GCS, el control de acceso es de red.
+Este runbook no afirma que Memorystore esté provisionado en staging ni que
+se haya retirado. Si staging usa Redis, el backend necesita red hasta esa
+instancia. Memorystore no usa IAM de objeto como GCS: el control es de red.
+
+La arquitectura inicial de producción no incluye Redis, Memorystore ni un
+conector Serverless VPC Access. Su Terraform no define `REDIS_URL` y el
+backend usa Direct VPC hacia Cloud SQL. Sin `REDIS_URL`, el rate limiting de
+producción queda en `MemoryStore` local. Esa decisión no describe el estado
+real de staging.
 
 ### Prerequisito: verificación de `TRUST_PROXY` (Fase 0 de MAPS-020)
 
@@ -170,18 +177,25 @@ Configuración normal:
 - `JWT_EXPIRES_IN`
 - `REFRESH_EXPIRES_IN`
 - `FRONTEND_ORIGIN`: origen público único del frontend.
-- `TRUST_PROXY=1`
+- `TRUST_PROXY=1` en este staging, detrás del proxy Nginx. No es el valor de
+  producción: la IaC de producción fija `2` para el balanceador externo
+  delante de Cloud Run, y ese número todavía hay que validarlo con tráfico
+  real. No usar `true` en ninguno de los dos.
 - `ALLOW_REFRESH_BODY=false`
 - `STORAGE_PROVIDER=gcs`
 - `GCS_BUCKET`
 - `GCS_PREFIX` opcional
-- `API_PUBLIC_URL`: obligatoria con GCS. Debe ser el origen público del frontend,
-  sin credenciales, path ni barra final, porque `/api` llega por Nginx.
+- `API_PUBLIC_URL`: obligatoria con GCS. En este staging debe ser el origen
+  público del frontend, sin credenciales, path ni barra final, porque `/api`
+  llega por Nginx.
 - `NOMINATIM_USER_AGENT`
 - `TZ`
-- `REDIS_URL`: obligatoria en staging/producción (ver sección Redis/Memorystore).
-  No es secreto por sí sola (sin credenciales embebidas, Memorystore controla
-  acceso por red), pero se gestiona igual vía Secret Manager por convención.
+- `REDIS_URL`: opcional para el código. Sin ella, el proceso degrada a memoria
+  local. No es obligatoria en producción: esa arquitectura no la configura.
+  Este documento no afirma que staging ya la tenga ni que se haya sacado. Si
+  se usa, no es un secreto por sí sola (sin credenciales embebidas;
+  Memorystore controla el acceso por red) y la convención sigue siendo
+  Secret Manager.
 
 Secretos:
 
@@ -235,6 +249,11 @@ la contraseña, incrementa `tokenVersion` y revoca sesiones.
 Aplicar privilegios al recurso específico y evitar roles de proyecto amplios.
 
 ## Decisión de acceso a Cloud Run
+
+Esta decisión es de staging. Producción no publica el backend como URL
+directa de Cloud Run: ambos servicios aceptan tráfico solo desde el
+balanceador y `/api` lo enruta el balanceador, no Nginx. Producción tampoco
+usa un conector VPC.
 
 - El frontend es público.
 - El backend también es públicamente invocable en esta primera versión.
