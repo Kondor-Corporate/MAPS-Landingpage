@@ -82,3 +82,13 @@ output "bootstrap_job_name" {
   description = "Production bootstrap admin Cloud Run job name."
   value       = module.runtime_jobs.bootstrap_job_name
 }
+
+output "global_ip_address" {
+  description = "Production global load balancer IPv4 address."
+  value       = module.edge.global_ip_address
+}
+
+output "public_origin" {
+  description = "Production public HTTPS origin."
+  value       = module.edge.https_url
+}

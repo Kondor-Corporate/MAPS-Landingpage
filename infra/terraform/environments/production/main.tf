@@ -140,3 +140,21 @@ module "runtime_jobs" {
     module.artifact_registry,
   ]
 }
+
+module "edge" {
+  source = "../../modules/edge"
+
+  project_id = var.project_id
+  region     = var.region
+  prefix     = local.prefix
+
+  frontend_service_name = module.runtime_services.frontend_service_name
+  backend_service_name  = module.runtime_services.backend_service_name
+
+  public_origin = var.public_origin
+
+  depends_on = [
+    module.project_services,
+    module.runtime_services,
+  ]
+}

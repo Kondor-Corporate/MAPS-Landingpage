@@ -172,12 +172,12 @@ variable "refresh_secret_version" {
 }
 
 variable "public_origin" {
-  description = "Public HTTPS origin used by the frontend and backend. Must not end with a slash."
+  description = "Public HTTPS origin used by the frontend and backend. Hostname only: no userinfo, port, path, query, fragment, or trailing slash."
   type        = string
 
   validation {
-    condition     = startswith(var.public_origin, "https://") && !endswith(var.public_origin, "/") && length(var.public_origin) > 8
-    error_message = "public_origin must be an HTTPS URL without a trailing slash."
+    condition     = can(regex("^https://(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$", var.public_origin)) && length(trimprefix(var.public_origin, "https://")) <= 253
+    error_message = "public_origin must be an HTTPS origin with a lowercase hostname, without userinfo, port, path, query, fragment, or a trailing slash."
   }
 }
 
