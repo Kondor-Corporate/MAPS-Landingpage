@@ -10,7 +10,7 @@ Terraform administra infraestructura. No administra datos de negocio.
 
 | Entorno | Código Terraform | Despliegue |
 |---------|------------------|------------|
-| Producción | `environments/production/` | Bootstrap parcial al 26/10/2026. Proyecto `maps-prod-landing-page`, 44 recursos aplicados. Sin Cloud Run, balanceador, DNS ni tráfico. |
+| Producción | `environments/production/` | Desplegado al 27/10/2026 en `maps-prod-landing-page`. Cloud Run, balanceador y presupuesto aplicados. El dominio oficial todavía no publica el sitio. |
 | Staging | Carpeta reservada, sin configuración | Sigue operando como está documentado en `docs/GCP_STAGING_RUNBOOK.md`. Su topología no es la de producción. |
 
 ## Versiones
@@ -55,7 +55,7 @@ El root los compone en `environments/production/main.tf`.
 | `runtime-services` | Cloud Run del frontend y del backend. |
 | `runtime-jobs` | Cloud Run Jobs de migrate y bootstrap. No los ejecuta. |
 | `edge` | IP global, NEGs serverless, balanceador HTTPS, certificado administrado y redirección HTTP. |
-| `observability` | Canal de email, uptime checks y alertas de Cloud SQL y Cloud Run. |
+| `observability` | Canales de email (`alert_emails`), uptime checks y alertas de Cloud SQL y Cloud Run. |
 | `cost-controls` | Presupuesto mensual de facturación. Solo alerta. No corta servicios ni limita el gasto. |
 
 `environments/production/locals.tf` lista las APIs que habilita

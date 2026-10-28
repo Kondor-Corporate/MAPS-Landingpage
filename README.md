@@ -68,7 +68,7 @@ Los documentos historicos en `docs/tdd/` y `docs/worklog/` explican como se lleg
 
 Hay un entorno de **staging operativo** en Google Cloud (Cloud Run frontend/backend, Cloud SQL PostgreSQL, GCS privado). Contrato y operación: [`docs/GCP_STAGING_RUNBOOK.md`](./docs/GCP_STAGING_RUNBOOK.md).
 
-Producción no está documentada como desplegada.
+Producción en GCP (`maps-prod-landing-page`, `southamerica-east1`) está desplegada al 27/10/2026: Cloud Run, Cloud SQL, balanceador, presupuesto y monitoreo interno. **El sitio todavía no se ha publicado mediante el dominio oficial.** Operación: [`docs/GCP_PRODUCTION_RUNBOOK.md`](./docs/GCP_PRODUCTION_RUNBOOK.md).
 
 ---
 
@@ -339,6 +339,7 @@ Arquitectura completa: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 - [`docs/MIGRATIONS.md`](./docs/MIGRATIONS.md): Prisma, migraciones y seed.
 - [`docs/CHANGELOG.md`](./docs/CHANGELOG.md): cambios relevantes.
 - [`docs/GCP_STAGING_RUNBOOK.md`](./docs/GCP_STAGING_RUNBOOK.md): contrato y operación de staging en GCP.
+- [`docs/GCP_PRODUCTION_RUNBOOK.md`](./docs/GCP_PRODUCTION_RUNBOOK.md): operación de producción en GCP. La infraestructura está desplegada; el dominio oficial todavía no publica el sitio.
 - [`docs/modules/auth.md`](./docs/modules/auth.md): auth, routing y roles.
 - [`docs/modules/producers.md`](./docs/modules/producers.md): productores, perfiles, mapa y certificaciones.
 - [`docs/modules/library.md`](./docs/modules/library.md): biblioteca digital.

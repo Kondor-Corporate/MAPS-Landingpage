@@ -53,10 +53,8 @@ resource "google_billing_budget" "production" {
   # mail is sent when a threshold rule fires. Periodic updates that are
   # not tied to a threshold belong to Pub/Sub, which this budget does not use.
   all_updates_rule {
-    monitoring_notification_channels = [
-      var.notification_channel_name,
-    ]
-    disable_default_iam_recipients  = true
-    enable_project_level_recipients = false
+    monitoring_notification_channels = sort(tolist(var.notification_channel_names))
+    disable_default_iam_recipients   = true
+    enable_project_level_recipients  = false
   }
 }

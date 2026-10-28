@@ -166,7 +166,7 @@ module "observability" {
   project_id    = var.project_id
   prefix        = local.prefix
   public_origin = var.public_origin
-  alert_email   = var.alert_email
+  alert_emails  = var.alert_emails
 
   database_instance_name = module.database.instance_name
 
@@ -189,13 +189,12 @@ module "cost_controls" {
     google = google.billing
   }
 
-  project_id                = var.project_id
-  billing_account_id        = var.billing_account_id
-  monthly_budget_usd        = var.monthly_budget_usd
-  notification_channel_name = module.observability.notification_channel_name
+  project_id                 = var.project_id
+  billing_account_id         = var.billing_account_id
+  monthly_budget_usd         = var.monthly_budget_usd
+  notification_channel_names = module.observability.notification_channel_names
 
   depends_on = [
     module.project_services,
-    module.observability,
   ]
 }

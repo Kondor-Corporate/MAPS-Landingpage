@@ -6,20 +6,27 @@ Cómo se despliega y opera está en
 
 ## Estado
 
-**Bootstrap parcial al 26/10/2026.** El proyecto `maps-prod-landing-page`
-existe. Terraform tiene 44 recursos aplicados: 41 de la fundación y 3 de
-Cloud Build. No hay certificado `ACTIVE`, DNS ni tráfico.
+**Desplegado al 27/10/2026. El sitio todavía no se ha publicado mediante el
+dominio oficial.**
 
-Verificado en GCP: red, Cloud SQL `maps-prod-db` (`RUNNABLE`, IP privada
-`10.30.0.3`), bucket de assets, service accounts, contenedores de Secret
-Manager con la versión 1 habilitada, Artifact Registry `maps-prod` y el
-bucket de fuentes `maps-prod-landing-page-build-source`. `maps-prod-build`
-tiene `roles/logging.logWriter`, lectura de ese bucket y
-`roles/artifactregistry.writer` en el repositorio.
+El proyecto es `maps-prod-landing-page`, en `southamerica-east1`. Frontend y
+backend están en Cloud Run. El frontend final tiene indexación habilitada y
+dominio canónico. Cloud SQL PostgreSQL 17 tiene 20 migraciones aplicadas.
+Hay un `SUPERADMIN` inicial. Desde staging se migraron, fuera de Terraform,
+8 noticias, 10 imágenes de galería, 1 biblioteca, 20 ramos y 16 objetos de
+GCS. La recuperación se probó en una instancia independiente, ya eliminada.
+El backup manual de esa prueba es `1793126953962`.
 
-Pendiente: imágenes Docker, Cloud Run, jobs, balanceador, DNS, certificado
-y monitoring. Esos nombres de más abajo siguen siendo lo que el código va a
-crear. No son recursos vivos.
+El borde tiene la IP `136.110.128.230`, dos certificados HTTPS (dominio
+principal y `www`) y la redirección de `www` al principal. Los certificados
+están configurados y todavía no validados. El presupuesto es de 110 USD y
+notifica a dos canales. Hay 18 políticas internas de monitoreo. Los dos
+uptime checks públicos y sus dos políticas siguen sin crear.
+
+La auditoría de infraestructura y la del backend quedaron aprobadas. Esa
+última corrió 119 tests en 9 archivos. El detalle operativo está en el
+runbook. Los nombres de más abajo son los recursos declarados. El DNS
+público no apunta todavía a la IP.
 
 Directorio de trabajo: `infra/terraform/environments/production/`.
 
@@ -29,7 +36,8 @@ Prefijo: `maps-prod`. Labels: `application=maps`, `environment=production`,
 ## Arquitectura
 
 Balanceador de aplicación externo global (esquema `EXTERNAL_MANAGED`, nivel
-Premium). Un solo hostname, el de `public_origin`.
+Premium). El hostname de `public_origin` es el dominio principal. `www` de
+ese hostname redirige al principal.
 
 | Ruta | Destino |
 |------|---------|
@@ -265,25 +273,28 @@ southamerica-east1-docker.pkg.dev/PROJECT_ID/maps-prod/NOMBRE@sha256:64HEX
 
 | Pieza | Nombre | Detalle |
 |-------|--------|---------|
-| IP global | `maps-prod-lb-ip` | IPv4 externa. Output `global_ip_address`. |
+| IP global | `maps-prod-lb-ip` | IPv4 externa `136.110.128.230` al 27/10/2026. Output `global_ip_address`. |
 | NEG frontend | `maps-prod-frontend-neg` | Serverless, regional |
 | NEG API | `maps-prod-backend-neg` | Serverless, regional |
-| Certificado | `maps-prod-certificate` | Gestionado. Un solo dominio: el hostname de `public_origin`. |
-| HTTPS | `maps-prod-https` | Puerto 443, proxy HTTPS |
-| HTTP | `maps-prod-http` | Puerto 80. Redirige a HTTPS con `PERMANENT_REDIRECT` (308). Conserva la query. |
+| Certificado principal | `maps-prod-certificate` | Gestionado. Hostname de `public_origin`. Configurado; la activación espera al DNS. |
+| Certificado `www` | `maps-prod-www-certificate` | Gestionado. `www.` más ese hostname. Configurado; la activación espera al DNS. |
+| HTTPS | `maps-prod-https` | Puerto 443. El proxy usa los dos certificados. |
+| HTTP | `maps-prod-http` | Puerto 80. Redirige a HTTPS con `PERMANENT_REDIRECT` (308). Conserva la query y el host. |
+| `www` | host rule del URL map HTTPS | Redirección permanente al dominio principal. Conserva la query. |
 
-CDN apagado. Timeout de los backend services: 60 segundos.
+CDN apagado. Los backend services no declaran `timeout_sec`.
 
-`www` no entra en el certificado salvo que `public_origin` sea exactamente
-ese hostname. El código no agrega el apex ni `www` al lado del nombre elegido.
+`public_origin` tiene que ser el dominio principal. El módulo arma el
+hostname `www` anteponiendo `www.` a ese nombre.
 
-El certificado queda en aprovisionamiento hasta que el DNS público apunte a
-la IP del balanceador. Cloud DNS no está en este stack. El proveedor de DNS
-no se asume.
+Los dos certificados quedan en aprovisionamiento hasta que el DNS público
+apunte a `136.110.128.230`. Cloud DNS no está en este stack. El registro A
+lo actualiza el administrador del dominio. El sitio todavía no se ha
+publicado mediante el dominio oficial.
 
 ## Observabilidad
 
-Canal de email `MAPS Production Alerts`, habilitado, hacia `alert_email`.
+Un canal de email `MAPS Production Alerts` por dirección de `alert_emails`, entre 1 y 5, todos habilitados. Al 27/10/2026 hay dos canales. Las 18 políticas internas y el presupuesto usan esos canales.
 
 Uptime checks públicos, cada `300s`, timeout `10s`, HTTPS en 443, SSL
 validado, solo respuestas 2xx, checkers de IP estática en todas las
@@ -317,8 +328,11 @@ Alertas de Cloud Run, también línea de base:
 | CPU y memoria | P95 > 80 % durante 10 min, por servicio |
 | Instancias | más de 2 activas durante 10 min (el máximo configurado es 3) |
 
-Conviene aplicar este módulo cuando el DNS y el certificado ya responden.
-Antes, el uptime falla por una causa esperada del bootstrap.
+Las políticas de Cloud SQL y de Cloud Run ya están creadas. Los dos uptime
+checks y sus dos políticas siguen declarados en el módulo y todavía no se
+crean: el DNS y los certificados no responden por el dominio oficial. El
+presupuesto no usa `depends_on` sobre todo el módulo. Le alcanza la
+referencia a `notification_channel_names`.
 
 ## Presupuesto
 
@@ -330,7 +344,7 @@ Antes, el uptime falla por una causa esperada del bootstrap.
 | Créditos | `EXCLUDE_ALL_CREDITS`. El umbral mira el costo bruto. |
 | Gasto actual | 50 %, 75 %, 90 % y 100 % |
 | Pronóstico | 100 % |
-| Aviso | Solo el canal de Monitoring. Sin destinatarios IAM por defecto ni destinatarios de proyecto. |
+| Aviso | Solo los canales de Monitoring de `alert_emails`. Sin destinatarios IAM por defecto ni destinatarios de proyecto. |
 | Efecto | Email. No detiene Cloud Run, no cambia el autoscaling y no impone un tope de gasto. |
 
 Billing anomaly detection no está en Terraform. Es un ajuste de la cuenta
@@ -356,7 +370,7 @@ que existir antes del primer plan. Los payloads no van en `terraform.tfvars`.
 | `assets_bucket_name` | Nombre global del bucket de assets. | Antes de crear storage. Confirmar que esté libre. |
 | `billing_account_id` | Cuenta de facturación `XXXXXX-XXXXXX-XXXXXX`. No es secreto. | Al vincular billing. Lo usa el presupuesto. |
 | `public_origin` | `https://hostname` en minúsculas, sin usuario, puerto, path, query, fragmento ni barra final. | Antes de runtime, borde y uptime. |
-| `alert_email` | Destino de alertas. No es secreto. | Antes de observabilidad. |
+| `alert_emails` | Conjunto de 1 a 5 correos de alerta. No son secretos. No van valores reales en el repositorio. | Antes de observabilidad. |
 | `nominatim_user_agent` | User-Agent hacia Nominatim. No es secreto. | Antes del backend. |
 | `frontend_image` | Digest inmutable del frontend. | Después de construir y subir la imagen. |
 | `backend_image` | Digest inmutable del backend (`runner`). | Igual. |

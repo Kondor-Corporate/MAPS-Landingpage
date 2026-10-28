@@ -118,9 +118,7 @@ resource "google_monitoring_alert_policy" "cloudrun_error_rate" {
   combiner     = "OR"
   enabled      = true
 
-  notification_channels = [
-    google_monitoring_notification_channel.email.name,
-  ]
+  notification_channels = local.notification_channel_names
 
   documentation {
     mime_type = "text/markdown"
@@ -175,9 +173,7 @@ resource "google_monitoring_alert_policy" "cloudrun" {
   combiner     = "OR"
   enabled      = true
 
-  notification_channels = [
-    google_monitoring_notification_channel.email.name,
-  ]
+  notification_channels = local.notification_channel_names
 
   documentation {
     mime_type = "text/markdown"

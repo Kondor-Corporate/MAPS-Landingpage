@@ -108,6 +108,11 @@ output "api_uptime_check_id" {
   value       = module.observability.api_uptime_check_id
 }
 
+output "notification_channel_names" {
+  description = "Full resource names of the production email notification channels."
+  value       = module.observability.notification_channel_names
+}
+
 output "monthly_budget_usd" {
   description = "Gross monthly production budget in whole US dollars."
   value       = module.cost_controls.monthly_budget_usd

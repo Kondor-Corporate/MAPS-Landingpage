@@ -17,7 +17,7 @@ MAPS es un monorepo full-stack compuesto por:
 | Base de datos | `backend/prisma/` | Prisma schema + migraciones SQL |
 | Infra local | `docker-compose.yml` | PostgreSQL, backend y frontend de desarrollo |
 | Staging | GCP (`maps-staging-landing-page`) | Cloud Run + Cloud SQL + GCS — ver [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md) |
-| Producción | GCP (`maps-prod-landing-page`) | Bootstrap parcial al 26/10/2026. IaC en `infra/terraform/`. Operación en [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md). Sin tráfico. |
+| Producción | GCP (`maps-prod-landing-page`) | Desplegada al 27/10/2026. IaC en `infra/terraform/`. Operación en [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md). El dominio oficial todavía no publica el sitio. |
 
 No se usan npm workspaces: `frontend/` y `backend/` tienen `package.json` y `package-lock.json` independientes.
 
@@ -71,7 +71,7 @@ Local y staging son entornos distintos: Compose + seed demo vs Cloud Run + migra
 
 ## Topologia de produccion GCP
 
-La produccion esta definida como infraestructura como codigo en `infra/terraform/`. El root module vive en `infra/terraform/environments/production/`. Al 26/10/2026 el proyecto `maps-prod-landing-page` existe y Terraform tiene aplicada la fundacion mas Cloud Build. Cloud Run, el balanceador y el trafico siguen pendientes. El detalle esta en el runbook.
+La produccion esta definida como infraestructura como codigo en `infra/terraform/`. El root module vive en `infra/terraform/environments/production/`. Al 27/10/2026 el proyecto `maps-prod-landing-page` tiene Cloud Run, Cloud SQL, el balanceador y el monitoreo interno desplegados. El dominio oficial todavia no publica el sitio. El detalle esta en el runbook.
 
 La topologia no es la de staging. Un balanceador global externo enruta `/api` y `/api/*` al backend de Cloud Run y el resto al frontend. El backend llega a Cloud SQL por IP privada con Direct VPC. Esa arquitectura inicial no incluye Memorystore ni un conector VPC.
 
