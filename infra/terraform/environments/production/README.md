@@ -6,8 +6,7 @@ Cómo se despliega y opera está en
 
 ## Estado
 
-**Desplegado al 27/10/2026. El sitio todavía no se ha publicado mediante el
-dominio oficial.**
+**Desplegado al 27/10/2026. El 28/10/2026 se aplicó Workload Identity Federation: 13 recursos nuevos, sin cambios en Cloud Run. El sitio todavía no se ha publicado mediante el dominio oficial.**
 
 El proyecto es `maps-prod-landing-page`, en `southamerica-east1`. Frontend y
 backend están en Cloud Run. El frontend final tiene indexación habilitada y
@@ -180,10 +179,10 @@ bucket de assets ni el bucket de state de Terraform.
 | Ciclo de vida | Borra objetos a los 7 días. |
 | `force_destroy` | `false` |
 | Lectura | `maps-prod-build` tiene `roles/storage.objectViewer` solo en este bucket. |
+| Submit | `maps-prod-build-submit` tiene `roles/storage.objectCreator` y `roles/storage.objectViewer` solo en este bucket. Aplicado el 28/10/2026. |
 
-`maps-prod-build` no puede escribir objetos ahí. Quien ejecuta el submit
-sube el archivo y necesita permiso de creación sobre ese bucket. Esa
-identidad no se declara en Terraform.
+`maps-prod-build` no puede escribir objetos ahí. La cuenta que presenta el
+build sube el archivo. No recibe permiso sobre el bucket de assets.
 
 ## Secretos
 
@@ -212,7 +211,8 @@ No hay un rol de Secret Manager a nivel proyecto.
 | `maps-prod-backend` | Runtime del backend. Tres secretos y objetos del bucket. |
 | `maps-prod-migrate` | Job migrate. Solo la URL de migrate. |
 | `maps-prod-bootstrap` | Job bootstrap. URL de la app y secretos de bootstrap. |
-| `maps-prod-build` | `roles/artifactregistry.writer` en `maps-prod`. `roles/logging.logWriter` en el proyecto. `roles/storage.objectViewer` solo en el bucket de fuentes. |
+| `maps-prod-build` | Ejecuta Cloud Build. `roles/artifactregistry.writer` en `maps-prod`. `roles/logging.logWriter` en el proyecto. `roles/storage.objectViewer` solo en el bucket de fuentes. No recibe Workload Identity. |
+| `maps-prod-build-submit` | Presenta el build desde GitHub. Rol custom de Cloud Build, `roles/iam.serviceAccountUser` solo sobre `maps-prod-build`, objetos del bucket de fuentes y lectura de digests en `maps-prod`. Aplicada el 28/10/2026. |
 
 No hay `roles/cloudsql.client`. La conexión es IP privada más la URL en
 Secret Manager, no Cloud SQL Auth Proxy ni un usuario IAM de base.
@@ -229,9 +229,12 @@ extra para el service agent. El grant del service agent aparece para una
 cuenta en otro proyecto, y ahí el rol es `roles/iam.serviceAccountTokenCreator`.
 No se declara ninguno de los dos.
 
-Quien ejecuta `gcloud builds submit` sí necesita `iam.serviceAccounts.actAs`
-sobre `maps-prod-build`. Eso es `roles/iam.serviceAccountUser` en esa cuenta,
-no en el proyecto. La identidad que dispara el build no está en Terraform.
+Quien ejecuta `gcloud builds submit` necesita `iam.serviceAccounts.actAs`
+sobre `maps-prod-build`. Desde el 28/10/2026 ese permiso lo tiene solo
+`maps-prod-build-submit`, sobre esa cuenta y no sobre el proyecto. La cuenta
+predeterminada `998773244006-compute@developer.gserviceaccount.com` no
+recibió roles. Antes del apply no tenía bindings en el proyecto ni en la
+organización, y su propia política de IAM estaba vacía.
 
 ## Cloud Build
 
@@ -253,8 +256,9 @@ El submit sube el contexto a un prefijo del bucket de fuentes, por ejemplo
 `maps-prod-build`. Se corre desde `backend/` o desde `frontend/`, no desde la
 raíz del repo: así no entran `infra/terraform`, el state ni el otro
 servicio. Cada directorio tiene un `.gcloudignore` que deja afuera `.env`,
-`.env.*`, claves, `node_modules` y archivos locales. `.dockerignore` solo
-actúa después, dentro de Docker; no evita que el archivo llegue al bucket.
+`.env.*`, claves, `node_modules` y archivos locales. `.dockerignore` tiene
+que viajar en ese fuente: Docker solo ignora archivos que llegaron al
+contexto.
 
 ## Artifact Registry
 
@@ -403,3 +407,26 @@ terraform init -backend-config="bucket=BUCKET_DE_STATE"
 ```
 
 `BUCKET_DE_STATE` se elige en el bootstrap. No está en el repositorio.
+Un `terraform init -backend=false` no lee ese state y no sirve para el plan.
+
+## Workload Identity Federation
+
+Aplicado el 28/10/2026 con un plan dirigido a `module.build_identity`. El
+resultado fue 13 creaciones, 0 modificaciones y 0 eliminaciones. No cambió
+Cloud Run, Cloud SQL, el balanceador, la red, el presupuesto ni el IAM que
+ya existía.
+
+Quedaron habilitadas `iamcredentials.googleapis.com` y
+`sts.googleapis.com`. La cuenta nueva es `maps-prod-build-submit`. El pool
+es `maps-github` y el provider es `github`. Las variables
+`GCP_WORKLOAD_IDENTITY_PROVIDER` y `GCP_BUILD_SERVICE_ACCOUNT` están en
+GitHub y no en el repositorio. Todavía no se ejecutó un Cloud Build
+automático.
+
+Un `terraform apply` completo seguiría creando estos cuatro recursos de R5.
+Ese apply no forma parte de R6-B.
+
+- `module.observability.google_monitoring_uptime_check_config.public["frontend"]`
+- `module.observability.google_monitoring_uptime_check_config.public["api_health"]`
+- `module.observability.google_monitoring_alert_policy.uptime["frontend"]`
+- `module.observability.google_monitoring_alert_policy.uptime["api_health"]`

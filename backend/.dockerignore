@@ -9,6 +9,7 @@ uploads/
 .git
 .gitignore
 .dockerignore
+.maps-existing-digest
 
 *.log
 npm-debug.log*

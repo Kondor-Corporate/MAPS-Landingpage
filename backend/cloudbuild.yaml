@@ -1,0 +1,136 @@
+# Construye una imagen del backend y la publica por tag de SHA.
+# El contexto de submit es backend/. .gcloudignore excluye .git, así que el
+# SHA entra solo por _GIT_SHA. No usa latest. No lee secretos.
+#
+# Combinaciones admitidas:
+#   runner + backend
+#   jobs   + backend-jobs
+#
+# La imagen gcloud solo se usa para consultar Artifact Registry. La imagen
+# docker solo se usa para construir y publicar. Los scripts corren con sh,
+# que está en las dos imágenes. No se asume Bash ni gcloud dentro de docker.
+#
+# Si el tag del SHA ya existe, no se vuelve a hacer push. El primer digest
+# publicado para ese SHA se conserva.
+
+substitutions:
+  _REGION: southamerica-east1
+  _AR_PROJECT: maps-prod-landing-page
+  _AR_REPOSITORY: maps-prod
+  _BUILD_PROJECT: maps-prod-landing-page
+  _BUILD_SERVICE_ACCOUNT: maps-prod-build@maps-prod-landing-page.iam.gserviceaccount.com
+  _IMAGE_NAME: backend
+  _DOCKER_TARGET: runner
+  _GIT_SHA: unset
+  _IMAGE_URI: ${_REGION}-docker.pkg.dev/${_AR_PROJECT}/${_AR_REPOSITORY}/${_IMAGE_NAME}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  dynamicSubstitutions: true
+
+serviceAccount: projects/${_BUILD_PROJECT}/serviceAccounts/${_BUILD_SERVICE_ACCOUNT}
+
+timeout: 1800s
+
+tags:
+  - maps-release
+  - ${_IMAGE_NAME}
+  - ${_GIT_SHA}
+
+steps:
+  - id: probe
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: sh
+    args:
+      - -ceu
+      - |
+        git_sha="${_GIT_SHA}"
+        image_uri="${_IMAGE_URI}"
+        if ! printf '%s' "$$git_sha" | grep -Eq '^[0-9a-f]{40}$$'; then
+          echo "Hace falta _GIT_SHA de 40 hexadecimales. No se publica latest."
+          exit 1
+        fi
+        tag="$$image_uri:$$git_sha"
+        case "$$tag" in
+          *:latest|*:latest@*)
+            echo "latest no es un identificador de release."
+            exit 1
+            ;;
+        esac
+        err=/tmp/maps-describe.err
+        if digest=$$(gcloud artifacts docker images describe "$$tag" --project="${_AR_PROJECT}" --format='value(image_summary.digest)' 2>"$$err"); then
+          if ! printf '%s' "$$digest" | grep -Eq '^sha256:[0-9a-f]{64}$$'; then
+            echo "El tag ya existe, pero el digest no es sha256 de 64 hex."
+            exit 1
+          fi
+          printf 'present\n' > /workspace/.maps-existing-digest
+        else
+          if grep -Eq 'NOT_FOUND|not found|was not found' "$$err"; then
+            printf 'absent\n' > /workspace/.maps-existing-digest
+          else
+            cat "$$err" >&2
+            exit 1
+          fi
+        fi
+
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    entrypoint: sh
+    args:
+      - -ceu
+      - |
+        git_sha="${_GIT_SHA}"
+        target="${_DOCKER_TARGET}"
+        image_name="${_IMAGE_NAME}"
+        image_uri="${_IMAGE_URI}"
+        tag="$$image_uri:$$git_sha"
+        IFS= read -r state < /workspace/.maps-existing-digest
+
+        case "$$target:$$image_name" in
+          runner:backend) ;;
+          jobs:backend-jobs) ;;
+          *)
+            echo "Combinacion no admitida: target=$$target imagen=$$image_name"
+            exit 1
+            ;;
+        esac
+
+        if [ "$$state" = "present" ]; then
+          docker pull "$$tag"
+          revision=$$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$$tag")
+          if [ "$$revision" != "$$git_sha" ]; then
+            echo "El tag de este SHA ya existe con otra revision OCI. No se pisa."
+            exit 1
+          fi
+          echo "El tag ya corresponde a este SHA. No se vuelve a publicar."
+          exit 0
+        fi
+        if [ "$$state" != "absent" ]; then
+          echo "El probe no dejo un estado valido."
+          exit 1
+        fi
+
+        docker build \
+          --target "$$target" \
+          --label "org.opencontainers.image.revision=$$git_sha" \
+          --tag "$$tag" \
+          .
+        revision=$$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$$tag")
+        if [ "$$revision" != "$$git_sha" ]; then
+          echo "La etiqueta OCI org.opencontainers.image.revision no coincide con el SHA."
+          exit 1
+        fi
+        docker push "$$tag"
+
+  - id: digest
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: sh
+    args:
+      - -ceu
+      - |
+        digest=$$(gcloud artifacts docker images describe "${_IMAGE_URI}:${_GIT_SHA}" --project="${_AR_PROJECT}" --format='value(image_summary.digest)')
+        if ! printf '%s' "$$digest" | grep -Eq '^sha256:[0-9a-f]{64}$$'; then
+          echo "Artifact Registry no devolvio un digest sha256 de 64 hex."
+          exit 1
+        fi
+        echo "MAPS_IMAGE_REF=${_IMAGE_URI}@$$digest"

@@ -50,7 +50,8 @@ El root los compone en `environments/production/main.tf`.
 | `network` | VPC regional sin subredes automáticas, subred de Direct VPC y Private Services Access para Cloud SQL. |
 | `database` | Instancia Cloud SQL PostgreSQL y la base lógica. No crea usuarios SQL. |
 | `storage` | Bucket regional de assets y bucket regional, aparte, para el fuente temporal de Cloud Build. |
-| `iam` | Service accounts, contenedores de Secret Manager y bindings no autoritativos. No carga el payload de ningún secreto. |
+| `iam` | Service accounts de runtime y de build, contenedores de Secret Manager y bindings no autoritativos. No carga el payload de ningún secreto. |
+| `build-identity` | Workload Identity Federation de GitHub y la cuenta `maps-prod-build-submit`. No ejecuta los builds. Aplicado el 28/10/2026. |
 | `artifact-registry` | Repositorio Docker y el rol de escritura para la service account de build. |
 | `runtime-services` | Cloud Run del frontend y del backend. |
 | `runtime-jobs` | Cloud Run Jobs de migrate y bootstrap. No los ejecuta. |
@@ -59,10 +60,11 @@ El root los compone en `environments/production/main.tf`.
 | `cost-controls` | Presupuesto mensual de facturación. Solo alerta. No corta servicios ni limita el gasto. |
 
 `environments/production/locals.tf` lista las APIs que habilita
-`project-services`. Habilitar `cloudbuild.googleapis.com` no crea un pipeline
-de Cloud Build. Terraform solo prepara la cuenta `maps-prod-build`, su
-permiso de logs y el bucket de fuentes. El submit queda fuera de Terraform.
-El uso está en el README de producción.
+`project-services`, incluidas `iamcredentials.googleapis.com` y
+`sts.googleapis.com`. Habilitar `cloudbuild.googleapis.com` no crea un
+pipeline. `maps-prod-build` sigue siendo quien ejecuta el build. Quien lo
+presenta es `maps-prod-build-submit`, en el módulo `build-identity`. Ese
+módulo se aplicó el 28/10/2026. El uso está en el README de producción.
 
 ## Qué no administra Terraform
 

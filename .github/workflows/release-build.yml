@@ -1,0 +1,516 @@
+# Construcción de imágenes de release (R6-B.1).
+#
+# No despliega Cloud Run, no ejecuta jobs ni aplica Terraform.
+#
+# workflow_dispatch solo puede dispararse si este archivo existe en la rama
+# predeterminada. Esa rama es main, y main no contiene este workflow ni el
+# código que hoy está en development. Desde esta rama el botón Run workflow
+# no existe, y gh workflow run tampoco puede lanzarlo. No hay trigger de
+# push ni de pull_request: guardar o mergear el archivo no lo ejecuta.
+#
+# El job wif-guard termina en error si faltan o están mal formadas las
+# variables GCP_WORKLOAD_IDENTITY_PROVIDER y GCP_BUILD_SERVICE_ACCOUNT.
+# Están configuradas en GitHub, no en este archivo.
+# Este archivo no define pools, providers ni cuentas.
+#
+# El SHA pedido se valida contra development y contra el CI antes de hacer
+# checkout de ese commit. Hasta ese momento el workspace es development.
+
+name: Release build
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_sha:
+        description: SHA de 40 hex que ya está en development y tiene el workflow CI en verde
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maps-release-build-${{ inputs.git_sha }}
+  cancel-in-progress: false
+
+env:
+  AR_REGION: southamerica-east1
+  AR_PROJECT: maps-prod-landing-page
+  AR_REPOSITORY: maps-prod
+  SOURCE_STAGING_DIR: gs://maps-prod-landing-page-build-source/source
+
+jobs:
+  preflight:
+    name: Verificar SHA y CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      git_sha: ${{ steps.sha.outputs.git_sha }}
+      ci_run_url: ${{ steps.ci.outputs.ci_run_url }}
+    steps:
+      - name: Validar el formato del SHA
+        id: sha
+        env:
+          GIT_SHA: ${{ inputs.git_sha }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$GIT_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::git_sha tiene que ser 40 hexadecimales en minúscula. No se usa la punta de la rama que carga el workflow."
+            exit 1
+          fi
+          echo "git_sha=$GIT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout de development
+        uses: actions/checkout@v4
+        with:
+          ref: development
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Exigir que el SHA esté en development
+        env:
+          GIT_SHA: ${{ steps.sha.outputs.git_sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$GIT_SHA"
+          if ! git merge-base --is-ancestor "$GIT_SHA" origin/development; then
+            echo "::error::El SHA no pertenece a origin/development. main es la rama predeterminada y no es origen de release."
+            exit 1
+          fi
+
+      - name: Exigir CI exitoso para ese SHA
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_SHA: ${{ steps.sha.outputs.git_sha }}
+        run: |
+          set -euo pipefail
+          runs="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --commit "$GIT_SHA" \
+            --workflow ci.yml \
+            --status success \
+            --limit 5 \
+            --json databaseId,url,headSha,conclusion)"
+          count="$(printf '%s' "$runs" | jq 'length')"
+          if [ "$count" -lt 1 ]; then
+            echo "::error::No hay una corrida exitosa de .github/workflows/ci.yml para este SHA."
+            exit 1
+          fi
+          url="$(printf '%s' "$runs" | jq -r '.[0].url')"
+          head="$(printf '%s' "$runs" | jq -r '.[0].headSha')"
+          conclusion="$(printf '%s' "$runs" | jq -r '.[0].conclusion')"
+          if [ "$head" != "$GIT_SHA" ] || [ "$conclusion" != "success" ]; then
+            echo "::error::La corrida de CI no corresponde al SHA solicitado o no terminó en success."
+            exit 1
+          fi
+          echo "ci_run_url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout del SHA ya elegible
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.sha.outputs.git_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Exigir los archivos de build en ese SHA
+        run: |
+          set -euo pipefail
+          test -f backend/Dockerfile
+          test -f backend/cloudbuild.yaml
+          test -f frontend/Dockerfile
+          test -f frontend/cloudbuild.yaml
+          test -f backend/.gcloudignore
+          test -f frontend/.gcloudignore
+          test -f backend/.dockerignore
+          test -f frontend/.dockerignore
+
+  wif-guard:
+    name: Bloquear sin Workload Identity
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'workflow_dispatch'
+    permissions: {}
+    steps:
+      - name: Exigir variables de Workload Identity Federation
+        env:
+          WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ vars.GCP_BUILD_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$WIF_PROVIDER" ] || [ -z "$WIF_SERVICE_ACCOUNT" ]; then
+            echo "::error::R6-B bloqueado. Faltan las variables de repositorio GCP_WORKLOAD_IDENTITY_PROVIDER y GCP_BUILD_SERVICE_ACCOUNT. No se autentica contra GCP y no se envía Cloud Build."
+            exit 1
+          fi
+          case "$WIF_PROVIDER" in
+            projects/*/locations/global/workloadIdentityPools/*/providers/*) ;;
+            *)
+              echo "::error::GCP_WORKLOAD_IDENTITY_PROVIDER no tiene la forma de un provider de Workload Identity Federation."
+              exit 1
+              ;;
+          esac
+          case "$WIF_SERVICE_ACCOUNT" in
+            *@*.iam.gserviceaccount.com) ;;
+            *)
+              echo "::error::GCP_BUILD_SERVICE_ACCOUNT no es un email de service account."
+              exit 1
+              ;;
+          esac
+          echo "Workload Identity Federation está referenciada. Los ids no se imprimen."
+
+  build:
+    name: Construir ${{ matrix.id }}
+    needs: [preflight, wif-guard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      id-token: write
+      actions: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: backend
+            context: backend
+            config: backend/cloudbuild.yaml
+            image_name: backend
+            docker_target: runner
+            variant: runner
+            vite_api_base_url: ""
+            vite_public_indexing: ""
+            vite_public_site_url: ""
+          - id: backend-jobs
+            context: backend
+            config: backend/cloudbuild.yaml
+            image_name: backend-jobs
+            docker_target: jobs
+            variant: jobs
+            vite_api_base_url: ""
+            vite_public_indexing: ""
+            vite_public_site_url: ""
+          - id: frontend
+            context: frontend
+            config: frontend/cloudbuild.yaml
+            image_name: frontend
+            docker_target: runner
+            variant: production
+            vite_api_base_url: /api/v1
+            vite_public_indexing: "true"
+            vite_public_site_url: https://mapsasesores.com.ar
+          - id: frontend-staging
+            context: frontend
+            config: frontend/cloudbuild.yaml
+            image_name: frontend-staging
+            docker_target: runner
+            variant: staging
+            vite_api_base_url: /api/v1
+            vite_public_indexing: "false"
+            vite_public_site_url: none
+    steps:
+      - name: Volver a bloquear si falta Workload Identity Federation
+        env:
+          WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ vars.GCP_BUILD_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$WIF_PROVIDER" ] || [ -z "$WIF_SERVICE_ACCOUNT" ]; then
+            echo "::error::R6-B bloqueado antes de autenticar. No se envía Cloud Build."
+            exit 1
+          fi
+          case "$WIF_PROVIDER" in
+            projects/*/locations/global/workloadIdentityPools/*/providers/*) ;;
+            *)
+              echo "::error::GCP_WORKLOAD_IDENTITY_PROVIDER no tiene la forma de un provider de Workload Identity Federation."
+              exit 1
+              ;;
+          esac
+          case "$WIF_SERVICE_ACCOUNT" in
+            *@*.iam.gserviceaccount.com) ;;
+            *)
+              echo "::error::GCP_BUILD_SERVICE_ACCOUNT no es un email de service account."
+              exit 1
+              ;;
+          esac
+
+      - name: Checkout del SHA ya verificado
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.git_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Rechazar credenciales en el contexto
+        run: |
+          set -euo pipefail
+          if find backend frontend -type f \
+            \( -name '*.pem' -o -name '*.key' \
+               -o -iname '*credentials*.json' \
+               -o -iname '*service-account*.json' \
+               -o -iname '*serviceAccount*.json' \
+               -o -name '.env' -o -name '.env.*' \) \
+            ! -name '.env.example' ! -name '*.example' \
+            | grep -q .; then
+            echo "::error::El contexto de build contiene credenciales o .env."
+            exit 1
+          fi
+
+      - name: Exigir la cuenta de build y el logging del contrato
+        env:
+          CONFIG: ${{ matrix.config }}
+        run: |
+          set -euo pipefail
+          sa_lines="$(grep -c '^serviceAccount:' "$CONFIG")"
+          if [ "$sa_lines" -ne 1 ]; then
+            echo "::error::El cloudbuild.yaml tiene que declarar una sola serviceAccount."
+            exit 1
+          fi
+          if ! grep -F -q 'serviceAccount: projects/${_BUILD_PROJECT}/serviceAccounts/${_BUILD_SERVICE_ACCOUNT}' "$CONFIG"; then
+            echo "::error::serviceAccount no usa _BUILD_PROJECT y _BUILD_SERVICE_ACCOUNT."
+            exit 1
+          fi
+          if ! grep -F -q '_BUILD_SERVICE_ACCOUNT: maps-prod-build@maps-prod-landing-page.iam.gserviceaccount.com' "$CONFIG"; then
+            echo "::error::La cuenta que ejecuta el build no es maps-prod-build."
+            exit 1
+          fi
+          if ! grep -F -q 'logging: CLOUD_LOGGING_ONLY' "$CONFIG"; then
+            echo "::error::El build tiene que usar CLOUD_LOGGING_ONLY."
+            exit 1
+          fi
+          if ! grep -F -q 'dynamicSubstitutions: true' "$CONFIG"; then
+            echo "::error::dynamicSubstitutions tiene que estar activo."
+            exit 1
+          fi
+
+      - name: Autenticar con Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_BUILD_SERVICE_ACCOUNT }}
+
+      - name: Instalar gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Enviar Cloud Build y resolver el digest
+        id: image
+        env:
+          GIT_SHA: ${{ needs.preflight.outputs.git_sha }}
+          CONTEXT: ${{ matrix.context }}
+          CONFIG: ${{ matrix.config }}
+          IMAGE_NAME: ${{ matrix.image_name }}
+          DOCKER_TARGET: ${{ matrix.docker_target }}
+          VARIANT: ${{ matrix.variant }}
+          VITE_API_BASE_URL: ${{ matrix.vite_api_base_url }}
+          VITE_PUBLIC_INDEXING: ${{ matrix.vite_public_indexing }}
+          VITE_PUBLIC_SITE_URL: ${{ matrix.vite_public_site_url }}
+        run: |
+          set -euo pipefail
+
+          case "$IMAGE_NAME:$DOCKER_TARGET:$VARIANT" in
+            backend:runner:runner) ;;
+            backend-jobs:jobs:jobs) ;;
+            frontend:runner:production)
+              [ "$VITE_API_BASE_URL" = "/api/v1" ]
+              [ "$VITE_PUBLIC_INDEXING" = "true" ]
+              [ "$VITE_PUBLIC_SITE_URL" = "https://mapsasesores.com.ar" ]
+              ;;
+            frontend-staging:runner:staging)
+              [ "$VITE_API_BASE_URL" = "/api/v1" ]
+              [ "$VITE_PUBLIC_INDEXING" = "false" ]
+              [ "$VITE_PUBLIC_SITE_URL" = "none" ]
+              ;;
+            *)
+              echo "::error::Variante de matriz no admitida."
+              exit 1
+              ;;
+          esac
+
+          image_uri="${AR_REGION}-docker.pkg.dev/${AR_PROJECT}/${AR_REPOSITORY}/${IMAGE_NAME}"
+
+          if [ "$CONTEXT" = "backend" ]; then
+            substitutions="^|^_GIT_SHA=${GIT_SHA}|_IMAGE_NAME=${IMAGE_NAME}|_DOCKER_TARGET=${DOCKER_TARGET}|_REGION=${AR_REGION}|_AR_PROJECT=${AR_PROJECT}|_AR_REPOSITORY=${AR_REPOSITORY}"
+          else
+            substitutions="^|^_GIT_SHA=${GIT_SHA}|_IMAGE_NAME=${IMAGE_NAME}|_REGION=${AR_REGION}|_AR_PROJECT=${AR_PROJECT}|_AR_REPOSITORY=${AR_REPOSITORY}|_VITE_API_BASE_URL=${VITE_API_BASE_URL}|_VITE_PUBLIC_INDEXING=${VITE_PUBLIC_INDEXING}|_VITE_PUBLIC_SITE_URL=${VITE_PUBLIC_SITE_URL}|_VITE_MAPS_WHATSAPP_NUMBER=none"
+          fi
+
+          raw="$(gcloud builds submit "$CONTEXT" \
+            --project="$AR_PROJECT" \
+            --config="$CONFIG" \
+            --gcs-source-staging-dir="$SOURCE_STAGING_DIR" \
+            --substitutions="$substitutions" \
+            --async \
+            --quiet \
+            --format='value(id)')"
+          build_id="$(printf '%s' "$raw" | tr -d '[:space:]')"
+          if ! printf '%s' "$build_id" | grep -Eq '^[0-9a-f-]{36}$'; then
+            echo "::error::Cloud Build no devolvió un id. Revisar la consola antes de reintentar este SHA."
+            exit 1
+          fi
+
+          deadline=$((SECONDS + 2400))
+          while true; do
+            status="$(gcloud builds describe "$build_id" --project="$AR_PROJECT" --format='value(status)')"
+            case "$status" in
+              SUCCESS) break ;;
+              FAILURE|INTERNAL_ERROR|TIMEOUT|CANCELLED|EXPIRED)
+                echo "::error::Cloud Build ${build_id} terminó en ${status}."
+                exit 1
+                ;;
+              QUEUED|PENDING|WORKING|STATUS_UNKNOWN|"")
+                if [ "$SECONDS" -ge "$deadline" ]; then
+                  echo "::error::Tiempo de espera agotado para ${build_id}."
+                  exit 1
+                fi
+                sleep 20
+                ;;
+              *)
+                echo "::error::Estado de Cloud Build inesperado: ${status}."
+                exit 1
+                ;;
+            esac
+          done
+
+          digest="$(gcloud artifacts docker images describe \
+            "${image_uri}:${GIT_SHA}" \
+            --project="$AR_PROJECT" \
+            --format='value(image_summary.digest)')"
+          if ! printf '%s' "$digest" | grep -Eq '^sha256:[0-9a-f]{64}$'; then
+            echo "::error::No se pudo resolver el digest de ${image_uri}:${GIT_SHA}."
+            exit 1
+          fi
+
+          mkdir -p "$RUNNER_TEMP/fragment"
+          jq -n \
+            --arg id "$IMAGE_NAME" \
+            --arg git_sha "$GIT_SHA" \
+            --arg digest "$digest" \
+            --arg image "$image_uri" \
+            --arg build_id "$build_id" \
+            --arg docker_target "$DOCKER_TARGET" \
+            --arg variant "$VARIANT" \
+            --arg vite_api_base_url "$VITE_API_BASE_URL" \
+            --arg vite_public_indexing "$VITE_PUBLIC_INDEXING" \
+            --arg vite_public_site_url "$VITE_PUBLIC_SITE_URL" \
+            '{
+              id: $id,
+              git_sha: $git_sha,
+              repository: "maps-prod",
+              project: "maps-prod-landing-page",
+              image: $image,
+              tag: $git_sha,
+              digest: $digest,
+              immutable_ref: ($image + "@" + $digest),
+              cloud_build_id: $build_id,
+              docker_target: $docker_target,
+              variant: $variant,
+              oci_revision: $git_sha,
+              deploy_identifier: "digest",
+              vite: (
+                if $vite_api_base_url == "" then null
+                else {
+                  VITE_API_BASE_URL: $vite_api_base_url,
+                  VITE_PUBLIC_INDEXING: $vite_public_indexing,
+                  VITE_PUBLIC_SITE_URL: (if $vite_public_site_url == "none" then null else $vite_public_site_url end),
+                  VITE_MAPS_WHATSAPP_NUMBER: null
+                }
+                end
+              )
+            }' > "$RUNNER_TEMP/fragment/${IMAGE_NAME}.json"
+
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "immutable_ref=${image_uri}@${digest}" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar fragmento del manifiesto
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-image-${{ matrix.id }}
+          path: ${{ runner.temp }}/fragment/${{ matrix.image_name }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  manifest:
+    name: Armar manifiesto
+    needs: [preflight, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      actions: write
+    steps:
+      - name: Descargar fragmentos
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-image-*
+          path: fragments
+
+      - name: Componer el manifiesto
+        env:
+          GIT_SHA: ${{ needs.preflight.outputs.git_sha }}
+          CI_RUN_URL: ${{ needs.preflight.outputs.ci_run_url }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find fragments -type f -name '*.json' | sort)
+          if [ "${#files[@]}" -ne 4 ]; then
+            echo "::error::El manifiesto exige los cuatro fragmentos. Llegaron ${#files[@]}."
+            exit 1
+          fi
+          jq -s \
+            --arg git_sha "$GIT_SHA" \
+            --arg ci_run_url "$CI_RUN_URL" \
+            --arg run_url "${GITHUB_SERVER}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            '
+            if any(.[]; .git_sha != $git_sha) then
+              error("Un fragmento no corresponde al SHA verificado")
+            else
+              {
+                schema_version: 1,
+                git_sha: $git_sha,
+                source_branch_required: "development",
+                default_branch: "main",
+                default_branch_is_release_source: false,
+                ci_workflow: ".github/workflows/ci.yml",
+                ci_run_url: $ci_run_url,
+                build_run_url: $run_url,
+                registry: {
+                  project: "maps-prod-landing-page",
+                  location: "southamerica-east1",
+                  repository: "maps-prod"
+                },
+                publish_to: "maps-prod",
+                sharing_between_projects: "not_configured",
+                staging_reads_production_registry: false,
+                deploys: false,
+                images: .
+              }
+            end
+            ' "${files[@]}" > release-manifest.json
+          jq -e \
+            --arg git_sha "$GIT_SHA" \
+            '
+            (.images | length) == 4
+            and ([.images[].git_sha] | unique == [$git_sha])
+            and ([.images[] | .immutable_ref == (.image + "@" + .digest)] | all)
+            and ([.images[].digest | test("^sha256:[0-9a-f]{64}$")] | all)
+            and ([.images[].id] | sort) == ["backend", "backend-jobs", "frontend", "frontend-staging"]
+            and ([.images[] | select(.id == "backend") | .docker_target == "runner" and .variant == "runner"] | length == 1)
+            and ([.images[] | select(.id == "backend-jobs") | .docker_target == "jobs" and .variant == "jobs"] | length == 1)
+            and ([.images[] | select(.id == "frontend") | .variant == "production" and .vite.VITE_PUBLIC_INDEXING == "true" and .vite.VITE_PUBLIC_SITE_URL == "https://mapsasesores.com.ar" and .vite.VITE_API_BASE_URL == "/api/v1"] | length == 1)
+            and ([.images[] | select(.id == "frontend-staging") | .variant == "staging" and .vite.VITE_PUBLIC_INDEXING == "false" and .vite.VITE_PUBLIC_SITE_URL == null and .vite.VITE_API_BASE_URL == "/api/v1"] | length == 1)
+            ' release-manifest.json >/dev/null
+
+      - name: Publicar manifiesto
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest-${{ needs.preflight.outputs.git_sha }}
+          path: release-manifest.json
+          if-no-files-found: error
+          retention-days: 30
