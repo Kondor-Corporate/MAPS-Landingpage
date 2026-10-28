@@ -69,6 +69,19 @@ module "artifact_registry" {
   ]
 }
 
+module "build_identity" {
+  source = "../../modules/build-identity"
+
+  project_id                   = var.project_id
+  region                       = var.region
+  prefix                       = local.prefix
+  build_service_account_email  = module.iam.build_service_account_email
+  build_source_bucket_name     = module.storage.build_source_bucket_name
+  artifact_registry_repository = module.artifact_registry.repository_id
+
+  depends_on = [module.project_services]
+}
+
 module "runtime_services" {
   source = "../../modules/runtime-services"
 

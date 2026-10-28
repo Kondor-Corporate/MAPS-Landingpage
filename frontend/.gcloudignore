@@ -1,10 +1,10 @@
 # What gcloud uploads to the temporary Cloud Build source bucket.
-# .dockerignore is applied later, inside Docker, and does not protect that bucket.
+# .dockerignore has to be uploaded: Docker only sees the files that arrived
+# in the source. It is not applied to the bucket before the upload.
 
 .git
 .gitignore
 .gcloudignore
-.dockerignore
 
 node_modules/
 dist/

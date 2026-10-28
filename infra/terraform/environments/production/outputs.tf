@@ -59,8 +59,18 @@ output "bootstrap_service_account_email" {
 }
 
 output "build_service_account_email" {
-  description = "Production build service account email."
+  description = "Production build service account email. This account runs Cloud Build. It is not the GitHub identity."
   value       = module.iam.build_service_account_email
+}
+
+output "build_submit_service_account_email" {
+  description = "Service account GitHub Actions impersonates. Configured as GCP_BUILD_SERVICE_ACCOUNT."
+  value       = module.build_identity.submit_service_account_email
+}
+
+output "workload_identity_provider" {
+  description = "Full Workload Identity Provider name. Configured as GCP_WORKLOAD_IDENTITY_PROVIDER."
+  value       = module.build_identity.workload_identity_provider
 }
 
 output "artifact_registry_repository" {
