@@ -10,7 +10,7 @@ Terraform administra infraestructura. No administra datos de negocio.
 
 | Entorno | Código Terraform | Despliegue |
 |---------|------------------|------------|
-| Producción | Escrito en `environments/production/` | No ejecutado. No hay proyecto, apply ni DNS en este repositorio. |
+| Producción | `environments/production/` | Desplegado al 27/10/2026 en `maps-prod-landing-page`. Cloud Run, balanceador y presupuesto aplicados. El dominio oficial todavía no publica el sitio. |
 | Staging | Carpeta reservada, sin configuración | Sigue operando como está documentado en `docs/GCP_STAGING_RUNBOOK.md`. Su topología no es la de producción. |
 
 ## Versiones
@@ -49,18 +49,20 @@ El root los compone en `environments/production/main.tf`.
 | `project-services` | APIs de GCP del entorno. `disable_on_destroy = false`: destruir el stack no las apaga. |
 | `network` | VPC regional sin subredes automáticas, subred de Direct VPC y Private Services Access para Cloud SQL. |
 | `database` | Instancia Cloud SQL PostgreSQL y la base lógica. No crea usuarios SQL. |
-| `storage` | Bucket regional de assets. |
-| `iam` | Service accounts, contenedores de Secret Manager y bindings de lectura. No carga el payload de ningún secreto. |
+| `storage` | Bucket regional de assets y bucket regional, aparte, para el fuente temporal de Cloud Build. |
+| `iam` | Service accounts, contenedores de Secret Manager y bindings no autoritativos. No carga el payload de ningún secreto. |
 | `artifact-registry` | Repositorio Docker y el rol de escritura para la service account de build. |
 | `runtime-services` | Cloud Run del frontend y del backend. |
 | `runtime-jobs` | Cloud Run Jobs de migrate y bootstrap. No los ejecuta. |
 | `edge` | IP global, NEGs serverless, balanceador HTTPS, certificado administrado y redirección HTTP. |
-| `observability` | Canal de email, uptime checks y alertas de Cloud SQL y Cloud Run. |
+| `observability` | Canales de email (`alert_emails`), uptime checks y alertas de Cloud SQL y Cloud Run. |
 | `cost-controls` | Presupuesto mensual de facturación. Solo alerta. No corta servicios ni limita el gasto. |
 
 `environments/production/locals.tf` lista las APIs que habilita
 `project-services`. Habilitar `cloudbuild.googleapis.com` no crea un pipeline
-de Cloud Build: los builds quedan fuera de Terraform.
+de Cloud Build. Terraform solo prepara la cuenta `maps-prod-build`, su
+permiso de logs y el bucket de fuentes. El submit queda fuera de Terraform.
+El uso está en el README de producción.
 
 ## Qué no administra Terraform
 

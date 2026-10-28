@@ -33,6 +33,11 @@ output "assets_bucket_name" {
   value       = module.storage.bucket_name
 }
 
+output "build_source_bucket_name" {
+  description = "Temporary Cloud Build source bucket name."
+  value       = module.storage.build_source_bucket_name
+}
+
 output "backend_service_account_email" {
   description = "Production backend service account email."
   value       = module.iam.backend_service_account_email
@@ -101,6 +106,11 @@ output "frontend_uptime_check_id" {
 output "api_uptime_check_id" {
   description = "ID of the production API health uptime check."
   value       = module.observability.api_uptime_check_id
+}
+
+output "notification_channel_names" {
+  description = "Full resource names of the production email notification channels."
+  value       = module.observability.notification_channel_names
 }
 
 output "monthly_budget_usd" {

@@ -6,7 +6,7 @@ La documentacion se separa en cuatro capas. No mezclarlas:
 
 | Capa | Donde vive | Rol |
 |------|------------|-----|
-| **Viva** | README raiz, este indice, `ARCHITECTURE`, `TESTING`, `MIGRATIONS`, `CONTRIBUTING`, `CONVENTIONS`, `CHANGELOG`, `GCP_STAGING_RUNBOOK`, `modules/` | Estado y contratos actuales. Se actualiza con el codigo. |
+| **Viva** | README raiz, este indice, `ARCHITECTURE`, `TESTING`, `MIGRATIONS`, `CONTRIBUTING`, `CONVENTIONS`, `CHANGELOG`, `GCP_STAGING_RUNBOOK`, `GCP_PRODUCTION_RUNBOOK`, `modules/` | Estado y contratos actuales. Se actualiza con el codigo. |
 | **TDD** | `docs/tdd/` | Diseno prospectivo de una feature. Historico una vez implementada. |
 | **Worklog** | `docs/worklog/` | Bitacora retrospectiva de una feature cerrada. |
 | **Snapshot** | p. ej. `inventario-proyecto.md` | Foto puntual. Conserva valor historico; no describe el presente. |
@@ -28,6 +28,7 @@ La documentacion se separa en cuatro capas. No mezclarlas:
 - [`MIGRATIONS.md`](./MIGRATIONS.md): Prisma, migraciones, seed y reset de base local.
 - [`CHANGELOG.md`](./CHANGELOG.md): cambios relevantes por entrega.
 - [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md): contrato y operacion del staging GCP (entorno existente).
+- [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md): guia operativa del despliegue productivo de MAPS en GCP.
 - [`inventario-proyecto.md`](./inventario-proyecto.md): **snapshot** de estructura (2026-05-29); no usar como estado actual.
 
 ---

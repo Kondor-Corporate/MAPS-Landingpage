@@ -36,7 +36,6 @@ resource "google_compute_backend_service" "frontend" {
   name                  = "${var.prefix}-frontend-backend"
   load_balancing_scheme = "EXTERNAL_MANAGED"
   protocol              = "HTTP"
-  timeout_sec           = 60
   enable_cdn            = false
 
   backend {
@@ -49,7 +48,6 @@ resource "google_compute_backend_service" "api" {
   name                  = "${var.prefix}-api-backend"
   load_balancing_scheme = "EXTERNAL_MANAGED"
   protocol              = "HTTP"
-  timeout_sec           = 60
   enable_cdn            = false
 
   backend {
@@ -67,6 +65,20 @@ resource "google_compute_url_map" "https" {
     path_matcher = "public"
   }
 
+  host_rule {
+    hosts        = ["www.${local.public_domain}"]
+    path_matcher = "www-redirect"
+  }
+
+  path_matcher {
+    name = "www-redirect"
+
+    default_url_redirect {
+      host_redirect          = local.public_domain
+      redirect_response_code = "MOVED_PERMANENTLY_DEFAULT"
+      strip_query            = false
+    }
+  }
   path_matcher {
     name            = "public"
     default_service = google_compute_backend_service.frontend.id
@@ -87,11 +99,19 @@ resource "google_compute_managed_ssl_certificate" "public" {
   }
 }
 
+resource "google_compute_managed_ssl_certificate" "www" {
+  project = var.project_id
+  name    = "${var.prefix}-www-certificate"
+
+  managed {
+    domains = ["www.${local.public_domain}"]
+  }
+}
 resource "google_compute_target_https_proxy" "https" {
   project          = var.project_id
   name             = "${var.prefix}-https-proxy"
   url_map          = google_compute_url_map.https.id
-  ssl_certificates = [google_compute_managed_ssl_certificate.public.id]
+  ssl_certificates = [google_compute_managed_ssl_certificate.public.id, google_compute_managed_ssl_certificate.www.id]
 }
 
 resource "google_compute_global_forwarding_rule" "https" {

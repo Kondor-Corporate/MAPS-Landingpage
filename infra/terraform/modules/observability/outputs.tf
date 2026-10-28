@@ -1,6 +1,6 @@
-output "notification_channel_name" {
-  description = "Full resource name of the production email notification channel."
-  value       = google_monitoring_notification_channel.email.name
+output "notification_channel_names" {
+  description = "Full resource names of the production email notification channels."
+  value       = toset(local.notification_channel_names)
 }
 
 output "frontend_uptime_check_id" {

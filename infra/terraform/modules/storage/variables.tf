@@ -9,7 +9,7 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "Region where the assets bucket stores objects."
+  description = "Region where the assets and Cloud Build source buckets store objects."
   type        = string
 
   validation {

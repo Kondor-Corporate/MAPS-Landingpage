@@ -18,13 +18,15 @@ variable "billing_account_id" {
   }
 }
 
-variable "notification_channel_name" {
-  description = "Full resource name of the existing Monitoring email channel that receives budget threshold emails."
-  type        = string
+variable "notification_channel_names" {
+  description = "Full resource names of the Monitoring email channels that receive budget threshold emails. Between 1 and 5."
+  type        = set(string)
 
   validation {
-    condition     = can(regex("^projects/[^/]+/notificationChannels/[^/]+$", var.notification_channel_name))
-    error_message = "notification_channel_name must be a Monitoring channel name: projects/PROJECT/notificationChannels/CHANNEL."
+    condition = length(var.notification_channel_names) >= 1 && length(var.notification_channel_names) <= 5 && alltrue([
+      for name in var.notification_channel_names : can(regex("^projects/[^/]+/notificationChannels/[^/]+$", name))
+    ])
+    error_message = "notification_channel_names must contain 1 to 5 Monitoring channel names: projects/PROJECT/notificationChannels/CHANNEL."
   }
 }
 

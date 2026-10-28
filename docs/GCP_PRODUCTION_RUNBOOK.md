@@ -11,26 +11,47 @@ solo hecho de leerlo. No incluye payloads, contraseñas ni claves.
 Staging es otro entorno y otra topología:
 [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md).
 
-## Estado
+## Estado al 27/10/2026
 
-**La infraestructura está escrita. No está desplegada.**
+La infraestructura está desplegada y la base tiene el contenido migrado.
+**El sitio todavía no se ha publicado mediante el dominio oficial.** El
+registro A del dominio no apunta todavía a la IP del balanceador.
 
-No presentar como hecho nada de esta lista:
+### Verificado
 
-- proyecto de producción creado;
-- bucket de state creado;
-- `terraform apply` ejecutado;
-- imágenes de producción publicadas;
-- versiones de Secret Manager cargadas;
-- usuarios SQL creados;
-- certificado en `ACTIVE`;
-- DNS publicado;
-- jobs de migrate o bootstrap ejecutados;
-- restore drill hecho;
-- producción atendiendo tráfico.
+| Pieza | Estado |
+|-------|--------|
+| Proyecto | `maps-prod-landing-page` |
+| Región | `southamerica-east1` |
+| Cloud Run | Frontend y backend desplegados. El frontend final tiene indexación habilitada y dominio canónico. |
+| Cloud SQL | `maps-prod-db`, PostgreSQL 17, IP privada `10.30.0.3`. 20 migraciones aplicadas. |
+| Usuarios SQL | `maps-app` y `maps-migrate`, creados fuera de Terraform, con roles diferenciados |
+| Superadmin | Un `SUPERADMIN` inicial creado. La transferencia posterior a MAPS no está marcada como hecha. |
+| Contenido | Migrado desde staging, fuera de Terraform: 8 noticias, 10 imágenes de galería, 1 biblioteca y 20 ramos. |
+| GCS | 16 objetos copiados y verificados. |
+| Backups | Automáticos, PITR y recuperación probada en una instancia independiente. Esa instancia temporal ya se eliminó. Backup manual `1793126953962`. |
+| Borde | IP global `136.110.128.230`. Dos certificados HTTPS configurados: dominio principal y `www`. `www` redirige al dominio principal. |
+| Costos | Presupuesto mensual de 110 USD y dos canales de notificación. |
+| Monitoring | 18 políticas internas creadas. Auditoría de infraestructura aprobada. |
+| Backend | Auditoría aprobada: 119 tests exitosos en 9 archivos. |
+| Secretos | Los seis contenedores existen. Los payloads no están en este documento. |
+| Cloud Build | Bucket `maps-prod-landing-page-build-source`. `maps-prod-build` escribe en Artifact Registry `maps-prod`. |
 
-El nombre del proyecto y el nombre del bucket de state todavía no están en
-el repositorio. No se inventan aquí.
+No hay contraseñas, payloads ni el nombre del bucket de state en este
+documento. El state existe y no se versiona.
+
+La restricción de `maps-app` sobre `_prisma_migrations` no está entre lo
+verificado el 27/10.
+
+### Pendiente para el go-live
+
+- Confirmar con MAPS la configuración del correo y los registros DNS.
+- Actualizar el registro A del dominio a `136.110.128.230`, mediante el administrador del dominio.
+- Esperar la activación y validar los certificados HTTPS.
+- Ejecutar smoke tests públicos.
+- Verificar `TRUST_PROXY=2` e identificación real de IP a través del balanceador, incluyendo protección frente a `X-Forwarded-For` falsificado.
+- Crear o activar los 2 uptime checks públicos y sus 2 políticas de alerta.
+- Confirmar la configuración de Billing anomaly detection.
 
 ## Qué hace Terraform y qué no
 
@@ -43,8 +64,8 @@ Fuera de Terraform, en el orden del bootstrap:
 - payloads y versiones de Secret Manager;
 - imágenes Docker y sus digests;
 - ejecución de migrate y de bootstrap;
-- registro DNS en el proveedor del cliente;
-- contenido que más adelante se migre desde staging;
+- el contenido ya migrado desde staging (noticias, galería, biblioteca y objetos de GCS);
+- el registro DNS en el proveedor del dominio;
 - Billing anomaly detection.
 
 ## Primer despliegue
@@ -116,23 +137,29 @@ terraform apply -target=module.project_services -target=module.network -target=m
 `-target` puede saltear dependencias. Sirve para este bootstrap. No es el
 flujo de los deploys de después.
 
-Al terminar, los seis secretos existen vacíos. Cloud SQL tiene IP privada y
-todavía no tiene usuarios de aplicación.
+Al 27/10/2026 esta fase está aplicada, junto con Cloud Build, el runtime,
+el borde, las migraciones y el presupuesto. `maps-prod-db` está en
+`10.30.0.3`. Los usuarios SQL están en la fase 2.
 
 ### Fase 2 — Preparación fuera de Terraform
 
 Hacer esto antes de crear Cloud Run.
 
-**Usuarios SQL.** Terraform no los crea. El procedimiento de grants todavía
-no está en el repositorio: hay que dejarlo escrito y ejecutarlo antes del
-primer migrate.
+**Usuarios SQL.** Terraform no los crea y el SQL no está en el repositorio.
+Al 27/10/2026 ya quedaron configurados fuera de Terraform:
 
-| Usuario | Para qué |
-|---------|----------|
+| Usuario | Rol |
+|---------|-----|
 | `maps-app` | Runtime del backend y job de bootstrap. |
-| `maps-migrate` | Job de migraciones. |
+| `maps-migrate` | Migraciones. |
 
-No documentar ni commitear las contraseñas.
+Los roles están diferenciados. También quedaron los privilegios
+predeterminados sobre tablas y secuencias futuras. La Data API de Cloud SQL
+quedó deshabilitada de nuevo. No hay contraseñas en este documento.
+
+Después del primer migrate hay que validar ese esquema. Sigue pendiente
+restringir el acceso de `maps-app` a `_prisma_migrations`: esa tabla la
+administra `maps-migrate`.
 
 **URLs.** Leer `database_private_ip` del output. Las dos URLs usan el mismo
 host, puerto, base y parámetros, y distinto usuario. Forma conceptual, sin
@@ -171,17 +198,23 @@ el tag.
 | Jobs | `backend/Dockerfile` | `jobs`. Incluye Prisma CLI y migraciones. No incluye el seed. |
 
 `VITE_API_BASE_URL=/api/v1` es el default de build del frontend. Hace falta
-para que el navegador llame al mismo origen. `VITE_PUBLIC_INDEXING` default
-`false` y `VITE_PUBLIC_SITE_URL` vacío también son de build: Terraform no los
-ve. Si el sitio público debe indexarse, es una decisión de build todavía no
-tomada en esta IaC. `VITE_MAPS_WHATSAPP_NUMBER` es opcional y de build.
+para que el navegador llame al mismo origen. `VITE_PUBLIC_INDEXING` y
+`VITE_PUBLIC_SITE_URL` también son de build: Terraform no los ve. El frontend
+desplegado al 27/10/2026 tiene la indexación habilitada y el dominio
+canónico. `VITE_MAPS_WHATSAPP_NUMBER` es opcional y de build.
 
-La service account `maps-prod-build` puede escribir en el repositorio. En el
-mismo proyecto, el pull normalmente lo hace la infraestructura de Cloud Run
-(su service agent), no las service accounts de runtime. Esas cuentas no
-tienen por qué llevar `roles/artifactregistry.reader`. Verificar el pull en
-el primer deployment. Si falla, revisar primero los permisos del Cloud Run
-service agent.
+La service account `maps-prod-build` escribe en el repositorio. En el mismo
+proyecto, el pull normalmente lo hace el service agent de Cloud Run, no las
+cuentas de runtime. Esas cuentas no tienen por qué llevar
+`roles/artifactregistry.reader`. Verificar el pull en el primer deployment.
+Si falla, revisar primero los permisos del Cloud Run service agent.
+
+Cloud Build no debe usar la cuenta de Compute Engine por defecto. El build
+corre como `maps-prod-build`, con `options.logging: CLOUD_LOGGING_ONLY`, y
+el fuente temporal se sube al bucket `${project_id}-build-source`. El
+detalle está en el README de producción. Enviar el contexto desde `backend/`
+o `frontend/`, nunca desde la raíz, y no incluir `.env`, credenciales, state
+de Terraform ni `node_modules`.
 
 Actualizar las variables de digests y de versiones numéricas con los valores
 reales. Recién ahí la fase 3 puede crear los servicios.
@@ -194,8 +227,10 @@ Aplicar, con digests y versiones reales:
 - jobs migrate y bootstrap;
 - IP global, NEGs, balanceador y certificado.
 
-Dejar observabilidad y presupuesto para la fase 7. Si no, el uptime alerta
-mientras el certificado sigue en aprovisionamiento.
+El presupuesto, los dos canales y las 18 políticas internas ya se aplicaron.
+Los dos uptime checks públicos y sus dos políticas siguen fuera de ese
+apply: si se crean antes de que el DNS y el certificado respondan, alertan
+por una causa esperada del go-live.
 
 Ejemplo sujeto a revisión antes de ejecutarlo:
 
@@ -212,15 +247,20 @@ registro. No se asume el proveedor. Cloud DNS no forma parte de este stack.
 
 | Campo | Valor |
 |-------|-------|
-| Nombre | El hostname de `public_origin`, sin esquema. |
+| Nombre | El hostname de `public_origin`, sin esquema, y `www` de ese hostname. |
 | Tipo | A |
-| Valor | La IPv4 global del balanceador. |
+| Valor | `136.110.128.230`, la IPv4 global del balanceador al 27/10/2026. |
 
-El certificado gestionado permanece en `PROVISIONING` hasta que ese nombre
-resuelva a la IP y Google lo valide. `www` no está incluido, salvo que
-`public_origin` sea ese hostname y solo ese.
+Ese registro todavía no está publicado. Lo actualiza el administrador del
+dominio, después de confirmar la configuración con MAPS.
 
-HTTP en el puerto 80 responde 308 hacia HTTPS.
+Hay dos certificados gestionados: el dominio principal y `www`. Los dos
+están configurados y todavía no están validados. Siguen en aprovisionamiento
+hasta que esos nombres resuelvan a esa IP. `public_origin` es el dominio
+principal. El hostname `www` se arma anteponiendo `www.` a ese nombre.
+
+HTTP en el puerto 80 responde 308 hacia HTTPS y conserva el host. En HTTPS,
+`www` redirige al dominio principal y conserva la query.
 
 ### Fase 5 — Inicializar la base
 
@@ -238,6 +278,10 @@ a propósito.
 No ejecutar `prisma migrate dev`, `migrate reset` ni `db:seed`. El seed demo
 no entra en producción.
 
+El `SUPERADMIN` inicial ya existe. El email y la contraseña quedan solo en
+Secret Manager. La transferencia posterior a MAPS sigue siendo el pase
+operativo acordado y no está marcada como hecha.
+
 La forma de lanzarlos, con el proyecto creado en la fase 0:
 
 ```bash
@@ -245,8 +289,10 @@ gcloud run jobs execute maps-prod-migrate --region southamerica-east1 --project 
 gcloud run jobs execute maps-prod-bootstrap --region southamerica-east1 --project PROJECT_ID --wait
 ```
 
-Esos comandos todavía no se corrieron. Si migrate falla por permisos SQL, el
-hueco está en los grants de la fase 2, no en otro apply.
+Esos comandos ya se corrieron. Quedaron 20 migraciones aplicadas y el
+`SUPERADMIN` inicial. Los usuarios y los privilegios predeterminados ya
+estaban. La restricción de `maps-app` sobre `_prisma_migrations` no está
+entre lo verificado el 27/10.
 
 Después del bootstrap inicial, la versión de la contraseña de bootstrap
 puede deshabilitarse. El contenedor queda: tiene protección contra borrado.
@@ -266,30 +312,33 @@ Con el certificado ya usable:
 | Archivos | Subida y descarga que pasen por el API hacia el bucket. El navegador no habla con GCS. |
 | Admin | `/admin` con el superadmin |
 | Intranet | `/intranet` cuando exista un productor. El bootstrap no crea productores. |
-| Mapa | `/#mapa`. Puede estar vacío: no hay migración de contenido en este bootstrap. |
-| Noticias | `/noticias` y, con el admin, `/admin/noticias` |
+| Mapa | `/#mapa`. El bootstrap no crea productores. El mapa puede no tener puntos. |
+| Noticias | `/noticias` y, con el admin, `/admin/noticias`. Hay 8 noticias y 10 imágenes de galería migradas. |
+| Biblioteca | La biblioteca migrada y sus 20 ramos. |
 
-Validar `TRUST_PROXY=2` con tráfico real, no solo leyendo la variable. El
-rate limit depende de `req.ip`. El valor `2` es el de un balanceador externo
-delante de Cloud Run y todavía no está confirmado en producción. No cambiarlo
-a `true`.
+Validar `TRUST_PROXY=2` con tráfico real a través del balanceador, no solo
+leyendo la variable. El rate limit depende de `req.ip`. Hay que comprobar
+que dos clientes distintos no compartan cupo y que un `X-Forwarded-For`
+antepuesto no abra un cupo nuevo. No cambiar el valor a `true`.
 
-Un mapa o un listado de noticias vacío no es un fallo del bootstrap. Copiar
-contenido desde staging no lo hace Terraform y no tiene procedimiento en
-este runbook.
+El contenido migrado no lo cargó Terraform: 8 noticias, 10 imágenes de
+galería, 1 biblioteca, 20 ramos y 16 objetos de GCS.
 
 ### Fase 7 — Observabilidad y costos
 
-Aplicar cuando el DNS y el certificado ya responden, para no entrenar las
-alertas con el ruido del bootstrap:
+Al 27/10/2026 ya están aplicados el presupuesto de 110 USD, los dos canales
+de `alert_emails` y las 18 políticas internas de Cloud SQL y Cloud Run.
+Esos canales también reciben el presupuesto. El módulo ya no depende de
+forma explícita de toda la observabilidad: la referencia a los nombres de
+canal alcanza para crear el presupuesto sin crear todavía el uptime.
 
-- canal de email;
+Siguen pendientes, para después de que el DNS y los certificados respondan:
+
 - uptime de `/` y de `/api/v1/health`;
-- alertas de Cloud SQL y de Cloud Run;
-- presupuesto de 110 USD.
+- las 2 políticas de alerta de esos checks.
 
-Confirmar que el mail del canal es `alert_email` y que llega un aviso de
-prueba o el primer umbral real.
+Confirmar que los correos de los dos canales son los de `alert_emails` y que
+llega un aviso de prueba o el primer umbral real.
 
 Billing anomaly detection se activa a mano en la cuenta de facturación.
 Terraform no lo modela. Sigue pendiente.
@@ -353,8 +402,9 @@ Estrategia de restore, cuando haya que usarla:
 3. Smoke test contra esa instancia, aparte del tráfico real.
 4. Recién entonces apuntar la aplicación, con una versión nueva de la URL en Secret Manager y un apply revisado.
 
-El restore drill todavía no se hizo. Hay que hacerlo antes del go-live. Este
-runbook no afirma que la recuperación esté probada.
+La recuperación ya se probó en una instancia independiente. Esa instancia
+temporal se eliminó. El backup manual usado en la prueba es
+`1793126953962`. La prueba no reemplazó la instancia de producción.
 
 ## Costos
 
@@ -390,23 +440,19 @@ autoriza apagarlo ahora. Su topología sigue siendo la del runbook de staging.
 
 ## Pendiente
 
-### Antes del primer migrate
-
-- Escribir y ejecutar los grants de `maps-app` y `maps-migrate`. No están en
-  el repo y Terraform no los crea.
-- En el primer deployment, verificar el pull de imágenes. Si falla, revisar
-  primero los permisos del Cloud Run service agent. Las service accounts de
-  runtime no tienen por qué tener `roles/artifactregistry.reader`.
+El sitio todavía no se ha publicado mediante el dominio oficial.
 
 ### Antes del go-live
 
-- Elegir y crear proyecto, bucket de state y bucket de assets.
-- Completar las fases 0 a 7. Nada de eso ocurrió.
-- Validar `TRUST_PROXY=2` con tráfico real.
-- Hacer el restore drill sobre una instancia nueva.
-- Activar Billing anomaly detection en la cuenta de facturación.
-- Decidir en el build si el sitio se indexa (`VITE_PUBLIC_INDEXING` hoy
-  default `false`).
+- Confirmar con MAPS la configuración del correo y los registros DNS.
+- Actualizar el registro A del dominio a `136.110.128.230`, mediante el administrador del dominio.
+- Esperar la activación y validar los certificados HTTPS del dominio principal y de `www`.
+- Ejecutar los smoke tests públicos de la fase 6.
+- Verificar `TRUST_PROXY=2` e identificación real de IP a través del balanceador, incluyendo protección frente a `X-Forwarded-For` falsificado.
+- Crear o activar los 2 uptime checks públicos y sus 2 políticas de alerta.
+- Confirmar la configuración de Billing anomaly detection.
+- La restricción de `maps-app` sobre `_prisma_migrations` no está verificada en este cierre.
+- La transferencia del `SUPERADMIN` inicial a MAPS no está marcada como hecha.
 
 ### Después del primer mes
 

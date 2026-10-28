@@ -141,3 +141,19 @@ resource "google_storage_bucket_iam_member" "backend_assets" {
   role   = "roles/storage.objectUser"
   member = "serviceAccount:${google_service_account.backend.email}"
 }
+
+# Non-authoritative. CLOUD_LOGGING_ONLY sends build logs to Cloud Logging,
+# so the build account does not need a role on a Cloud Build logs bucket.
+resource "google_project_iam_member" "build_log_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.build.email}"
+}
+
+# Read source objects only. The identity that runs gcloud builds submit
+# uploads the archive; this account does not.
+resource "google_storage_bucket_iam_member" "build_source_reader" {
+  bucket = var.build_source_bucket_name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.build.email}"
+}

@@ -1,0 +1,32 @@
+# What gcloud uploads to the temporary Cloud Build source bucket.
+# .dockerignore is applied later, inside Docker, and does not protect that bucket.
+
+.git
+.gitignore
+.gcloudignore
+.dockerignore
+
+node_modules/
+dist/
+coverage/
+
+.env
+.env.*
+
+*.pem
+*.key
+*credentials*.json
+*service-account*.json
+*serviceAccount*.json
+
+*.log
+npm-debug.log*
+
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+README.md

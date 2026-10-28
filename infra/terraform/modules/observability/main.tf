@@ -11,16 +11,23 @@ locals {
       path         = "/api/v1/health"
     }
   }
+
+  notification_channel_names = [
+    for email in sort(tolist(var.alert_emails)) :
+    google_monitoring_notification_channel.email[email].name
+  ]
 }
 
 resource "google_monitoring_notification_channel" "email" {
+  for_each = var.alert_emails
+
   project      = var.project_id
-  display_name = "MAPS Production Alerts"
+  display_name = "MAPS Production Alerts (${each.key})"
   type         = "email"
   enabled      = true
 
   labels = {
-    email_address = var.alert_email
+    email_address = each.value
   }
 }
 
@@ -76,9 +83,7 @@ resource "google_monitoring_alert_policy" "uptime" {
   combiner     = "OR"
   enabled      = true
 
-  notification_channels = [
-    google_monitoring_notification_channel.email.name,
-  ]
+  notification_channels = local.notification_channel_names
 
   conditions {
     display_name = "${each.value.display_name} failing in at least two regions for 120s"
@@ -242,9 +247,7 @@ resource "google_monitoring_alert_policy" "cloudsql" {
   combiner     = "OR"
   enabled      = true
 
-  notification_channels = [
-    google_monitoring_notification_channel.email.name,
-  ]
+  notification_channels = local.notification_channel_names
 
   documentation {
     mime_type = "text/markdown"

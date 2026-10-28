@@ -68,12 +68,14 @@ variable "database_instance_name" {
   }
 }
 
-variable "alert_email" {
-  description = "Email address that receives production monitoring alerts. This is not a secret."
-  type        = string
+variable "alert_emails" {
+  description = "Email addresses that receive production monitoring alerts. Between 1 and 5. These are not secrets."
+  type        = set(string)
 
   validation {
-    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_email)) && length(var.alert_email) <= 254
-    error_message = "alert_email must be an email address."
+    condition = length(var.alert_emails) >= 1 && length(var.alert_emails) <= 5 && alltrue([
+      for email in var.alert_emails : can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", email)) && length(email) <= 254
+    ])
+    error_message = "alert_emails must contain 1 to 5 email addresses."
   }
 }
