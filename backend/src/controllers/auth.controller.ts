@@ -9,10 +9,26 @@ import { AppError } from '../lib/errors.js';
 import { authService } from '../services/auth.service.js';
 import { loginSchema, logoutBodySchema, refreshBodySchema } from '../validations/auth.schema.js';
 
-/** Lee el refresh token de la cookie httpOnly o, como fallback, del body. */
-function resolveRefreshToken(req: Parameters<RequestHandler>[0]): string | undefined {
-  return (req.cookies as Record<string, string | undefined>)[REFRESH_COOKIE_NAME] ??
-    (req.body as { refreshToken?: string }).refreshToken;
+/**
+ * Lee el refresh desde la cookie httpOnly (`maps_refresh`). El body solo se usa si
+ * `env.allowRefreshBody` (desarrollo/test por defecto, o `ALLOW_REFRESH_BODY=true` en prod).
+ */
+function resolveRefreshToken(
+  req: Parameters<RequestHandler>[0],
+  allowBody: boolean,
+): string | undefined {
+  const fromCookie = (req.cookies as Record<string, string | undefined>)[REFRESH_COOKIE_NAME];
+  if (fromCookie) return fromCookie;
+  if (!allowBody) return undefined;
+  return (req.body as { refreshToken?: string }).refreshToken;
+}
+
+/** `maxAge` en ms hasta el `exp` del refresh. El login y la rotación comparten el cálculo. */
+function refreshCookieMaxAgeMs(refreshToken: string): number {
+  const decoded = JSON.parse(
+    Buffer.from(refreshToken.split('.')[1], 'base64url').toString(),
+  ) as { exp?: number };
+  return decoded.exp !== undefined ? decoded.exp * 1000 - Date.now() : 30 * 24 * 60 * 60 * 1000;
 }
 
 export const authController: Record<string, RequestHandler> = {
@@ -31,18 +47,10 @@ export const authController: Record<string, RequestHandler> = {
       const env = loadEnv();
       const result = await authService.login(parsed.data.usuario, parsed.data.password);
 
-      const decoded = JSON.parse(
-        Buffer.from(result.refreshToken.split('.')[1], 'base64url').toString(),
-      ) as { exp?: number };
-      const maxAgeMs =
-        decoded.exp !== undefined
-          ? decoded.exp * 1000 - Date.now()
-          : 30 * 24 * 60 * 60 * 1000;
-
       res.cookie(
         REFRESH_COOKIE_NAME,
         result.refreshToken,
-        getRefreshCookieSetOptions(env, maxAgeMs),
+        getRefreshCookieSetOptions(env, refreshCookieMaxAgeMs(result.refreshToken)),
       );
 
       res.json({
@@ -69,53 +77,96 @@ export const authController: Record<string, RequestHandler> = {
       return;
     }
 
-    const refreshToken = resolveRefreshToken(req);
+    const env = loadEnv();
+    const refreshToken = resolveRefreshToken(req, env.allowRefreshBody);
     if (!refreshToken) {
-      next(new AppError(401, 'Refresh token requerido'));
+      const msg = env.allowRefreshBody
+        ? 'Refresh token requerido'
+        : 'Refresh token requerido (cookie httpOnly)';
+      next(new AppError(401, msg));
       return;
     }
 
     try {
       const result = await authService.refresh(refreshToken);
+      res.cookie(
+        REFRESH_COOKIE_NAME,
+        result.refreshToken,
+        getRefreshCookieSetOptions(env, refreshCookieMaxAgeMs(result.refreshToken)),
+      );
       res.json({
-        data: result,
+        data: {
+          accessToken: result.accessToken,
+          user: result.user,
+        },
         message: 'OK',
         error: null,
       });
     } catch (err) {
+      if (err instanceof AppError && err.statusCode === 401) {
+        res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieClearOptions(env));
+      }
       next(err);
     }
   },
 
   logout: async (req, res, next) => {
-    const bodyParsed = logoutBodySchema.safeParse(req.body);
-    if (!bodyParsed.success) {
-      res.status(400).json({
-        data: null,
-        message: 'Datos de entrada inválidos',
-        error: bodyParsed.error.flatten(),
-      });
-      return;
+    const env = loadEnv();
+    const fromCookie = (req.cookies as Record<string, string | undefined>)[REFRESH_COOKIE_NAME];
+
+    let refreshToken: string | undefined;
+    if (fromCookie) {
+      refreshToken = fromCookie;
+    } else if (env.allowRefreshBody) {
+      const bodyParsed = logoutBodySchema.safeParse(req.body ?? {});
+      if (!bodyParsed.success) {
+        res.status(400).json({
+          data: null,
+          message: 'Datos de entrada inválidos',
+          error: bodyParsed.error.flatten(),
+        });
+        return;
+      }
+      refreshToken = bodyParsed.data.refreshToken;
     }
 
+    try {
+      if (refreshToken) {
+        await authService.logout(refreshToken);
+      }
+      res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieClearOptions(env));
+      res.json({
+        data: null,
+        message: 'Sesión cerrada',
+        error: null,
+      });
+    } catch (err) {
+      res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieClearOptions(env));
+      next(err);
+    }
+  },
+
+  changeMyPassword: async (req, res, next) => {
     if (!req.user) {
       next(new AppError(401, 'No autenticado'));
       return;
     }
 
-    const refreshToken = resolveRefreshToken(req);
-    if (!refreshToken) {
-      next(new AppError(401, 'Refresh token requerido'));
+    const usuarioId = Number.parseInt(req.user.sub, 10);
+    if (Number.isNaN(usuarioId)) {
+      next(new AppError(401, 'Token inválido'));
       return;
     }
 
+    const body = req.body as { currentPassword: string; newPassword: string };
+
     try {
+      await authService.changeMyPassword(usuarioId, body);
       const env = loadEnv();
-      await authService.logout(req.user.sub, refreshToken);
       res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieClearOptions(env));
       res.json({
         data: null,
-        message: 'Sesión cerrada',
+        message: 'Contraseña actualizada',
         error: null,
       });
     } catch (err) {

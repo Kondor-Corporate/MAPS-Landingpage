@@ -1,3 +1,7 @@
+/**
+ * Store Zustand legacy de Noticias (MAPS-007, mock en memoria).
+ * Reemplazado por `useAdminNews`; se mantiene solo por compatibilidad histórica.
+ */
 import { create } from 'zustand';
 import { newsMock } from '@/modules/admin/data/newsMock';
 import type { News, NewsEstado, NewsInput } from '@/modules/admin/types/news';
@@ -21,6 +25,8 @@ export const useNews = create<NewsState>((set) => ({
     const created: News = {
       id: generateId(),
       ...input,
+      imagenPortada: null,
+      galeria: [],
       ultimaModificacion: now,
     };
     set((state) => ({ news: [created, ...state.news] }));
@@ -41,11 +47,8 @@ export const useNews = create<NewsState>((set) => ({
   setEstado: (id, estado) =>
     set((state) => ({
       news: state.news.map((n) =>
-        n.id === id
-          ? { ...n, estado, ultimaModificacion: new Date().toISOString() }
-          : n,
+        n.id === id ? { ...n, estado, ultimaModificacion: new Date().toISOString() } : n,
       ),
     })),
-  removeNews: (id) =>
-    set((state) => ({ news: state.news.filter((n) => n.id !== id) })),
+  removeNews: (id) => set((state) => ({ news: state.news.filter((n) => n.id !== id) })),
 }));

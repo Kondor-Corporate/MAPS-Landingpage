@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 type AccessCardProps = {
   variant: 'self' | 'library';
@@ -40,16 +41,12 @@ export function AccessCard({
   badgeIcon,
 }: AccessCardProps) {
   const ctaDisabled = href == null || href === '';
+  const isExternalLink = Boolean(href && /^https?:\/\//i.test(href));
+  const isInternalRoute = Boolean(href && href.startsWith('/'));
 
   if (variant === 'self') {
     return (
-      <article
-        className="relative flex flex-col gap-5 overflow-hidden rounded-2xl p-7 text-white shadow-cta"
-        style={{
-          background:
-            'linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #00a4c0 100%)',
-        }}
-      >
+      <article className="relative flex flex-col gap-5 overflow-hidden rounded-2xl bg-library-gradient p-7 text-white shadow-cta">
         {badge && (
           <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
             {badgeIcon}
@@ -67,11 +64,20 @@ export function AccessCard({
           >
             Próximamente
           </span>
+        ) : isInternalRoute && href ? (
+          <Link
+            to={href}
+            className="mt-auto inline-flex w-fit items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-maps-heading transition-colors hover:bg-white/90"
+          >
+            {ctaLabel}
+            <ArrowRightIcon />
+          </Link>
         ) : (
           <a
             href={href}
-            target="_blank"
-            rel="noreferrer"
+            {...(isExternalLink
+              ? { target: '_blank', rel: 'noopener noreferrer' }
+              : {})}
             className="mt-auto inline-flex w-fit items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-maps-heading transition-colors hover:bg-white/90"
           >
             {ctaLabel}
@@ -91,9 +97,7 @@ export function AccessCard({
         </span>
       )}
       <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-bold leading-tight text-maps-heading">
-          {title}
-        </h2>
+        <h2 className="text-2xl font-bold leading-tight text-maps-heading">{title}</h2>
         <p className="text-sm leading-relaxed text-maps-body">{description}</p>
       </div>
       {ctaDisabled ? (
@@ -103,11 +107,20 @@ export function AccessCard({
         >
           Próximamente
         </span>
+      ) : isInternalRoute && href ? (
+        <Link
+          to={href}
+          className="mt-auto inline-flex w-fit items-center gap-2 rounded-lg bg-maps-brand px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-maps-brand-hover"
+        >
+          {ctaLabel}
+          <ArrowRightIcon />
+        </Link>
       ) : (
         <a
           href={href}
-          target="_blank"
-          rel="noreferrer"
+          {...(isExternalLink
+            ? { target: '_blank', rel: 'noopener noreferrer' }
+            : {})}
           className="mt-auto inline-flex w-fit items-center gap-2 rounded-lg bg-maps-brand px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-maps-brand-hover"
         >
           {ctaLabel}

@@ -1,5 +1,7 @@
 # MAPS-007 — Sección Productores en panel Admin
 
+> **Actualización MAPS-009:** el mock (`useProducers`, `producersMock`) fue **eliminado**; el panel admin de productores consume la **API real** (`useAdminProducers`, `producers.service.ts`). Esta bitácora describe la **entrega MAPS-007** (solo UI mock). Para el estado cerrado véase [`docs/worklog/MAPS-009-admin-api-productores.md`](../worklog/MAPS-009-admin-api-productores.md).
+
 Documentación de la feature **Listado y gestión de productores en el panel Admin / SuperAdmin** dentro del proyecto MAPS Asesores. Complementa el [README técnico](./README.md) y el [README raíz](../README.md).
 
 ---
@@ -255,7 +257,7 @@ export function ProducersPage() {
 
 | Pendiente | Detalle |
 |-----------|---------|
-| Backend real | `backend/src/controllers/producers.controller.ts` sigue stub. Cuando se implemente: reemplazar `useProducers` (mock store) por `axios` + (React Query o `useEffect`). El contrato a definir: `GET /producers?estado=&search=`, `POST /producers`, `PATCH /producers/:id`, `PATCH /producers/:id/estado`. Idealmente este reemplazo vendría precedido por un TDD (`docs/MAPS-XXX-tdd-integracion-backend-productores.md`). |
+| Backend real MAPS-009 | Ver [`docs/worklog/MAPS-009-admin-api-productores.md`](../worklog/MAPS-009-admin-api-productores.md) y [`docs/tdd/MAPS-009-tdd-admin-api-productores.md`](../tdd/MAPS-009-tdd-admin-api-productores.md). |
 | Persistencia | El store es 100% en memoria; al refrescar se pierden cambios. Pasa con backend real. |
 | Tests | El proyecto no tiene setup de testing aún. Pendiente para una feature futura (Vitest para unit + Playwright para E2E). |
 | Toast / feedback post-acción | Hoy los modales se cierran sin notificación. Sumar un sistema de toasts compartido. |

@@ -1,0 +1,33 @@
+# What gcloud uploads to the temporary Cloud Build source bucket.
+# .dockerignore has to be uploaded: Docker only sees the files that arrived
+# in the source. It is not applied to the bucket before the upload.
+
+.git
+.gitignore
+.gcloudignore
+
+node_modules/
+dist/
+coverage/
+uploads/
+
+.env
+.env.*
+
+*.pem
+*.key
+*credentials*.json
+*service-account*.json
+*serviceAccount*.json
+
+*.log
+npm-debug.log*
+
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+README.md

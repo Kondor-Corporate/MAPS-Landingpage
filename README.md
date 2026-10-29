@@ -1,379 +1,428 @@
-# MAPS Asesores — Portal Web + Intranet + Admin
+# MAPS Asesores
 
-Portal integral para la gestión de productores de seguros de **MAPS Asesores**.  
-Incluye tres zonas diferenciadas:
+Portal web, intranet y panel administrativo para la gestion de productores de seguros de MAPS Asesores.
 
-| Zona | Audiencia | Descripción |
-|---|---|---|
-| **Web Pública** | Visitante anónimo | Landing institucional, mapa de asesores, perfil público del productor |
-| **Intranet** | Productor autenticado | Dashboard, Biblioteca Digital, acceso a SELF, gestión de perfil |
-| **Admin / SuperAdmin** | Administradores | CRUD de productores y administradores, gestión de noticias, filtros avanzados |
+El sistema se organiza en tres zonas:
 
-> **Fuera de alcance en esta etapa:** Ecommerce y Cotizador (proyectos separados; la arquitectura contempla su integración futura sin rehacer el core).
+| Zona | Audiencia | Descripcion |
+|------|-----------|-------------|
+| Web publica | Visitantes anonimos | Landing institucional, mapa de asesores y perfil publico de productor |
+| Intranet | Productores autenticados | Dashboard, biblioteca digital y gestion de perfil propio |
+| Admin / SuperAdmin | Administradores | Gestion de productores, biblioteca y secciones administrativas |
 
-> **Nota (MAPS-008):** La tabla resume zonas y propósito del producto; el **grado real de integración con API** por módulo está detallado en [Estado real del sistema](#estado-real-del-sistema). No asumir que las pantallas admin de productores o noticias persisten en servidor hasta que exista el ticket de integración correspondiente.
-
----
-
-## Estado real del sistema
-
-Última revisión documental: **MAPS-008** (2026-05). Esta sección complementa la tabla de zonas arriba: distingue lo **integrado o alineado con backend/infra**, lo que es **UI con mocks o datos locales**, y lo **pendiente**, para evitar interpretar demos como producción integrada.
-
-### Integrado o alineado con backend e infraestructura
-
-| Pieza | Notas |
-|-------|--------|
-| **Autenticación** | Login, refresh, logout, JWT y roles contra la API (`/api/v1/auth`). Detalle en [`docs/README.md`](docs/README.md). |
-| **Routing y guards** | Rutas públicas, intranet (`PRODUCTOR`) y admin (`ADMIN` / `SUPERADMIN`) con guards de rol. |
-| **Base de datos local** | Docker Compose (PostgreSQL), migraciones Prisma, seed (p. ej. usuarios admin/superadmin). |
-| **Layouts base** | `PublicLayout`, `AuthLayout`, `AppLayout` (shell autenticado). |
-| **Navegación móvil (intranet/admin)** | Menú tipo drawer bajo el breakpoint `lg` en `AppLayout`; mismos ítems de sidebar por rol. |
-
-### UI implementada con mocks o datos locales (no implica API de negocio lista)
-
-| Pieza | Notas |
-|-------|--------|
-| **Perfil público `/productor/:slug`** | Vista mínima operativa con **datos mock en cliente**; **sin** API pública de productor aún. |
-| **Admin — productores** | Listado, filtros, CRUD en **Zustand / memoria** (ver worklog MAPS-007). |
-| **Admin — noticias** | Gestión con **mocks** en cliente. |
-| **Noticias en landing y dashboards** | Grillas y modales con **contenido mock** (p. ej. `mockNews`). |
-| **Mapa en landing (`FindAdvisorMap`)** | MapLibre con **marcadores/datos locales**; **no** depende del backend MAPS para el mapa; **lazy-load del chunk** pendiente como mejora de performance. |
-| **Biblioteca digital (contenido)** | Rutas de app existen; contenido **no** sustentado en API de biblioteca aún. |
-| **SELF y enlaces externos tipo Drive** | Hasta tener URLs reales, `dashboardLinks` puede usar **`null`** y la UI muestra **«Próximamente»** en CTAs/sidebar donde aplique. |
-
-### Pendiente explícito
-
-- Integración **API** para **productores** (persistencia y contratos REST).
-- Integración **API** para **noticias**.
-- **Perfil público** desde backend (sustituir mock por fetch real).
-- **Mapa** alimentado desde backend o fuentes acordadas.
-- **URLs reales** portal SELF y biblioteca (Drive u otra).
-- **Lazy-load** de MapLibre (o issue con métrica objetivo).
-- **Tests E2E** (p. ej. Playwright).
-
-Documentación relacionada: [TDD MAPS-008](docs/tdd/MAPS-008-tdd-ui-stabilization.md), [worklog MAPS-008](docs/worklog/MAPS-008-ui-stabilization.md).
+Fuera de alcance actual: ecommerce y cotizador.
 
 ---
 
-## Stack Tecnológico
+## Estado actual
+
+| Modulo | Estado | Backend/API |
+|--------|--------|-------------|
+| Auth y routing | Implementado | `/api/v1/auth` (incluye cambio self-service de contraseña, D1A) |
+| Productores admin | Implementado | `/api/v1/producers` |
+| Perfil productor | Implementado | `/api/v1/producers/me`, `/api/v1/producers/by-slug/:slug` |
+| Mapa publico | Implementado | `/api/v1/producers/map` |
+| Biblioteca digital | Implementado para ramos | `/api/v1/library/ramos` |
+| Noticias | Implementado | `/api/v1/news` |
+| Landing publica | Parcial | Mapa y noticias por API; equipo institucional estático (`OurTeamSection`, no API); CTA al mapa (`#mapa`); contacto sin backend |
+| Portal SELF | Pendiente / deshabilitado | Sin URL configurada (`SELF_PORTAL_URL = null`) |
+| Admins | Implementado | `/api/v1/admins` (gestión ADMIN por SUPERADMIN, D1B); self-service de contraseña propia (D1A) |
+| E2E browser | Pendiente | N/A |
+
+Los documentos historicos en `docs/tdd/` y `docs/worklog/` explican como se llego a este estado, pero no reemplazan esta tabla ni la documentacion viva en `docs/`.
+
+---
+
+## Stack
 
 ### Frontend
 
-| Capa | Tecnología |
-|---|---|
-| Framework | React 18 + Vite |
-| Lenguaje | TypeScript |
-| Estilos | TailwindCSS |
-| Router | React Router v6 |
-| Estado global | Zustand |
-| HTTP client | Axios |
+- React 18.
+- Vite.
+- TypeScript.
+- Tailwind CSS.
+- React Router.
+- Zustand.
+- Axios.
+- MapLibre/react-map-gl.
 
 ### Backend
 
-| Capa | Tecnología |
-|---|---|
-| Runtime | Node.js (LTS) |
-| Framework | Express + TypeScript |
-| ORM | Prisma |
-| Base de datos | PostgreSQL |
-| Validación | Zod (por endpoint) |
-| Auth | JWT + RBAC (roles: `PRODUCTOR` / `ADMIN` / `SUPERADMIN`) |
+- Node.js 22+ (`engines.node` del backend: `>=22`).
+- Express.
+- TypeScript.
+- Prisma.
+- PostgreSQL.
+- Zod.
+- JWT + refresh token en cookie httpOnly.
+- Vitest + Supertest.
 
-> **Reglas de acceso por zona:** `PRODUCTOR` → `/intranet/*` (solo su propio perfil). `ADMIN` y `SUPERADMIN` → `/admin/*`. Un admin no accede a `/intranet` salvo que tenga también cuenta de productor separada. La web pública (`/`, `/productor/:slug`) es accesible sin autenticación.
+### Infra local
 
-### Infraestructura local
+- Docker Compose.
+- PostgreSQL 16.
+- Backend Node en contenedor.
+- Frontend Vite dev server en contenedor.
 
-| Herramienta | Uso |
-|---|---|
-| Docker + Docker Compose | PostgreSQL local solamente |
-| `.env` | Variables de entorno (ver `.env.example`) |
+### Staging GCP
 
-> En desarrollo, Docker se usa solo para la base de datos. Backend y frontend corren localmente con `npm run dev`.
+Hay un entorno de **staging operativo** en Google Cloud (Cloud Run frontend/backend, Cloud SQL PostgreSQL, GCS privado). Contrato y operación: [`docs/GCP_STAGING_RUNBOOK.md`](./docs/GCP_STAGING_RUNBOOK.md).
+
+Producción en GCP (`maps-prod-landing-page`, `southamerica-east1`) está desplegada al 27/10/2026: Cloud Run, Cloud SQL, balanceador, presupuesto y monitoreo interno. **El sitio todavía no se ha publicado mediante el dominio oficial.** Operación: [`docs/GCP_PRODUCTION_RUNBOOK.md`](./docs/GCP_PRODUCTION_RUNBOOK.md).
 
 ---
 
 ## Requisitos
 
-- **Node.js** LTS (≥ 20) — [descargar](https://nodejs.org/)
-- **Docker Desktop** — [descargar](https://www.docker.com/products/docker-desktop/)
-- **pnpm** (recomendado) o npm/yarn
+- Docker Desktop.
+- Node.js 22+ si vas a correr comandos fuera de Docker (alineado con `backend/package.json` `engines` y con las imágenes Docker).
+- npm.
+
+Verificar:
 
 ```bash
-# Verificar versiones
-node -v    # >= 20.x
+node -v
 npm -v
 docker -v
+docker compose version
 ```
 
 ---
 
-## Setup local (paso a paso)
+## Onboarding post-clone
 
-### 1. Clonar el repositorio
-
-```bash
-git clone <URL_DEL_REPO>
-cd maps-asesores
-git checkout development
-```
-
-### 2. Configurar variables de entorno
+Flujo minimo recomendado tras clonar el repo (sin levantar servicios todavia):
 
 ```bash
-# Backend
-cp backend/.env.example backend/.env
-
-# Frontend
-cp frontend/.env.example frontend/.env
-```
-
-Editá los archivos `.env` con los valores correspondientes.  
-**Nunca commitees archivos `.env` con credenciales reales.**
-
-### 3. Levantar la base de datos (Docker)
-
-```bash
-docker compose up -d
-```
-
-Esto levanta un contenedor PostgreSQL en `localhost:5432` con la base oficial de desarrollo `maps_asesores_dev`.
-Podés verificar estado y logs con:
-
-```bash
-docker compose ps
-docker compose logs db
-```
-
-### 4. Instalar dependencias
-
-```bash
-# Backend
 cd backend
 npm install
+npm run prisma:generate
 
-# Frontend
 cd ../frontend
 npm install
 ```
 
-### 5. Ejecutar migraciones de Prisma
+**Importante:** el backend usa tipos generados por Prisma. Si `npm run typecheck` o `npm run build` fallan con errores de `@prisma/client` o campos del schema inexistentes, correr **`npm run prisma:generate`** en `backend/` antes de reintentar. Esto ocurre tipicamente tras un `git pull` que trae cambios en `schema.prisma` o en un clone fresco donde el client aun no se genero.
+
+No se usa `postinstall` automatico en el repo: CI y Docker ya invocan Prisma de forma explicita; un hook global podria interferir con builds parciales o contenedores sin schema copiado aun.
+
+Variables opcionales para desarrollo local sin Docker Compose completo:
 
 ```bash
-cd backend
-npx prisma migrate dev
-npm run db:seed
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 ```
 
-### 6. Correr el proyecto
+**Nunca commitees archivos `.env` con credenciales reales.** Solo se versionan las plantillas `.env.example`.
 
-En terminales separadas:
+---
+
+## Setup recomendado: Docker desarrollo
+
+El compose actual es **solo desarrollo**. No incluye TLS, reverse proxy productivo ni migraciones/seed automaticos al arrancar.
+
+### Primera vez o reset completo
+
+Desde la raiz del repo:
 
 ```bash
-# Terminal 1 — Backend
-cd backend
-npm run dev
-# Escucha en http://localhost:3000
+docker compose up -d --build
+```
 
-# Terminal 2 — Frontend
+Esperar a que `db` y `backend` reporten healthy (`docker compose ps`). Luego **aplicar schema y datos demo** (obligatorio en primera corrida o tras `docker compose down -v`):
+
+```bash
+docker compose exec backend npx prisma migrate deploy
+docker compose exec backend npm run db:seed
+```
+
+Script helper opcional (mismos pasos):
+
+```bash
+# Linux / macOS / Git Bash
+./scripts/docker-dev-init.sh
+
+# Windows PowerShell
+.\scripts\docker-dev-init.ps1
+```
+
+Si el backend arranca pero las APIs devuelven errores de tablas inexistentes, la base quedo vacia: faltaron migrate/seed.
+
+### Prisma Client dentro de Docker
+
+El `Dockerfile` del backend ejecuta `npx prisma generate` en el stage de build. Tras cambios en `schema.prisma` en tu rama local, reconstruir:
+
+```bash
+docker compose up -d --build backend
+```
+
+Solo si hace falta regenerar sin rebuild completo:
+
+```bash
+docker compose exec backend npx prisma generate
+```
+
+### URLs y servicios
+
+| Servicio | URL / acceso |
+|----------|----------------|
+| Frontend (Vite dev) | `http://127.0.0.1:5173` (**URL canónica para desarrollo y demo local**) |
+| Backend API | `http://127.0.0.1:3000/api/v1` |
+| Health API | `http://127.0.0.1:3000/api/v1/health` |
+| PostgreSQL | `localhost:5432` (usuario/clave/DB: ver `docker-compose.yml`) |
+| Uploads certificaciones (local) | Volumen Docker `backend_uploads` → `/app/uploads` en backend |
+
+Puertos configurables via `.env` en la raiz: `FRONTEND_PORT`, `BACKEND_PORT`, `POSTGRES_PORT`.
+
+> **Host canónico y autenticación:** abrir el frontend en `http://127.0.0.1:5173` cuando la API usa `http://127.0.0.1:3000/api/v1`. No mezclar `localhost` y `127.0.0.1`: aunque CORS permita ambos orígenes, el navegador los considera sitios distintos para cookies HttpOnly con `SameSite=Lax`. La navegación SPA puede funcionar desde `localhost`, pero el refresh de sesión al recargar una ruta protegida no enviará la cookie y redirigirá a `/login`.
+
+### Comandos utiles
+
+```bash
+docker compose ps
+docker compose logs backend
+docker compose logs frontend
+docker compose logs db
+docker compose exec backend npx prisma migrate deploy
+docker compose exec backend npm run db:seed
+docker compose down
+docker compose down -v
+```
+
+`docker compose down -v` borra volumenes (`pgdata`, `backend_uploads`, `frontend_node_modules`), incluyendo datos locales de PostgreSQL y archivos subidos.
+
+### Verificacion rapida post-setup
+
+1. `curl http://127.0.0.1:3000/api/v1/health` responde OK.
+2. Frontend carga en `http://127.0.0.1:5173` sin error de red hacia la API.
+3. Login admin seed: usuario `admin` / password `Admin1234!`.
+4. Mapa publico (`/#mapa`) muestra productores del seed.
+5. Noticias publicas cargan desde API (no mock).
+6. Intranet productor (`user` / `User1234!`): biblioteca visible; links con URL `EXAMPLE` no son clicables (dato demo — ver nota PLACEHOLDER_DRIVE abajo).
+
+Detalle de pruebas: [`docs/TESTING.md`](./docs/TESTING.md). Migraciones y seed: [`docs/MIGRATIONS.md`](./docs/MIGRATIONS.md).
+
+---
+
+## Setup alternativo: host local (sin contenedores backend/frontend)
+
+Usar este flujo si queres correr backend y frontend en tu maquina y usar Docker solo para PostgreSQL (o una instancia local de Postgres).
+
+1. Crear variables de entorno:
+
+   ```bash
+   cp backend/.env.example backend/.env
+   cp frontend/.env.example frontend/.env
+   ```
+
+   En `backend/.env`, `DATABASE_URL` debe apuntar a `localhost:5432` (o el puerto mapeado si colisiona).
+
+2. Levantar PostgreSQL:
+
+   ```bash
+   docker compose up -d db
+   ```
+
+3. Instalar dependencias y generar Prisma Client:
+
+   ```bash
+   cd backend
+   npm install
+   npm run prisma:generate
+
+   cd ../frontend
+   npm install
+   ```
+
+4. Migrar y seedear desde `backend/`:
+
+   ```bash
+   cd backend
+   npx prisma migrate deploy
+   npm run db:seed
+   ```
+
+   En desarrollo activo del schema, `npm run db:migrate` (`prisma migrate dev`) crea migraciones nuevas; para solo aplicar las existentes del repo, usar `migrate deploy`.
+
+5. Levantar servicios:
+
+   ```bash
+   # terminal 1 — backend (puerto 3000)
+   cd backend
+   npm run dev
+
+   # terminal 2 — frontend (puerto 5173)
+   cd frontend
+   npm run dev -- --host 127.0.0.1
+   ```
+
+Frontend local usa `VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1` (ver `frontend/.env.example`).
+
+> **Navegador vs Docker:** el frontend en Compose corre en un contenedor, pero las llamadas HTTP las hace el **navegador de tu máquina**. Por eso `VITE_API_BASE_URL` debe apuntar al backend publicado en el host (`127.0.0.1:3000`), no al nombre de servicio `backend`. En Windows, `127.0.0.1` suele ser más confiable que `localhost` (evita cuelgues por resolución IPv6) y mantiene frontend/API bajo el mismo host para que el refresh cookie funcione en reload.
+
+---
+
+## Usuarios seed
+
+El seed crea usuarios de prueba, entre otros:
+
+| Usuario | Password | Rol |
+|---------|----------|-----|
+| `admin` | `Admin1234!` | `ADMIN` |
+| `superadmin` | `Super1234!` | `SUPERADMIN` |
+| `user` | `User1234!` | `PRODUCTOR` |
+
+El productor demo puede tener perfil y slug segun `backend/prisma/seed.ts`.
+
+---
+
+## Calidad y tests
+
+Backend:
+
+```bash
+cd backend
+npm run typecheck
+npm run lint
+npm run build
+npm test
+```
+
+Frontend:
+
+```bash
 cd frontend
-npm run dev
-# Escucha en http://localhost:5173
+npm run typecheck
+npm run lint
+npm run build
 ```
 
-### 7. Verificar que la API responde
-
-```bash
-curl http://localhost:3000/api/v1/health
-# Respuesta esperada: { "status": "ok", "timestamp": "..." }
-```
-
-### 8. Tests de integración del backend (auth)
-
-Requisitos: PostgreSQL levantado, migraciones aplicadas y seed ejecutado (`cd backend && npm run db:seed`). El archivo `backend/.env` debe incluir `DATABASE_URL`, `JWT_SECRET`, `REFRESH_SECRET` y el resto de variables validadas en `src/config/env.ts`.
-
-```bash
-cd backend
-npm test              # una pasada
-npm run test:watch    # modo observación
-```
-
-Los tests viven en `backend/tests/` y usan **Vitest** + **Supertest** contra la app en memoria (`createApp()`), sin levantar un servidor real.
-
-#### Qué hace cada test (`tests/auth.integration.test.ts`)
-
-| Test | Qué comprueba |
-|------|----------------|
-| **POST /login — credenciales válidas** | Respuesta `200` con `accessToken` y `refreshToken` en formato JWT, usuario `admin` con rol `ADMIN`, y que la respuesta **no** expone `passwordHash`. |
-| **POST /login — contraseña incorrecta** | `401` con mensaje genérico `Credenciales inválidas` (no filtra si el usuario existe). |
-| **POST /login — usuario inexistente** | Mismo `401` y mismo mensaje que con contraseña mala (anti-enumeración de usuarios). |
-| **POST /login — body inválido** | `400` cuando faltan campos requeridos (validación Zod). |
-| **POST /refresh — token válido** | Tras un login correcto, el refresh devuelve `200` y un **nuevo** `accessToken`; no devuelve otro refresh en el payload. |
-| **POST /refresh — token inválido** | `401` si el string no es un JWT válido firmado como refresh. |
-| **POST /refresh — access como refresh** | `401` si se envía el **access token** en el cuerpo donde debe ir el refresh (secret y tipo distintos). |
-| **POST /logout — revoca sesión** | Con `Authorization: Bearer` + `refreshToken` en el body, `200`; un segundo `POST /refresh` con el mismo refresh devuelve `401` (sesión revocada en base de datos). |
-| **POST /logout — sin Authorization** | `401` si falta el header `Bearer` (middleware `authenticate`). |
-
-En entorno de test (`NODE_ENV=test`) el rate limit del login está relajado para no interferir con la suite.
+CI ejecuta typecheck, lint y build en frontend y backend; tests solo en backend (con PostgreSQL efimero). Ver [`docs/TESTING.md`](./docs/TESTING.md).
 
 ---
 
-## Base de datos local con Docker
+## Estructura
 
-El archivo [`docker-compose.yml`](./docker-compose.yml) define solo PostgreSQL para desarrollo:
+```text
+MAPS-Landingpage/
+  backend/
+    prisma/
+    src/
+    tests/
+    Dockerfile
+  frontend/
+    src/
+    public/
+    Dockerfile
+    nginx.conf
+  docs/
+    modules/
+    tdd/
+    worklog/
+  scripts/
+    docker-dev-init.sh
+    docker-dev-init.ps1
+  docker-compose.yml
+```
 
-- Servicio: `db`
-- Imagen: `postgres:16-alpine`
-- Host/puerto desde el equipo: `localhost:5432`
-- Base oficial de desarrollo: `maps_asesores_dev`
-- Usuario: `postgres`
-- Password: `postgres`
-- Volumen persistente: `pgdata`
+Arquitectura completa: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
-El backend local usa `localhost` en `DATABASE_URL` porque corre fuera de Docker:
+---
+
+## Documentacion
+
+- [`docs/README.md`](./docs/README.md): indice de documentacion.
+- [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md): ramas, commits, PRs y definition of done.
+- [`docs/CONVENTIONS.md`](./docs/CONVENTIONS.md): TDDs, work-logs y fuentes de verdad.
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md): arquitectura viva.
+- [`docs/TESTING.md`](./docs/TESTING.md): testing y CI.
+- [`docs/MIGRATIONS.md`](./docs/MIGRATIONS.md): Prisma, migraciones y seed.
+- [`docs/CHANGELOG.md`](./docs/CHANGELOG.md): cambios relevantes.
+- [`docs/GCP_STAGING_RUNBOOK.md`](./docs/GCP_STAGING_RUNBOOK.md): contrato y operación de staging en GCP.
+- [`docs/GCP_PRODUCTION_RUNBOOK.md`](./docs/GCP_PRODUCTION_RUNBOOK.md): operación de producción en GCP. La infraestructura está desplegada; el dominio oficial todavía no publica el sitio.
+- [`docs/modules/auth.md`](./docs/modules/auth.md): auth, routing y roles.
+- [`docs/modules/producers.md`](./docs/modules/producers.md): productores, perfiles, mapa y certificaciones.
+- [`docs/modules/library.md`](./docs/modules/library.md): biblioteca digital.
+- [`docs/modules/public-web.md`](./docs/modules/public-web.md): landing, mapa publico y perfil publico.
+- [`docs/modules/news.md`](./docs/modules/news.md): noticias, API e integracion admin/publico/intranet.
+- [`docs/modules/admins.md`](./docs/modules/admins.md): administradores (gestión ADMIN por SUPERADMIN, D1B).
+
+---
+
+## Convenciones rapidas
+
+Rama de integracion: `development`.
+
+Formato de commits y PRs:
+
+```bash
+tipo(scope): descripcion
+```
+
+Detalle: [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md).
+
+---
+
+## Variables de entorno
+
+> **El archivo `.env` real no se versiona.** Solo existen `backend/.env.example` y `frontend/.env.example` como plantillas. Copiar las plantillas y completar los valores reales. Nunca commitear credenciales.
+
+### Backend (`backend/.env`)
+
+| Variable | Uso |
+|----------|-----|
+| `DATABASE_URL` | Conexion PostgreSQL. Host `db` si el backend corre en Docker Compose; `localhost` si corre en el host contra el contenedor `db`. |
+| `JWT_SECRET` | Firma del access token. Minimo 32 caracteres en produccion. |
+| `JWT_EXPIRES_IN` | Duracion del access token (ej. `15m`). |
+| `REFRESH_SECRET` | Firma del refresh token. Minimo 32 caracteres en produccion. |
+| `REFRESH_EXPIRES_IN` | Duracion del refresh token (ej. `30d`). |
+| `STORAGE_PROVIDER` | `local` (disco), `gcs` (staging GCP) o `s3`. |
+| `API_PUBLIC_URL` | Base publica del backend para URLs de descarga de certificaciones (ej. `http://localhost:3000`). |
+| `NOMINATIM_USER_AGENT` | Identificacion de la app ante Nominatim (ToS de OpenStreetMap). Usado por geocoding server-side. |
+| `DEFAULT_PRODUCER_PASSWORD` | Solo para `prisma/seed.ts`. El alta real de productores exige `password` individual (MAPS-016). |
+| `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_PUBLIC_BASE_URL` | Solo si `STORAGE_PROVIDER=s3`. Ver `backend/.env.example`. |
+
+Ejemplo minimo (ver `backend/.env.example` para el listado completo):
 
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maps_asesores_dev"
-```
-
-Si en el futuro el backend corre dentro de Docker, el host de la URL debería ser el nombre del servicio (`db`) en lugar de `localhost`.
-
-Comandos útiles:
-
-```bash
-docker compose up -d        # levanta PostgreSQL
-docker compose ps           # muestra estado del servicio
-docker compose logs db      # muestra logs de PostgreSQL
-docker compose down         # detiene y elimina el contenedor, conserva el volumen
-docker compose down -v      # detiene y elimina también los datos del volumen
-
-cd backend
-npx prisma migrate dev      # aplica migraciones en desarrollo
-npm run db:migrate          # alias del comando anterior
-npm run db:seed             # carga datos iniciales
-npm run prisma:studio       # abre Prisma Studio
-```
-
-pgAdmin es opcional y funciona solo como cliente visual. Para conectarlo:
-
-- Host: `localhost`
-- Port: `5432`
-- User: `postgres`
-- Password: `postgres`
-- Database: `maps_asesores_dev`
-
-Troubleshooting:
-
-- Si `5432` está ocupado, probablemente hay otro PostgreSQL local corriendo. Detenelo o cambiá el puerto host del compose y actualizá `DATABASE_URL`.
-- `docker compose down -v` borra los datos persistidos en `pgdata`; usalo solo cuando quieras resetear la DB.
-- Si existe una DB antigua con datos usando rol `PRODUCER`, revisar la migración hacia `PRODUCTOR` antes de migrar sobre datos reales.
-- pgAdmin no es necesario para que el backend funcione; Prisma usa directamente `DATABASE_URL`.
-
----
-
-## Estructura de carpetas
-
-```
-maps-asesores/
-├── frontend/
-│   └── src/
-│       ├── shared/          ← componentes, layouts, hooks, types, utils compartidos
-│       ├── modules/
-│       │   ├── public-web/  ← landing + perfil público
-│       │   ├── intranet/    ← portal del productor
-│       │   └── admin/       ← panel admin / superadmin
-│       └── router/          ← React Router + guards de rol
-│
-├── backend/
-│   ├── tests/               ← Vitest + Supertest (p. ej. auth.integration.test.ts)
-│   └── src/
-│       ├── api/v1/routes/   ← definición de endpoints
-│       ├── controllers/     ← capa HTTP (req → service → res)
-│       ├── services/        ← lógica de negocio (usa Prisma)
-│       ├── middlewares/     ← authenticate, authorize (RBAC), validate (Zod)
-│       ├── validations/     ← Zod schemas por recurso
-│       ├── types/           ← roles, augmentación Express
-│       └── config/          ← env.ts (validación de variables al startup)
-│   └── prisma/
-│       ├── schema.prisma
-│       └── migrations/
-│
-├── docker-compose.yml
-├── backend/.env.example
-├── frontend/.env.example
-├── .gitignore
-└── README.md
-```
-
-> Ver la propuesta completa en la documentación de arquitectura del equipo.
-
----
-
-## Convenciones del equipo
-
-### Branching y PRs
-
-```
-main          ← producción (solo se toca via PR desde development)
-development   ← integración continua
-feature/*     ← desarrollo de funcionalidades (ej: feature/producer-crud)
-fix/*         ← correcciones puntuales
-```
-
-- Todo el trabajo se hace en ramas `feature/*` o `fix/*`
-- Se abre un **Pull Request** hacia `development`
-- Merge strategy: **Squash & Merge** (un commit limpio por feature)
-- `main` solo recibe PRs desde `development` (releases)
-
-### Nombrado de archivos
-
-| Tipo | Convención | Ejemplo |
-|---|---|---|
-| Componentes React | PascalCase | `ProducerTable.tsx` |
-| Hooks | camelCase con `use` | `useProducerFilters.ts` |
-| Servicios/Controllers | camelCase + sufijo | `producers.service.ts` |
-| Schemas Zod | camelCase + `.schema` | `producer.schema.ts` |
-| Variables de entorno | SCREAMING_SNAKE_CASE | `DATABASE_URL` |
-
-### API
-
-- Todos los endpoints bajo `/api/v1/`
-- Respuestas JSON con estructura consistente:
-  ```json
-  { "data": ..., "message": "...", "error": null }
-  ```
-- Errores de validación devuelven `400` con detalle del campo
-- Autenticación via header `Authorization: Bearer <token>`
-
----
-
-## Variables de entorno — referencia
-
-### `backend/.env.example`
-
-```env
-# Runtime
 NODE_ENV=development
 PORT=3000
-FRONTEND_ORIGIN=http://localhost:5173
-
-# Base de datos local via Docker Compose
+FRONTEND_ORIGIN=http://localhost:5173,http://127.0.0.1:5173
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maps_asesores_dev"
-
-# Auth / JWT
 JWT_SECRET=dev_access_secret_change_me_32_chars_minimum
-JWT_EXPIRES_IN=15m
 REFRESH_SECRET=dev_refresh_secret_change_me_32_chars_minimum
-REFRESH_EXPIRES_IN=30d
+DEFAULT_PRODUCER_PASSWORD=Dev_DefaultProducer_12chars
+STORAGE_PROVIDER=local
+API_PUBLIC_URL=http://localhost:3000
+NOMINATIM_USER_AGENT=maps-landingpage-dev/1.0 (contact@kondor.local)
 ```
 
-### `frontend/.env.example`
+Notas de `DATABASE_URL`:
+
+- Si el backend corre dentro de Docker en la misma red Compose que `db`, usar host **`db`** y puerto **5432**.
+- Si otro Postgres local ocupa el `5432`, cambiar el mapeo en `docker-compose.yml` a `5433:5432` y actualizar la URL con `localhost:5433`.
+
+### Frontend (`frontend/.env`)
 
 ```env
-VITE_API_BASE_URL=http://localhost:3000/api/v1
+VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1
 ```
+
+En Docker desarrollo, `docker-compose.yml` define el mismo default. Si tenés un `frontend/.env` local con `localhost`, actualizalo a `127.0.0.1` (no se versiona). Abrí también el frontend con `http://127.0.0.1:5173`; usar `localhost:5173` contra una API en `127.0.0.1` rompe el refresh cookie al recargar rutas protegidas. En producción, reconstruir el frontend con la URL pública real de la API.
+
+`FRONTEND_ORIGIN` (backend) acepta una o varias URLs separadas por coma para CORS. En `development`/`test`, si solo indicás `http://localhost:5173`, el backend también permite `http://127.0.0.1:5173` (y viceversa). Esto evita bloqueos CORS, pero no vuelve equivalentes ambos hosts para cookies: la URL canónica local sigue siendo `http://127.0.0.1:5173`.
 
 ---
 
-## Licencia
+## Notas
 
-Proyecto privado — © 2026 MAPS Asesores / Kondor. Todos los derechos reservados.
+- Las migraciones no se ejecutan automaticamente al arrancar el backend; correrlas explicitamente tras `docker compose up`.
+- Tras `docker compose up` sin migrate/seed, la DB puede quedar vacia y las APIs fallaran hasta ejecutar los comandos documentados arriba.
+- El compose actual esta orientado a desarrollo, no produccion.
+- El frontend en Docker usa el target `dev` (Vite con hot reload y volumen montado). El backend en Docker corre la imagen compilada (`node dist/server.js`); cambios en codigo backend requieren `docker compose up -d --build backend`.
+- El Dockerfile del frontend conserva stages `build`/`runner` (nginx puerto 8080) para una variante estatica futura; el compose actual no los usa.
+- Los TDDs y work-logs son historicos; para estado actual usar este README y `docs/`.
+
+### Dato demo: PLACEHOLDER_DRIVE (biblioteca)
+
+El seed define `PLACEHOLDER_DRIVE = https://drive.google.com/drive/folders/EXAMPLE` para algunos ramos de biblioteca. Es **contenido demo pendiente**, no un link productivo. La UI del productor (MAPS-017 Fase B) evita ofrecer URLs con `EXAMPLE` como enlaces clicables. Para una demo con acceso real a documentos, reemplazar esas URLs desde admin biblioteca o actualizar el seed cuando existan carpetas Drive definitivas.

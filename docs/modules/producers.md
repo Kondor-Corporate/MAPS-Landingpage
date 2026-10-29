@@ -1,0 +1,358 @@
+# Productores
+
+Documentacion viva del modulo Productores.
+
+Este modulo cubre:
+
+- Gestion administrativa de productores.
+- Perfil propio del productor.
+- Perfil publico por slug.
+- Datos para mapa publico.
+- Certificaciones.
+
+Historial relacionado:
+
+- Admin productores UI mock: `docs/worklog/MAPS-007-seccion-productores-admin.md`.
+- API admin productores: `docs/worklog/MAPS-009-admin-api-productores.md`.
+- Perfil productor y slug: `docs/worklog/MAPS-013-vista-perfil-productor.md`.
+- Credenciales administradas por admin: `docs/worklog/MAPS-016-credenciales-productores.md`.
+- Self-service de contraseña movido a Auth: `docs/worklog/D1A-cambio-self-password.md`.
+- Validación de contenido real en uploads (D3A): `docs/worklog/D3A-validacion-contenido-uploads.md`.
+- Integridad de coordenadas y defensa legacy (D3B): `docs/worklog/D3B-integridad-coordenadas.md`.
+- Consistencia Storage ↔ DB (D3C): `docs/worklog/D3C-consistencia-storage-db.md`.
+
+---
+
+## Estado actual
+
+| Area | Estado |
+|------|--------|
+| Admin CRUD productores | Implementado con API real |
+| Activos/inactivos | Implementado |
+| Geocodificacion de direccion | Implementada via Nominatim |
+| Integridad de coordenadas | Implementada (D3B): finite + bounds globales, defensa cache/provider y legacy |
+| Perfil propio productor | Implementado |
+| Perfil publico por slug | Implementado |
+| Mapa publico | Implementado |
+| Certificaciones PDF | Implementado con storage local/S3-compatible |
+| Consistencia storage ↔ DB de certificaciones/foto | Implementada en app-layer (D3C): compensación de uploads y DB-first en deletes |
+| Credenciales individuales por productor (alta con password propia) | Implementado (MAPS-016) |
+| Cambio de contraseña self-service | Canónico en Auth (`PATCH /api/v1/auth/me/password`, D1A). El productor lo usa desde su perfil; `PATCH /producers/me/password` queda como alias temporal solo para `PRODUCTOR` |
+| Restablecimiento de contraseña por admin | Implementado (MAPS-016) — sigue en este dominio |
+| Paginacion/busqueda server-side | Pendiente |
+| Primer login por invitación (email) | Pendiente — hoy el admin define la password inicial directamente |
+
+---
+
+## Modelo de datos
+
+Modelos Prisma principales:
+
+- `Usuario`
+- `Productor`
+- `RedSocial`
+- `Certificacion`
+- `SesionToken`
+
+Relaciones:
+
+- Un `Usuario` con rol `PRODUCTOR` tiene un `Productor`.
+- `Productor` tiene redes sociales y certificaciones.
+- La activacion/desactivacion del productor se modela con `Usuario.activo`.
+
+Campos relevantes de `Productor`:
+
+| Campo | Uso |
+|-------|-----|
+| `slug` | URL publica e intranet por perfil |
+| `nombre`, `apellido` | Identidad visible |
+| `ciudad` | Direccion/zona visible y fuente para geocoding |
+| `latitud`, `longitud` | Mapa publico y zona de influencia. En app-layer: latitud [-90, 90], longitud [-180, 180] (finas y finitas). PostgreSQL no impone CHECK constraint. |
+| `matricula`, `verificado` | Datos profesionales |
+| `bio`, `foto`, `whatsapp`, `idiomas` | Perfil |
+| `anosExperiencia`, `clientesActivos` | Estadisticas |
+| `especialidades` | Areas de especialidad |
+
+---
+
+## Backend
+
+Rutas bajo:
+
+```text
+/api/v1/producers
+```
+
+### Publicas
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| `GET` | `/producers/map` | Productores activos con coordenadas para mapa |
+| `GET` | `/producers/by-slug/:slug` | Perfil publico de productor activo |
+
+### Productor autenticado
+
+Requiere rol `PRODUCTOR`.
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| `GET` | `/producers/me` | Perfil propio |
+| `PATCH` | `/producers/me` | Edita campos permitidos del perfil propio |
+| `PATCH` | `/producers/me/password` | **Alias temporal** del cambio self-service. Solo `PRODUCTOR`. La lógica ya no pertenece a este dominio: delega en `authController.changeMyPassword` y el limiter/schema de Auth. El endpoint canónico es `PATCH /api/v1/auth/me/password` (cualquier `Usuario` autenticado; ver `docs/modules/auth.md`) |
+| `POST` | `/producers/me/foto` | Sube/reemplaza la foto de perfil propia (JPG/PNG/WEBP, máx. 5MB) |
+| `POST` | `/producers/me/certificaciones` | Sube certificacion PDF |
+| `DELETE` | `/producers/me/certificaciones/:certId` | Elimina certificacion propia |
+
+### Admin / SuperAdmin
+
+Requiere rol `ADMIN` o `SUPERADMIN`.
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| `GET` | `/producers` | Lista productores, con filtro opcional `activo` |
+| `GET` | `/producers/:id` | Detalle admin |
+| `POST` | `/producers` | Crea usuario productor + perfil (requiere `password` inicial) |
+| `PATCH` | `/producers/:id` | Actualiza datos admin/perfil |
+| `PATCH` | `/producers/:id/activo` | Activa/desactiva productor |
+| `PATCH` | `/producers/:id/password` | Restablece la contraseña (no requiere la anterior; solo admin) |
+| `POST` | `/producers/:id/certificaciones` | Sube certificacion como admin |
+| `DELETE` | `/producers/:id/certificaciones/:certId` | Elimina certificacion como admin |
+
+Archivos principales:
+
+- `backend/src/api/v1/routes/producers.routes.ts`
+- `backend/src/controllers/producers.controller.ts`
+- `backend/src/services/producers.service.ts`
+- `backend/src/validations/producer.schema.ts`
+- `backend/src/validations/producerProfile.schema.ts`
+- `backend/src/lib/producerProfileMapper.ts`
+- `backend/src/lib/passwordPolicy.ts` (MAPS-016)
+- `backend/src/lib/storage/`
+- `backend/src/lib/geocode.ts`
+
+---
+
+## Frontend
+
+### Admin productores
+
+Rutas:
+
+```text
+/admin/productores
+/admin/inactivos
+```
+
+Archivos principales:
+
+- `frontend/src/modules/admin/pages/ProducersPage.tsx`
+- `frontend/src/modules/admin/pages/InactiveProducersPage.tsx`
+- `frontend/src/modules/admin/hooks/useAdminProducers.ts`
+- `frontend/src/modules/admin/services/producers.service.ts`
+- `frontend/src/modules/admin/components/ProducersDashboard.tsx`
+- `frontend/src/modules/admin/components/ProducerFormModal.tsx`
+- `frontend/src/modules/admin/components/ProducerTable.tsx`
+- `frontend/src/modules/admin/components/ProducerResetPasswordModal.tsx` (MAPS-016)
+
+### Perfil productor intranet
+
+Rutas:
+
+```text
+/intranet/mi-perfil
+/intranet/perfil/:slug
+```
+
+Archivos principales:
+
+- `frontend/src/modules/intranet/pages/MyProfilePage.tsx`
+- `frontend/src/modules/intranet/pages/ProducerProfileViewPage.tsx`
+- `frontend/src/modules/intranet/hooks/useProducerProfile.ts`
+- `frontend/src/modules/intranet/services/producerProfile.service.ts`
+- `frontend/src/modules/intranet/components/ProducerProfileForm.tsx`
+- `frontend/src/modules/auth/components/ChangePasswordForm.tsx` (formulario compartido de Auth; ya no vive en intranet)
+- `frontend/src/modules/auth/services/auth.service.ts` (`PATCH /auth/me/password`)
+- `frontend/src/shared/components/profile/`
+
+### Web publica
+
+Rutas:
+
+```text
+/
+/productor/:slug
+```
+
+Archivos principales:
+
+- `frontend/src/modules/public-web/components/FindAdvisorMap.tsx`
+- `frontend/src/modules/public-web/pages/ProducerProfilePage.tsx`
+- `frontend/src/modules/public-web/services/producersMap.service.ts`
+- `frontend/src/modules/public-web/services/producerProfile.service.ts`
+- `frontend/src/shared/components/map/`
+
+---
+
+## Geocodificacion
+
+Al crear o actualizar productores (admin o perfil propio), la direccion/ciudad puede geocodificarse con Nominatim para persistir `latitud` y `longitud`. Detalle de diseño D3B: [`docs/worklog/D3B-integridad-coordenadas.md`](../worklog/D3B-integridad-coordenadas.md).
+
+**Busqueda (search):**
+
+- Nominatim sigue sesgado a Argentina / La Plata (`countrycodes=ar`, `viewbox` Buenos Aires).
+- La respuesta del provider se valida con bounds globales (`normalizeCoordinates`); resultado invalido → `null`, no se propaga.
+- Coordenadas manuales en pareja completa tienen **prioridad** sobre el geocoder; pareja incompleta → `400`.
+- `(0, 0)` es tecnicamente valido.
+
+**Cache Redis** (si `REDIS_URL` esta configurada):
+
+- Cache de geocoding search/reverse via `geocodeCache.ts` (TTL positivo 24 h, negative 5 min).
+- Positive cache se **revalida** antes de usarse; contenido invalido o malformado no se considera confiable y dispara refetch al provider.
+- Negative cache (`NOT_FOUND`) retorna `null` sin reconsultar Nominatim.
+- Si Redis no esta disponible, fail-open: la request sigue contra Nominatim.
+
+Variable relacionada:
+
+```env
+NOMINATIM_USER_AGENT=maps-landingpage-dev/1.0 (contact@kondor.local)
+```
+
+Riesgos:
+
+- Nominatim puede fallar por direccion ambigua, rate limit o conectividad.
+- La direccion debe ser suficientemente especifica.
+
+### Mapa publico y legacy
+
+`GET /producers/map`:
+
+- Solo productores activos (`Usuario.activo`).
+- Requiere `latitud`/`longitud` no null y dentro de bounds validos en query Prisma.
+- Registros legacy fuera de rango quedan excluidos del mapa.
+
+Admin y perfil (lectura):
+
+- Pair legacy invalida en BD se expone como `latitud: null`, `longitud: null` en DTOs.
+
+---
+
+## Certificaciones, foto de perfil y storage
+
+Las certificaciones son PDFs asociados a productores. La foto de perfil (JPG/PNG/WEBP, máx. 5 MB) se sube desde `/intranet/mi-perfil` haciendo click en el avatar propio — reemplaza el antiguo campo de texto "URL foto". Ambos reutilizan el mismo `StorageAdapter` (`backend/src/lib/storage/`).
+
+### Validación de contenido (D3A)
+
+Multer sigue siendo la **primera barrera** (MIME declarado + límite de tamaño). Después, los services verifican los **bytes reales** del buffer antes de llamar a storage. Detalle de diseño: [`docs/worklog/D3A-validacion-contenido-uploads.md`](../worklog/D3A-validacion-contenido-uploads.md).
+
+**Certificaciones** (`POST .../certificaciones`):
+
+- Formato permitido: PDF; máx. **10 MB**.
+- Multer acepta solo `application/pdf` declarado.
+- El backend exige firma `%PDF-` en el buffer; si no coincide → `400` (`El archivo no es un PDF válido`).
+- Solo se escribe en storage si el contenido detectado es PDF.
+- Storage y BD reciben el MIME canónico detectado (`application/pdf`), no el declarado.
+- Visibilidad pública de certificaciones: **sin cambio** (intencional).
+
+**Foto de perfil** (`POST /producers/me/foto`):
+
+- Formatos permitidos: JPEG, PNG, WebP; máx. **5 MB**.
+- Multer filtra MIME declarado (`image/jpeg`, `image/png`, `image/webp`).
+- El backend detecta el tipo por firma; `file.mimetype` **no** es fuente de verdad post-Multer.
+- Si el cliente declara PNG pero los bytes son JPEG válido → **aceptado** como JPEG (extensión y `Content-Type` derivan de `detectedMime`).
+- Contenido no reconocido o no permitido → `400` antes de storage.
+
+Los adapters **no** inspeccionan bytes; reciben `mimeType` ya verificado desde el service.
+
+Storage:
+
+- `local`: disco en `backend/uploads/certificaciones` y `backend/uploads/fotos`.
+- `gcs`: Cloud Storage privado (staging). El navegador no accede al bucket; el backend hace stream.
+- `s3`: bucket S3-compatible (prefijos `certificaciones/` y `fotos/`).
+
+Variables relacionadas:
+
+```env
+STORAGE_PROVIDER=local
+API_PUBLIC_URL=http://localhost:3000
+S3_BUCKET=
+S3_REGION=
+S3_ACCESS_KEY=
+S3_SECRET_KEY=
+S3_PUBLIC_BASE_URL=
+```
+
+En Docker desarrollo, `backend_uploads` persiste los archivos subidos.
+
+### Consistencia Storage ↔ DB (D3C)
+
+PostgreSQL es el source of truth lógico. No hay transacción distribuida entre Prisma y storage; los flujos de certificaciones y foto aplican orden de operaciones y compensación best-effort. Detalle: [`docs/worklog/D3C-consistencia-storage-db.md`](../worklog/D3C-consistencia-storage-db.md).
+
+**Certificación alta** (`POST .../certificaciones`):
+
+- validación D3A del buffer;
+- upload a storage;
+- `count` + `create` en DB;
+- si DB falla → se intenta borrar el upload nuevo (compensación);
+- el error DB original prevalece sobre cualquier fallo de compensación.
+
+**Certificación baja** (`DELETE .../certificaciones/:certId`):
+
+- la fila DB se elimina primero;
+- después cleanup del blob en storage;
+- si cleanup falla → queda registrado (`storage.consistency_cleanup_failed`); no revierte el delete ni cambia HTTP `200`.
+
+**Foto replace** (`POST /producers/me/foto`):
+
+- upload de imagen nueva;
+- DB apunta a la URL nueva;
+- luego cleanup de la foto anterior;
+- si DB falla → nueva compensada y foto anterior intacta.
+
+Los storage adapters solo borran URLs **managed** reconocidas como propias del entorno; URLs externas o legacy → no-op; archivo inexistente → no-op; error real del adapter → el helper lo captura en cleanup sin propagar al cliente.
+
+El cleanup es best-effort: puede quedar un orphan físico residual si falla la compensación o el cleanup posterior.
+
+---
+
+## Verificacion manual
+
+Admin:
+
+1. Login como `admin`.
+2. Abrir `/admin/productores`.
+3. Crear productor con direccion valida y contraseña inicial propia.
+4. Confirmar que aparece activo y que la columna Usuario muestra el email.
+5. Editar datos.
+6. Usar "Restablecer contraseña" desde el menu de acciones (sin pedir la anterior).
+7. Desactivar.
+8. Abrir `/admin/inactivos` y reactivar.
+
+Productor:
+
+1. Login con el email y la contraseña inicial definida por el admin.
+2. Abrir `/intranet/mi-perfil`.
+3. Confirmar redireccion a `/intranet/perfil/:slug`.
+4. Editar campos permitidos.
+5. Subir/eliminar certificacion PDF.
+6. En la seccion "Seguridad", cambiar la contraseña (pide la actual). El formulario es el de Auth y llama `PATCH /auth/me/password`.
+7. Tras el éxito la SPA limpia el auth store y vuelve a `/login` (no llama `POST /auth/logout`). Volver a entrar con la contraseña nueva; la anterior debe fallar.
+
+Publico:
+
+1. Abrir `/`.
+2. Confirmar marcadores en mapa si hay productores activos con coordenadas.
+3. Abrir `/productor/:slug`.
+
+---
+
+## Pendientes conocidos
+
+- Paginacion y busqueda server-side para listados grandes.
+- Invitacion por email para el primer acceso (hoy el admin comunica la password inicial fuera del sistema).
+- Notificacion por email al productor cuando el admin restablece su contraseña.
+- Auditoria/historial de cambios de contraseña (solo queda `Usuario.updatedAt`).
+- E2E admin/productor/publico.
+- Mejor manejo operacional de geocoding.
+- Definir politica final para storage productivo.
+- Reconciliación Storage ↔ DB para detectar y limpiar huérfanos (fuera de D3C).
+- Política de acceso/privacidad de certificaciones almacenadas (auth / signed URLs) como decisión separada si negocio la requiere.

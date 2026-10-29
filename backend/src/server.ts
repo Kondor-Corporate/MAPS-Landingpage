@@ -5,6 +5,6 @@ import { loadEnv } from './config/env.js';
 const env = loadEnv();
 const app = createApp();
 
-app.listen(env.PORT, () => {
-  console.log(`MAPS Asesores API listening on http://localhost:${env.PORT}`);
+app.listen(env.PORT, '0.0.0.0', () => {
+  console.log(`MAPS Asesores API listening on 0.0.0.0:${env.PORT}`);
 });

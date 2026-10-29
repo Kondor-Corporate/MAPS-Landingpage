@@ -1,10 +1,7 @@
 import { AccessCard } from '@/shared/components/AccessCard';
 import { DashboardGreeting } from '@/shared/components/DashboardGreeting';
 import { RecentNewsGrid } from '@/shared/components/RecentNewsGrid';
-import {
-  BIBLIOTECA_DRIVE_URL,
-  SELF_PORTAL_URL,
-} from '@/shared/constants/dashboardLinks';
+import { BIBLIOTECA_INTRANET_PATH, SELF_PORTAL_URL } from '@/shared/constants/dashboardLinks';
 
 const ShieldIcon = () => (
   <svg
@@ -47,7 +44,7 @@ export function DashboardPage() {
     <div className="flex flex-col gap-8 px-8 py-6">
       <DashboardGreeting name="Productor" />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <AccessCard
           variant="self"
           title="Acceso al Portal SELF"
@@ -62,7 +59,7 @@ export function DashboardPage() {
           title="Biblioteca Digital"
           description="Accedé a manuales, formularios y material comercial actualizado."
           ctaLabel="Ingresar a la Biblioteca"
-          href={BIBLIOTECA_DRIVE_URL}
+          href={BIBLIOTECA_INTRANET_PATH}
           badge="Recursos"
           badgeIcon={<BookIcon />}
         />

@@ -5,7 +5,7 @@ type AvatarSize = 'sm' | 'md' | 'lg' | 'xl';
 
 type AvatarProps = {
   name: string;
-  src?: string;
+  src?: string | null;
   size?: AvatarSize;
   className?: string;
 };

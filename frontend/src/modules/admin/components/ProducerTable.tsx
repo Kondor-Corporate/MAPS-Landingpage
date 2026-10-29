@@ -4,22 +4,25 @@ import { relativeTimeFromNow } from '@/shared/utils/relativeTime';
 import { ProducerActionsMenu } from '@/modules/admin/components/ProducerActionsMenu';
 import { ProducerStatusBadge } from '@/modules/admin/components/ProducerStatusBadge';
 import type { Producer } from '@/modules/admin/types/producer';
+import { producerNombreCompleto } from '@/modules/admin/types/producer';
 
 type Props = {
   producers: Producer[];
   onView: (p: Producer) => void;
   onEdit: (p: Producer) => void;
   onToggleEstado: (p: Producer) => void;
+  onResetPassword: (p: Producer) => void;
   emptyMessage?: string;
 };
 
-const COLUMNS = ['Nombre', 'Estado', 'DNI', 'Última actividad', 'Acciones'];
+const COLUMNS = ['Nombre', 'Usuario', 'Estado', 'Últ. act. cuenta', 'Acciones'];
 
 export function ProducerTable({
   producers,
   onView,
   onEdit,
   onToggleEstado,
+  onResetPassword,
   emptyMessage = 'No encontramos productores con esos criterios.',
 }: Props) {
   if (producers.length === 0) {
@@ -37,7 +40,7 @@ export function ProducerTable({
   return (
     <div className="overflow-hidden rounded-2xl border border-maps-border bg-white shadow-card">
       {/* Desktop table */}
-      <div className="hidden overflow-x-auto lg:block">
+      <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full">
           <thead className="bg-maps-surface">
             <tr>
@@ -56,7 +59,9 @@ export function ProducerTable({
             </tr>
           </thead>
           <tbody>
-            {producers.map((p, idx) => (
+            {producers.map((p, idx) => {
+              const name = producerNombreCompleto(p);
+              return (
               <tr
                 key={p.id}
                 className={[
@@ -66,17 +71,15 @@ export function ProducerTable({
               >
                 <td className="whitespace-nowrap px-6 py-3.5">
                   <div className="flex items-center gap-3">
-                    <Avatar name={p.nombre} src={p.avatarUrl} size="md" />
-                    <span className="text-sm font-semibold text-maps-heading">
-                      {p.nombre}
-                    </span>
+                    <Avatar name={name} src={p.avatarUrl} size="md" />
+                    <span className="text-sm font-semibold text-maps-heading">{name}</span>
                   </div>
+                </td>
+                <td className="whitespace-nowrap px-6 py-3.5 text-sm text-maps-body">
+                  {p.email}
                 </td>
                 <td className="whitespace-nowrap px-6 py-3.5">
                   <ProducerStatusBadge estado={p.estado} />
-                </td>
-                <td className="whitespace-nowrap px-6 py-3.5 text-sm font-semibold text-maps-heading">
-                  {p.dni}
                 </td>
                 <td className="whitespace-nowrap px-6 py-3.5 text-sm text-maps-muted">
                   {relativeTimeFromNow(p.ultimaActividad)}
@@ -87,37 +90,43 @@ export function ProducerTable({
                     onView={onView}
                     onEdit={onEdit}
                     onToggleEstado={onToggleEstado}
+                    onResetPassword={onResetPassword}
                   />
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* Mobile cards */}
-      <ul className="flex flex-col divide-y divide-maps-border lg:hidden">
-        {producers.map((p) => (
-          <li key={p.id} className="flex flex-col gap-3 p-4">
-            <div className="flex items-center gap-3">
-              <Avatar name={p.nombre} src={p.avatarUrl} size="md" />
-              <div className="flex flex-1 flex-col">
-                <span className="text-sm font-semibold text-maps-heading">{p.nombre}</span>
-                <span className="text-xs text-maps-muted">DNI {p.dni}</span>
+      <ul className="flex flex-col divide-y divide-maps-border md:hidden">
+        {producers.map((p) => {
+          const name = producerNombreCompleto(p);
+          return (
+            <li key={p.id} className="flex flex-col gap-3 p-4">
+              <div className="flex items-center gap-3">
+                <Avatar name={name} src={p.avatarUrl} size="md" />
+                <div className="flex flex-1 flex-col">
+                  <span className="text-sm font-semibold text-maps-heading">{name}</span>
+                  <span className="text-xs text-maps-muted">{p.email}</span>
+                </div>
+                <ProducerStatusBadge estado={p.estado} />
               </div>
-              <ProducerStatusBadge estado={p.estado} />
-            </div>
-            <div className="flex items-center justify-between text-xs text-maps-muted">
-              <span>Última actividad: {relativeTimeFromNow(p.ultimaActividad)}</span>
-              <ProducerActionsMenu
-                producer={p}
-                onView={onView}
-                onEdit={onEdit}
-                onToggleEstado={onToggleEstado}
-              />
-            </div>
-          </li>
-        ))}
+              <div className="flex items-center justify-between text-xs text-maps-muted">
+                <span>Cuenta: {relativeTimeFromNow(p.ultimaActividad)}</span>
+                <ProducerActionsMenu
+                  producer={p}
+                  onView={onView}
+                  onEdit={onEdit}
+                  onToggleEstado={onToggleEstado}
+                  onResetPassword={onResetPassword}
+                />
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

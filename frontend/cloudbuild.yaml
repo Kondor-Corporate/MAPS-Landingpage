@@ -1,0 +1,211 @@
+# Construye el frontend estático y publica la imagen por tag de SHA.
+# El contexto de submit es frontend/. .gcloudignore excluye .git: el SHA
+# entra solo por _GIT_SHA. El target es runner. No se construye el target dev.
+#
+# Imágenes admitidas, las dos en el registry maps-prod:
+#   frontend          indexación pública y canónico de producción
+#   frontend-staging  noindex, sin URL canónica
+#
+# VITE_MAPS_WHATSAPP_NUMBER queda en none: no se hornea un número.
+# Los VITE_* vacíos se expresan con el centinela none porque Cloud Build
+# no acepta sustituciones vacías. none se convierte en build-arg vacío.
+#
+# La imagen gcloud consulta el registry. La imagen docker construye, revisa
+# el HTML y publica. Los scripts usan sh. Si el tag del SHA ya existe y la
+# etiqueta OCI coincide, no se vuelve a hacer push.
+
+substitutions:
+  _REGION: southamerica-east1
+  _AR_PROJECT: maps-prod-landing-page
+  _AR_REPOSITORY: maps-prod
+  _BUILD_PROJECT: maps-prod-landing-page
+  _BUILD_SERVICE_ACCOUNT: maps-prod-build@maps-prod-landing-page.iam.gserviceaccount.com
+  _IMAGE_NAME: frontend-staging
+  _GIT_SHA: unset
+  _VITE_API_BASE_URL: /api/v1
+  _VITE_PUBLIC_INDEXING: "false"
+  _VITE_PUBLIC_SITE_URL: none
+  _VITE_MAPS_WHATSAPP_NUMBER: none
+  _IMAGE_URI: ${_REGION}-docker.pkg.dev/${_AR_PROJECT}/${_AR_REPOSITORY}/${_IMAGE_NAME}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  dynamicSubstitutions: true
+
+serviceAccount: projects/${_BUILD_PROJECT}/serviceAccounts/${_BUILD_SERVICE_ACCOUNT}
+
+timeout: 1800s
+
+tags:
+  - maps-release
+  - ${_IMAGE_NAME}
+  - ${_GIT_SHA}
+
+steps:
+  - id: probe
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: sh
+    args:
+      - -ceu
+      - |
+        git_sha="${_GIT_SHA}"
+        image_uri="${_IMAGE_URI}"
+        if ! printf '%s' "$$git_sha" | grep -Eq '^[0-9a-f]{40}$$'; then
+          echo "Hace falta _GIT_SHA de 40 hexadecimales. No se publica latest."
+          exit 1
+        fi
+        tag="$$image_uri:$$git_sha"
+        case "$$tag" in
+          *:latest|*:latest@*)
+            echo "latest no es un identificador de release."
+            exit 1
+            ;;
+        esac
+        err=/tmp/maps-describe.err
+        if digest=$$(gcloud artifacts docker images describe "$$tag" --project="${_AR_PROJECT}" --format='value(image_summary.digest)' 2>"$$err"); then
+          if ! printf '%s' "$$digest" | grep -Eq '^sha256:[0-9a-f]{64}$$'; then
+            echo "El tag ya existe, pero el digest no es sha256 de 64 hex."
+            exit 1
+          fi
+          printf 'present\n' > /workspace/.maps-existing-digest
+        else
+          if grep -Eq 'NOT_FOUND|not found|was not found' "$$err"; then
+            printf 'absent\n' > /workspace/.maps-existing-digest
+          else
+            cat "$$err" >&2
+            exit 1
+          fi
+        fi
+
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    entrypoint: sh
+    args:
+      - -ceu
+      - |
+        git_sha="${_GIT_SHA}"
+        image_name="${_IMAGE_NAME}"
+        image_uri="${_IMAGE_URI}"
+        api_base="${_VITE_API_BASE_URL}"
+        indexing="${_VITE_PUBLIC_INDEXING}"
+        site_url="${_VITE_PUBLIC_SITE_URL}"
+        whatsapp="${_VITE_MAPS_WHATSAPP_NUMBER}"
+        tag="$$image_uri:$$git_sha"
+        IFS= read -r state < /workspace/.maps-existing-digest
+        production_origin="https://mapsasesores.com.ar"
+
+        if [ "$$api_base" != "/api/v1" ]; then
+          echo "VITE_API_BASE_URL tiene que ser /api/v1."
+          exit 1
+        fi
+        if [ "$$whatsapp" != "none" ]; then
+          echo "VITE_MAPS_WHATSAPP_NUMBER no entra en este release. Pasar none."
+          exit 1
+        fi
+        case "$$image_name" in
+          frontend)
+            if [ "$$indexing" != "true" ] || [ "$$site_url" != "$$production_origin" ]; then
+              echo "frontend exige indexacion true y el origen canonico de produccion."
+              exit 1
+            fi
+            expect=index
+            ;;
+          frontend-staging)
+            if [ "$$indexing" != "false" ] || [ "$$site_url" != "none" ]; then
+              echo "frontend-staging exige indexacion false y site url none."
+              exit 1
+            fi
+            expect=noindex
+            ;;
+          *)
+            echo "Imagen de frontend no admitida: $$image_name"
+            exit 1
+            ;;
+        esac
+
+        validate_html() {
+          cid=$$(docker create "$$tag")
+          trap 'docker rm -f "$$cid" >/dev/null 2>&1 || true' EXIT
+          docker cp "$$cid:/usr/share/nginx/html/index.html" /tmp/index.html
+          if [ "$$expect" = "index" ]; then
+            grep -F -q '<meta name="robots" content="index,follow" />' /tmp/index.html || {
+              echo "Falta el meta robots index,follow."
+              exit 1
+            }
+            grep -F -q 'rel="canonical"' /tmp/index.html || {
+              echo "Falta el link canonical."
+              exit 1
+            }
+            grep -F -q "href=\"$$production_origin/\"" /tmp/index.html || {
+              echo "El canonical no apunta al origen de produccion."
+              exit 1
+            }
+            if grep -F -q '<meta name="robots" content="noindex,nofollow" />' /tmp/index.html; then
+              echo "El HTML de produccion conserva noindex."
+              exit 1
+            fi
+          else
+            grep -F -q '<meta name="robots" content="noindex,nofollow" />' /tmp/index.html || {
+              echo "Falta el meta robots noindex,nofollow."
+              exit 1
+            }
+            if grep -F -q '<meta name="robots" content="index,follow" />' /tmp/index.html; then
+              echo "El HTML de staging quedo indexable."
+              exit 1
+            fi
+            if grep -F -q "$$production_origin/" /tmp/index.html; then
+              echo "El HTML de staging incluye el origen canonico de produccion."
+              exit 1
+            fi
+          fi
+        }
+
+        if [ "$$state" = "present" ]; then
+          docker pull "$$tag"
+          revision=$$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$$tag")
+          if [ "$$revision" != "$$git_sha" ]; then
+            echo "El tag de este SHA ya existe con otra revision OCI. No se pisa."
+            exit 1
+          fi
+          validate_html
+          echo "El tag ya corresponde a este SHA. No se vuelve a publicar."
+          exit 0
+        fi
+        if [ "$$state" != "absent" ]; then
+          echo "El probe no dejo un estado valido."
+          exit 1
+        fi
+
+        build_site_url=""
+        if [ "$$expect" = "index" ]; then
+          build_site_url="$$site_url"
+        fi
+        docker build \
+          --target runner \
+          --build-arg "VITE_API_BASE_URL=$$api_base" \
+          --build-arg "VITE_PUBLIC_INDEXING=$$indexing" \
+          --build-arg "VITE_PUBLIC_SITE_URL=$$build_site_url" \
+          --build-arg "VITE_MAPS_WHATSAPP_NUMBER=" \
+          --label "org.opencontainers.image.revision=$$git_sha" \
+          --tag "$$tag" \
+          .
+        revision=$$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$$tag")
+        if [ "$$revision" != "$$git_sha" ]; then
+          echo "La etiqueta OCI org.opencontainers.image.revision no coincide con el SHA."
+          exit 1
+        fi
+        validate_html
+        docker push "$$tag"
+
+  - id: digest
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: sh
+    args:
+      - -ceu
+      - |
+        digest=$$(gcloud artifacts docker images describe "${_IMAGE_URI}:${_GIT_SHA}" --project="${_AR_PROJECT}" --format='value(image_summary.digest)')
+        if ! printf '%s' "$$digest" | grep -Eq '^sha256:[0-9a-f]{64}$$'; then
+          echo "Artifact Registry no devolvio un digest sha256 de 64 hex."
+          exit 1
+        fi
+        echo "MAPS_IMAGE_REF=${_IMAGE_URI}@$$digest"

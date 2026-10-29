@@ -8,6 +8,8 @@ export type AuthUser = {
   id: number;
   usuario: string;
   rol: Rol;
+  /** Slug del Productor cuando rol = PRODUCTOR; null para ADMIN/SUPERADMIN. */
+  slug: string | null;
 };
 
 type AuthState = {

@@ -15,12 +15,17 @@ function getEnv() {
   return loadEnv();
 }
 
-export type AuthUserPublic = Pick<Usuario, 'id' | 'usuario' | 'rol'>;
+export type AuthUserPublic = Pick<Usuario, 'id' | 'usuario' | 'rol'> & {
+  slug: string | null;
+};
 
 export const authService = {
   async login(usuario: string, password: string) {
     const env = getEnv();
-    const user = await prisma.usuario.findUnique({ where: { usuario } });
+    const user = await prisma.usuario.findUnique({
+      where: { usuario },
+      include: { productor: { select: { slug: true } } },
+    });
 
     if (!user) {
       throw new AppError(401, 'Credenciales inválidas');
@@ -33,9 +38,15 @@ export const authService = {
       throw new AppError(401, 'Credenciales inválidas');
     }
 
+    await prisma.usuario.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
     const accessPayload: JWTPayload = {
       sub: String(user.id),
       role: user.rol,
+      ver: user.tokenVersion,
     };
     const accessOpts: SignOptions = {
       expiresIn: env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
@@ -56,7 +67,9 @@ export const authService = {
 
     const decoded = jwt.decode(refreshToken) as jwt.JwtPayload;
     const expiresAt =
-      decoded.exp !== undefined ? new Date(decoded.exp * 1000) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      decoded.exp !== undefined
+        ? new Date(decoded.exp * 1000)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     await prisma.sesionToken.create({
       data: {
@@ -73,6 +86,7 @@ export const authService = {
         id: user.id,
         usuario: user.usuario,
         rol: user.rol,
+        slug: user.productor?.slug ?? null,
       },
     };
   },
@@ -81,7 +95,9 @@ export const authService = {
     const env = getEnv();
     let payload: jwt.JwtPayload & { sub?: string; role?: Rol; typ?: string };
     try {
-      payload = jwt.verify(refreshToken, env.REFRESH_SECRET) as typeof payload;
+      payload = jwt.verify(refreshToken, env.REFRESH_SECRET, {
+        algorithms: ['HS256'],
+      }) as typeof payload;
     } catch {
       throw new AppError(401, 'Refresh token inválido o expirado');
     }
@@ -93,6 +109,18 @@ export const authService = {
     const tokenHash = hashToken(refreshToken);
     const session = await prisma.sesionToken.findUnique({
       where: { tokenHash },
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            usuario: true,
+            rol: true,
+            activo: true,
+            tokenVersion: true,
+            productor: { select: { slug: true } },
+          },
+        },
+      },
     });
 
     if (!session) {
@@ -107,45 +135,128 @@ export const authService = {
     if (session.usuarioId !== Number(payload.sub)) {
       throw new AppError(401, 'Refresh token inválido');
     }
+    if (!session.usuario.activo) {
+      await prisma.sesionToken.deleteMany({ where: { usuarioId: session.usuarioId } });
+      throw new AppError(401, 'Cuenta desactivada');
+    }
+
+    const absoluteExp = Math.floor(session.expiresAt.getTime() / 1000);
+    if (absoluteExp <= Math.floor(Date.now() / 1000)) {
+      await prisma.sesionToken.delete({ where: { id: session.id } }).catch(() => undefined);
+      throw new AppError(401, 'Refresh token expirado');
+    }
 
     const accessPayload: JWTPayload = {
       sub: payload.sub,
-      role: payload.role,
+      role: session.usuario.rol,
+      ver: session.usuario.tokenVersion,
     };
     const accessOpts: SignOptions = {
       expiresIn: env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
     };
     const accessToken = jwt.sign(accessPayload, env.JWT_SECRET, accessOpts);
 
-    return { accessToken };
+    /**
+     * `exp` queda anclado a `session.expiresAt`. No se usa `REFRESH_EXPIRES_IN`:
+     * rotar no puede convertir la sesión en "30 días desde el último refresh".
+     */
+    const newRefreshToken = jwt.sign(
+      {
+        sub: String(session.usuario.id),
+        role: session.usuario.rol,
+        typ: 'refresh' as const,
+        jti: randomUUID(),
+        exp: absoluteExp,
+      },
+      env.REFRESH_SECRET,
+      { algorithm: 'HS256' },
+    );
+
+    /**
+     * Compare-and-swap: solo una request que todavía presenta este hash puede
+     * reemplazarlo. `count === 0` significa que otra request ya rotó o revocó
+     * la fila; no es un 500 y no se borra la sesión ganadora.
+     */
+    const rotated = await prisma.sesionToken.updateMany({
+      where: { id: session.id, tokenHash },
+      data: { tokenHash: hashToken(newRefreshToken) },
+    });
+    if (rotated.count !== 1) {
+      throw new AppError(409, 'Conflicto al renovar la sesión');
+    }
+
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
+      user: {
+        id: session.usuario.id,
+        usuario: session.usuario.usuario,
+        rol: session.usuario.rol,
+        slug: session.usuario.productor?.slug ?? null,
+      },
+    };
   },
 
-  async logout(userSub: string, refreshToken: string) {
+  /**
+   * Revoca a lo sumo la sesión cuyo hash coincide con este refresh.
+   * Valida firma y `typ` con `ignoreExpiration: true` antes de tocar BD:
+   * tokens arbitrarios no deben provocar `deleteMany`. Un refresh legítimo
+   * expirado sigue pasando la validación y puede eliminar su hash persistido.
+   * Cero coincidencias es éxito (`deleteMany`).
+   */
+  async logout(refreshToken: string) {
     const env = getEnv();
-    let payload: jwt.JwtPayload & { sub?: string; typ?: string };
+    let payload: jwt.JwtPayload & { typ?: string };
     try {
-      payload = jwt.verify(refreshToken, env.REFRESH_SECRET) as typeof payload;
+      payload = jwt.verify(refreshToken, env.REFRESH_SECRET, {
+        algorithms: ['HS256'],
+        ignoreExpiration: true,
+      }) as typeof payload;
     } catch {
-      throw new AppError(401, 'Refresh token inválido o expirado');
+      return;
     }
 
-    if (payload.typ !== 'refresh' || !payload.sub) {
-      throw new AppError(401, 'Refresh token inválido');
-    }
-
-    if (payload.sub !== userSub) {
-      throw new AppError(403, 'El refresh token no corresponde a la sesión');
+    if (payload.typ !== 'refresh') {
+      return;
     }
 
     const tokenHash = hashToken(refreshToken);
-    const session = await prisma.sesionToken.findUnique({
-      where: { tokenHash },
-    });
+    await prisma.sesionToken.deleteMany({ where: { tokenHash } });
+  },
 
-    if (!session || session.usuarioId !== Number(userSub)) {
-      throw new AppError(401, 'Sesión no encontrada o ya revocada');
+  /** Cambio self-service: el usuario autenticado cambia su propia contraseña. */
+  async changeMyPassword(
+    usuarioId: number,
+    input: { currentPassword: string; newPassword: string },
+  ): Promise<void> {
+    const user = await prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: { id: true, passwordHash: true },
+    });
+    if (!user) {
+      throw new AppError(404, 'Usuario no encontrado');
     }
 
-    await prisma.sesionToken.delete({ where: { id: session.id } });
+    const currentOk = await bcrypt.compare(input.currentPassword, user.passwordHash);
+    if (!currentOk) {
+      // 400 (no 401): el token sigue siendo válido; el interceptor axios no debe forzar logout.
+      throw new AppError(400, 'Contraseña actual incorrecta');
+    }
+
+    if (input.newPassword === input.currentPassword) {
+      throw new AppError(400, 'La nueva contraseña debe ser distinta de la actual');
+    }
+
+    const passwordHash = await bcrypt.hash(input.newPassword, 12);
+    await prisma.$transaction([
+      prisma.usuario.update({
+        where: { id: usuarioId },
+        data: {
+          passwordHash,
+          tokenVersion: { increment: 1 },
+        },
+      }),
+      prisma.sesionToken.deleteMany({ where: { usuarioId } }),
+    ]);
   },
 };

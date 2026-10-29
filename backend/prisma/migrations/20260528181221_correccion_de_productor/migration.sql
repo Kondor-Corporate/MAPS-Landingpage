@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Ramo" ALTER COLUMN "tipo" SET DEFAULT 'PRINCIPAL';
