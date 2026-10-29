@@ -258,7 +258,8 @@ Permisos de `maps-prod-build-submit`, todos acotados al recurso:
 |---------|-------|----------|
 | `cloudbuild.builds.create`, `cloudbuild.builds.get` y `serviceusage.services.use` | proyecto, rol custom `mapsCloudBuildSubmitter` | Presentar el build, leer su estado y llamar APIs ya habilitadas. `builds.create` también permite crear un trigger; no hay un permiso más chico. El trigger igual solo puede actuar como `maps-prod-build`. |
 | `roles/iam.serviceAccountUser` | solo `maps-prod-build` | `iam.serviceAccounts.actAs` para que el build corra como esa cuenta. |
-| `roles/storage.objectCreator` y `roles/storage.objectViewer` | solo `maps-prod-landing-page-build-source` | Subir y releer el contexto. No hace falta borrar objetos: el nombre de cada subida es único y el bucket ya los borra a los 7 días. |
+| `roles/storage.objectCreator` y `roles/storage.objectViewer` | solo `maps-prod-landing-page-build-source` | Subir y releer el contexto. No hace falta borrar objetos: el nombre de cada subida es único y el bucket ya los borra a los 7 días. Ninguno de los dos roles incluye `storage.buckets.get`. |
+| `storage.buckets.get`, rol custom `mapsBuildSourceBucketGetter` | solo `maps-prod-landing-page-build-source` | `gcloud builds submit` lee la metadata del bucket antes de subir el archivo. El rol no está en el proyecto, así que no cubre el bucket de assets ni el de state. Pendiente de apply. |
 | `artifactregistry.dockerimages.get`, `repositories.get`, `tags.get` y `versions.get` | solo el repositorio `maps-prod`, rol custom `mapsArtifactDigestReader` | Resolver `image_summary.digest`. No incluye descarga de blobs ni escritura. La escritura sigue en `maps-prod-build`. |
 
 No recibe `roles/owner`, `roles/editor`, `roles/cloudbuild.builds.editor`, escritura en Artifact Registry, Secret Manager, Cloud Run, Cloud SQL ni `serviceAccountUser` sobre la cuenta default de Cloud Build, `maps-prod-frontend`, `maps-prod-backend`, `maps-prod-migrate` o `maps-prod-bootstrap`. Un `cloudbuild.yaml` que borre `serviceAccount` no debe poder correr con la cuenta default: el workflow rechaza un archivo que no fije `maps-prod-build`, y el alta no le da `actAs` sobre ninguna otra.
@@ -353,9 +354,9 @@ Estado al 29/10/2026:
 - el pool, el provider y la cuenta que hace el submit están aplicados en GCP desde el 28/10/2026 (R6-B.2). `GCP_WORKLOAD_IDENTITY_PROVIDER` y `GCP_BUILD_SERVICE_ACCOUNT` están configuradas en GitHub;
 - el PR #76 integró R6-B en `development`, y el PR #77 publicó el mismo contenido en `main` con squash. `release-build.yml` ya está en la rama predeterminada y `workflow_dispatch` está disponible;
 - un PR posterior, con merge commit, reconcilia los historiales de `main` y `development` y conserva el código actual. Hasta que se integre, los historiales siguen divergentes;
-- todavía no se ejecutó el primer build real ni hubo un `gcloud builds submit`.
+- el 29/10/2026 `Release build` #2, sobre `fb20935`, verificó el SHA, el CI y Workload Identity, y falló en `gcloud builds submit` en las cuatro variantes. El mensaje fue `The user is forbidden from accessing the bucket [maps-prod-landing-page-build-source]`. Ningún build llegó a crearse. La llamada que devuelve 403 es `storage.buckets.get`. `serviceusage.services.use` ya estaba concedido. La auditoría del 29/10/2026 no encontró otro permiso ausente en la cuenta que presenta builds ni en `maps-prod-build`. El service agent de Cloud Build ya tiene `roles/cloudbuild.serviceAgent` en el proyecto, que incluye `iam.serviceAccounts.getAccessToken`; el Token Creator aparte solo está documentado para una cuenta de otro proyecto. Antes de las cuatro variantes, el workflow comprueba el bucket y el registry. Esa comprobación no sube archivos ni crea builds.
 
-Próximo paso operativo: disparar `release-build.yml` a mano con un SHA de `development` que tenga el CI en verde. Ese build publica las cuatro imágenes en `maps-prod` y deja el manifiesto como artifact. No despliega Cloud Run, no ejecuta jobs y no aplica Terraform.
+Próximo paso operativo, después de aplicar el rol `mapsBuildSourceBucketGetter`: volver a disparar `release-build.yml` a mano con un SHA de `development` que tenga el CI en verde. Ese build publica las cuatro imágenes en `maps-prod` y deja el manifiesto como artifact. No despliega Cloud Run, no ejecuta jobs y no aplica Terraform.
 
 Criterios para dar por cerrado R6-B, cuando eso se active:
 
@@ -422,7 +423,7 @@ Sigue abierto:
 6. Nombre del bucket de state, como variable del environment, sin entrar al repo.
 7. Aceptar el contrato de migraciones compatibles con la revisión anterior. Si una migración no lo cumple, se marca como ruptura y el rollback de aplicación no se ofrece.
 8. La restricción de `maps-app` sobre `_prisma_migrations` sigue sin verificar en el runbook. Migrate ya usa `maps-migrate`.
-9. El primer build automático. Las variables de GitHub ya están cargadas y `release-build.yml` está en `main` desde el PR #77. Todavía no se disparó. Un apply completo seguiría creando los dos uptime checks públicos y sus dos alertas.
+9. El primer build automático. `Release build` #2 falló antes de crear el build porque falta `storage.buckets.get`. Después del apply dirigido hay que repetir el disparo. Un apply completo seguiría creando los dos uptime checks públicos y sus dos alertas.
 
 Riesgos:
 

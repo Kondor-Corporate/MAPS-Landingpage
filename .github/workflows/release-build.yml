@@ -2,11 +2,11 @@
 #
 # No despliega Cloud Run, no ejecuta jobs ni aplica Terraform.
 #
-# workflow_dispatch solo puede dispararse si este archivo existe en la rama
-# predeterminada. Esa rama es main, y main no contiene este workflow ni el
-# código que hoy está en development. Desde esta rama el botón Run workflow
-# no existe, y gh workflow run tampoco puede lanzarlo. No hay trigger de
-# push ni de pull_request: guardar o mergear el archivo no lo ejecuta.
+# workflow_dispatch solo puede dispararse desde la rama predeterminada.
+# Esa rama es main, y desde el PR #77 este archivo está en main. No hay
+# trigger de push ni de pull_request: mergear el archivo no lo ejecuta.
+# La rama elegida en la UI carga este workflow. El código que se construye
+# es el git_sha, y tiene que estar en development.
 #
 # El job wif-guard termina en error si faltan o están mal formadas las
 # variables GCP_WORKLOAD_IDENTITY_PROVIDER y GCP_BUILD_SERVICE_ACCOUNT.
@@ -163,9 +163,81 @@ jobs:
           esac
           echo "Workload Identity Federation está referenciada. Los ids no se imprimen."
 
+  access-preflight:
+    name: Verificar acceso a fuentes y registry
+    needs: [preflight, wif-guard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Exigir variables de Workload Identity Federation
+        env:
+          WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ vars.GCP_BUILD_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$WIF_PROVIDER" ] || [ -z "$WIF_SERVICE_ACCOUNT" ]; then
+            echo "::error::R6-B bloqueado antes de autenticar. No se envía Cloud Build."
+            exit 1
+          fi
+          case "$WIF_PROVIDER" in
+            projects/*/locations/global/workloadIdentityPools/*/providers/*) ;;
+            *)
+              echo "::error::GCP_WORKLOAD_IDENTITY_PROVIDER no tiene la forma de un provider de Workload Identity Federation."
+              exit 1
+              ;;
+          esac
+          case "$WIF_SERVICE_ACCOUNT" in
+            maps-prod-build-submit@maps-prod-landing-page.iam.gserviceaccount.com) ;;
+            *)
+              echo "::error::GCP_BUILD_SERVICE_ACCOUNT tiene que ser la cuenta que presenta builds, no la que los ejecuta."
+              exit 1
+              ;;
+          esac
+
+      - name: Autenticar con Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_BUILD_SERVICE_ACCOUNT }}
+
+      - name: Instalar gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Comprobar bucket de fuentes y Artifact Registry
+        env:
+          SOURCE_BUCKET: maps-prod-landing-page-build-source
+        run: |
+          set -euo pipefail
+          account="$(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
+          case "$account" in
+            maps-prod-build-submit@maps-prod-landing-page.iam.gserviceaccount.com) ;;
+            *)
+              echo "::error::La sesión de gcloud no es la cuenta que presenta builds."
+              exit 1
+              ;;
+          esac
+          if ! gcloud storage buckets describe "gs://${SOURCE_BUCKET}" \
+            --project="$AR_PROJECT" \
+            --format='value(name)' >/dev/null; then
+            echo "::error::La cuenta no puede leer la metadata de gs://${SOURCE_BUCKET}. Hace falta storage.buckets.get en ese bucket, no en el proyecto."
+            exit 1
+          fi
+          if ! gcloud artifacts repositories describe "$AR_REPOSITORY" \
+            --location="$AR_REGION" \
+            --project="$AR_PROJECT" \
+            --format='value(name)' >/dev/null; then
+            echo "::error::La cuenta no puede describir el repositorio ${AR_REPOSITORY}."
+            exit 1
+          fi
+          echo "Bucket de fuentes y Artifact Registry accesibles. No se subió ningún archivo ni se creó un build."
+
   build:
     name: Construir ${{ matrix.id }}
-    needs: [preflight, wif-guard]
+    needs: [preflight, wif-guard, access-preflight]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     if: github.event_name == 'workflow_dispatch'
