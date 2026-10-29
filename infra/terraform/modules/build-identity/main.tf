@@ -152,6 +152,34 @@ resource "google_service_account_iam_member" "act_as_build" {
   }
 }
 
+# gcloud builds submit calls storage.buckets.get (CreateBucketIfNotExists)
+# before it uploads the archive. objectCreator and objectViewer do not
+# include that permission. The role stays off the project binding so it
+# cannot read metadata of the assets bucket or the Terraform state bucket.
+resource "google_project_iam_custom_role" "build_source_bucket_getter" {
+  project     = var.project_id
+  role_id     = "mapsBuildSourceBucketGetter"
+  title       = "MAPS Cloud Build source bucket metadata reader"
+  description = "Read metadata of the Cloud Build source bucket. Does not list or read objects."
+  permissions = [
+    "storage.buckets.get",
+  ]
+  stage = "GA"
+}
+
+resource "google_storage_bucket_iam_member" "submit_source_bucket_getter" {
+  bucket = var.build_source_bucket_name
+  role   = google_project_iam_custom_role.build_source_bucket_getter.id
+  member = "serviceAccount:${google_service_account.submit.email}"
+
+  lifecycle {
+    precondition {
+      condition     = var.build_source_bucket_name == "${var.project_id}-build-source"
+      error_message = "Bucket metadata reads are limited to the project build-source bucket."
+    }
+  }
+}
+
 resource "google_storage_bucket_iam_member" "submit_source_creator" {
   bucket = var.build_source_bucket_name
   role   = "roles/storage.objectCreator"

@@ -39,7 +39,7 @@ variable "build_service_account_email" {
 }
 
 variable "build_source_bucket_name" {
-  description = "Temporary Cloud Build source bucket. The submitter can create and read objects here only."
+  description = "Temporary Cloud Build source bucket. The submitter can create and read objects here, and read this bucket's metadata. It has no access to other buckets."
   type        = string
 
   validation {

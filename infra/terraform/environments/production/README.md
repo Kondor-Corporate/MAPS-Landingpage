@@ -179,7 +179,7 @@ bucket de assets ni el bucket de state de Terraform.
 | Ciclo de vida | Borra objetos a los 7 días. |
 | `force_destroy` | `false` |
 | Lectura | `maps-prod-build` tiene `roles/storage.objectViewer` solo en este bucket. |
-| Submit | `maps-prod-build-submit` tiene `roles/storage.objectCreator` y `roles/storage.objectViewer` solo en este bucket. Aplicado el 28/10/2026. |
+| Submit | `maps-prod-build-submit` tiene `roles/storage.objectCreator` y `roles/storage.objectViewer` solo en este bucket, aplicados el 28/10/2026. Esos roles no incluyen `storage.buckets.get`. El rol custom `mapsBuildSourceBucketGetter` agrega solo ese permiso, también solo en este bucket, y queda pendiente de apply. |
 
 `maps-prod-build` no puede escribir objetos ahí. La cuenta que presenta el
 build sube el archivo. No recibe permiso sobre el bucket de assets.
@@ -212,7 +212,7 @@ No hay un rol de Secret Manager a nivel proyecto.
 | `maps-prod-migrate` | Job migrate. Solo la URL de migrate. |
 | `maps-prod-bootstrap` | Job bootstrap. URL de la app y secretos de bootstrap. |
 | `maps-prod-build` | Ejecuta Cloud Build. `roles/artifactregistry.writer` en `maps-prod`. `roles/logging.logWriter` en el proyecto. `roles/storage.objectViewer` solo en el bucket de fuentes. No recibe Workload Identity. |
-| `maps-prod-build-submit` | Presenta el build desde GitHub. Rol custom de Cloud Build, `roles/iam.serviceAccountUser` solo sobre `maps-prod-build`, objetos del bucket de fuentes y lectura de digests en `maps-prod`. Aplicada el 28/10/2026. |
+| `maps-prod-build-submit` | Presenta el build desde GitHub. Rol custom de Cloud Build, `roles/iam.serviceAccountUser` solo sobre `maps-prod-build`, objetos del bucket de fuentes, metadata de ese mismo bucket (`storage.buckets.get`) y lectura de digests en `maps-prod`. La metadata queda pendiente de apply. El resto se aplicó el 28/10/2026. |
 
 No hay `roles/cloudsql.client`. La conexión es IP privada más la URL en
 Secret Manager, no Cloud SQL Auth Proxy ni un usuario IAM de base.
@@ -420,8 +420,14 @@ Quedaron habilitadas `iamcredentials.googleapis.com` y
 `sts.googleapis.com`. La cuenta nueva es `maps-prod-build-submit`. El pool
 es `maps-github` y el provider es `github`. Las variables
 `GCP_WORKLOAD_IDENTITY_PROVIDER` y `GCP_BUILD_SERVICE_ACCOUNT` están en
-GitHub y no en el repositorio. Todavía no se ejecutó un Cloud Build
-automático.
+GitHub y no en el repositorio. El 29/10/2026 `Release build` #2 autenticó
+y falló en `gcloud builds submit` antes de crear el build: la cuenta no
+tiene `storage.buckets.get` sobre el bucket de fuentes. El apply de esta
+corrección es dirigido a
+`module.build_identity.google_project_iam_custom_role.build_source_bucket_getter`
+y
+`module.build_identity.google_storage_bucket_iam_member.submit_source_bucket_getter`.
+No incluye un apply completo.
 
 Un `terraform apply` completo seguiría creando estos cuatro recursos de R5.
 Ese apply no forma parte de R6-B.
