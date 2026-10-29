@@ -1,6 +1,6 @@
 # R6 — Automatización de releases y operación de producción
 
-Plan de implementación. Este documento no autoriza builds, `terraform apply`, cambios de IAM ni despliegues. El relevamiento del repositorio es del 28/10/2026, sobre `chore/r6-release-operations`. R6-B.1 agrega la configuración de construcción y no la ejecuta.
+Plan de implementación. Este documento no autoriza builds, `terraform apply`, cambios de IAM ni despliegues. El relevamiento del repositorio es del 28/10/2026, sobre `chore/r6-release-operations`. El estado de las ramas, del workflow y de la federación se actualizó el 29/10/2026. R6-B.1 agrega la configuración de construcción y no la ejecuta.
 
 La operación vigente sigue en [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md). La topología de staging sigue en [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md).
 
@@ -18,7 +18,7 @@ El equipo confirmó este inventario. Este bloque no volvió a consultar GCP ni a
 
 Las revisiones de los dos entornos están Ready. Cada uno usa imágenes de su propio repositorio. Decisión provisional de este bloque: las cuatro variantes de build se publican en `maps-prod`, con los nombres `backend`, `backend-jobs`, `frontend` y `frontend-staging`. La última todavía no existe; el primer build real la crea. No se configuran accesos entre staging y producción. Staging sigue leyendo `maps-staging`.
 
-La rama predeterminada del repositorio es `main`. Sigue desactualizada: no es ancestro de `development`, tiene 1 commit que `development` no contiene, y `development` va 209 commits adelante. No se cambia la rama predeterminada y no se publica desde `main` sin una decisión previa.
+La rama predeterminada del repositorio es `main`. El PR #76 integró la preparación de R6-B en `development` (`fb20935`). El PR #77 publicó ese mismo contenido en `main` con squash (`a1aad42`). Los dos commits tienen el mismo árbol, pero los historiales siguen divergentes: el squash no deja a `development` como ancestro de `main`. Un PR posterior, integrado con merge commit, reconcilia los dos historiales y conserva el código actual. Hasta que ese PR se integre, la divergencia sigue. No se cambia la rama predeterminada, y `main` no es origen de release: el SHA a construir tiene que estar en `development`.
 
 Los dos digests del frontend productivo son la misma imagen. No hay drift demostrado. Terraform y la configuración del servicio referencian el índice OCI `sha256:27af01940675134c5595631a85febe35d88534a0bbe9147037db6139c15d3465`. Ese índice contiene el manifiesto `linux/amd64` `sha256:3792e9cb6dd59eae18980119d823f022e4af84f84389326d0efa0be468d3e721`. Cloud Run ejecuta ese manifiesto, y la revisión `maps-prod-frontend-00002-zf8` recibe el 100 % del tráfico. El pipeline guarda `image_summary.digest`: en una imagen con índice, ese valor es el índice, la misma clase de referencia que Terraform ya usa.
 
@@ -94,7 +94,7 @@ El runbook de staging todavía dice que CI no ejecuta los tests de frontend. `.g
    | Triggers de Cloud Build conectados al repo | Otra integración, y la aprobación queda peor resuelta que un environment de GitHub. |
    | Cloud Deploy | Servicio nuevo para un caso que Terraform y los digests ya cubren. El frontend no se promociona como una sola imagen. |
 
-2. **El commit que se puede construir tiene que estar en `development` y tener el CI en verde.** La rama predeterminada sigue siendo `main`. El workflow no la cambia y no la usa como origen del código. GitHub solo ofrece `workflow_dispatch` cuando el archivo del workflow está en la rama predeterminada, así que desde `chore/r6-release-operations` o desde `development` ese disparo no está disponible. No se agrega un `push` para saltarse esa limitación.
+2. **El commit que se puede construir tiene que estar en `development` y tener el CI en verde.** La rama predeterminada sigue siendo `main`. El workflow no la cambia y no la usa como origen del código. GitHub solo ofrece `workflow_dispatch` cuando el archivo del workflow está en la rama predeterminada. Desde el PR #77, `release-build.yml` está en `main` y el disparo manual está disponible. La rama elegida al disparar carga el workflow y tiene que ser `main` o `development`, las dos que acepta Workload Identity Federation. El código que se construye es el `git_sha` del input, validado contra `development`. No hay trigger de `push`.
 
 3. **Backend y `backend-jobs` se pueden construir una vez por SHA.** La configuración de runtime la pone Cloud Run, no la imagen. Reutilizar el mismo digest en staging y producción es posible, pero hoy cada proyecto tiene su registry y sus revisiones Ready apuntan al suyo. Cómo compartir el artefacto —copia por digest o lectura entre proyectos— queda pendiente. No se asume que el service agent de staging pueda leer `maps-prod`.
 
@@ -210,7 +210,7 @@ Siguen sin existir `release-promote.yml` y `release-rollback.yml`.
 
 `.dockerignore` viaja en el fuente. Si `.gcloudignore` lo excluye, Docker no lo ve y el marcador `.maps-existing-digest` entra al contexto. El bucket sigue sin recibir `.env`, claves ni `node_modules`, porque eso lo excluye `.gcloudignore`.
 
-`workflow_dispatch` no está disponible desde la rama actual. GitHub solo dispara ese evento si el archivo está en la rama predeterminada, que es `main`. No hay otro trigger. Mergear este archivo a `development` no lo ejecuta. Las variables `GCP_WORKLOAD_IDENTITY_PROVIDER` y `GCP_BUILD_SERVICE_ACCOUNT` ya están en GitHub y no en el repositorio. El workflow igual se detiene si alguien las borra.
+`workflow_dispatch` ya está disponible. GitHub solo dispara ese evento si el archivo está en la rama predeterminada, que es `main`, y el PR #77 lo dejó ahí. No hay otro trigger. Mergear el archivo, sea a `development` o a `main`, no lo ejecuta. Las variables `GCP_WORKLOAD_IDENTITY_PROVIDER` y `GCP_BUILD_SERVICE_ACCOUNT` ya están en GitHub y no en el repositorio. El workflow igual se detiene si alguien las borra.
 
 El digest no sale del tag. El step `digest`, en la imagen `gcr.io/cloud-builders/gcloud`, lee `image_summary.digest`. El workflow lo vuelve a leer con el mismo campo y el manifiesto guarda `imagen@sha256:…`. La etiqueta OCI `org.opencontainers.image.revision` se agrega con `docker build --label`, sin tocar los Dockerfiles. Un build repetido del mismo SHA reutiliza el tag si esa etiqueta coincide, y falla si el tag apunta a otra revisión.
 
@@ -348,11 +348,14 @@ R6-B.1, en el repositorio y sin ejecutar:
 - `backend/cloudbuild.yaml` y `frontend/cloudbuild.yaml`, con `CLOUD_LOGGING_ONLY` y `maps-prod-build`;
 - `.github/workflows/release-build.yml`, que verifica el SHA, exige CI verde y corta en `wif-guard` si no hay Workload Identity Federation.
 
-Sigue afuera de este bloque:
+Estado al 29/10/2026:
 
-- crear el pool, el provider y la cuenta que hace el submit;
-- poner el workflow en `main` para que GitHub permita `workflow_dispatch`;
-- el primer `gcloud builds submit`.
+- el pool, el provider y la cuenta que hace el submit están aplicados en GCP desde el 28/10/2026 (R6-B.2). `GCP_WORKLOAD_IDENTITY_PROVIDER` y `GCP_BUILD_SERVICE_ACCOUNT` están configuradas en GitHub;
+- el PR #76 integró R6-B en `development`, y el PR #77 publicó el mismo contenido en `main` con squash. `release-build.yml` ya está en la rama predeterminada y `workflow_dispatch` está disponible;
+- un PR posterior, con merge commit, reconcilia los historiales de `main` y `development` y conserva el código actual. Hasta que se integre, los historiales siguen divergentes;
+- todavía no se ejecutó el primer build real ni hubo un `gcloud builds submit`.
+
+Próximo paso operativo: disparar `release-build.yml` a mano con un SHA de `development` que tenga el CI en verde. Ese build publica las cuatro imágenes en `maps-prod` y deja el manifiesto como artifact. No despliega Cloud Run, no ejecuta jobs y no aplica Terraform.
 
 Criterios para dar por cerrado R6-B, cuando eso se active:
 
@@ -419,14 +422,14 @@ Sigue abierto:
 6. Nombre del bucket de state, como variable del environment, sin entrar al repo.
 7. Aceptar el contrato de migraciones compatibles con la revisión anterior. Si una migración no lo cumple, se marca como ruptura y el rollback de aplicación no se ofrece.
 8. La restricción de `maps-app` sobre `_prisma_migrations` sigue sin verificar en el runbook. Migrate ya usa `maps-migrate`.
-9. El primer build automático. Las variables de GitHub ya están cargadas, pero `workflow_dispatch` no existe hasta que el archivo esté en `main`. Un apply completo seguiría creando los dos uptime checks públicos y sus dos alertas.
+9. El primer build automático. Las variables de GitHub ya están cargadas y `release-build.yml` está en `main` desde el PR #77. Todavía no se disparó. Un apply completo seguiría creando los dos uptime checks públicos y sus dos alertas.
 
 Riesgos:
 
 - Automatizar `terraform apply` con una cuenta amplia podría cambiar más que las imágenes. El filtro del plan y el environment son el control; hay que probarlo con un plan real en R6-C.
 - El state y el archivo de plan son sensibles. No van a Git ni a los logs.
 - Sin acceso entre proyectos, un digest publicado en `maps-prod` no arranca en staging. Las revisiones Ready de staging siguen en `maps-staging`.
-- `workflow_dispatch` no corre desde esta rama. Copiar solo el archivo a `main` habilita el botón, y el SHA a construir igual tiene que estar en `development`. No es una autorización para publicar el árbol de `main`. El token OIDC de esa corrida lleva `ref` de la rama elegida en la UI, no el SHA del input.
+- Tener `release-build.yml` en `main` habilita el disparo manual, pero `main` no es origen de release: el SHA a construir tiene que estar en `development`. El squash del PR #77 dejó en `main` un commit que `development` no contiene, y el workflow rechaza ese SHA como cualquier otro commit exclusivo de `main`. El token OIDC de esa corrida lleva `ref` de la rama elegida en la UI, no el SHA del input.
 - Si una de las cuatro variantes falla, las que ya hicieron push dejan un tag de SHA en el registry. Sin manifiesto completo no son un release, y Cloud Run no se entera porque nadie aplica Terraform. `fail-fast` no cancela un Cloud Build que ya empezó.
 - Repetir el mismo SHA no pisa el tag si la etiqueta OCI coincide. Si el tag existe con otra revisión, el build falla. Tags inmutables del registry, si estuvieran activos, también rechazarían un push distinto.
 - El primer submit real escribe el contexto en `maps-prod-landing-page-build-source`. Eso no actualiza Cloud Run.
