@@ -1,0 +1,18 @@
+#!include:.gitignore
+
+# A root submit is the wrong Cloud Build context. Image builds start in
+# backend/ or frontend/. These rules still keep secrets and Terraform state
+# out of the temporary source bucket if someone submits the repository root.
+
+infra/
+**/.env
+**/.env.*
+*.pem
+*.key
+*credentials*.json
+*service-account*.json
+*serviceAccount*.json
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/.terraform/

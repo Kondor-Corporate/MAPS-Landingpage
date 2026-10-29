@@ -1,0 +1,307 @@
+# Arquitectura
+
+Documento vivo de arquitectura del proyecto MAPS Asesores.
+
+Para decisiones historicas o alternativas descartadas, consultar `docs/tdd/` y `docs/worklog/`. Este documento describe como esta organizado el sistema actualmente.
+
+---
+
+## Vision general
+
+MAPS es un monorepo full-stack compuesto por:
+
+| Capa | Ubicacion | Stack |
+|------|-----------|-------|
+| Frontend | `frontend/` | React, Vite, TypeScript, Tailwind, React Router, Zustand, Axios |
+| Backend | `backend/` | Node.js 22+, Express, TypeScript, Prisma, PostgreSQL |
+| Base de datos | `backend/prisma/` | Prisma schema + migraciones SQL |
+| Infra local | `docker-compose.yml` | PostgreSQL, backend y frontend de desarrollo |
+| Staging | GCP (`maps-staging-landing-page`) | Cloud Run + Cloud SQL + GCS — ver [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md) |
+| Producción | GCP (`maps-prod-landing-page`) | Desplegada al 27/10/2026. IaC en `infra/terraform/`. Operación en [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md). El dominio oficial todavía no publica el sitio. |
+
+No se usan npm workspaces: `frontend/` y `backend/` tienen `package.json` y `package-lock.json` independientes.
+
+Runtime: el backend declara `engines.node: ">=22"`. Imagenes Docker y CI usan Node 22.
+
+---
+
+## Topologia Docker de desarrollo
+
+El compose local levanta:
+
+| Servicio | Puerto host | Responsabilidad |
+|----------|-------------|-----------------|
+| `frontend` | `5173` | Vite dev server |
+| `backend` | `3000` | API Express |
+| `db` | `5432` | PostgreSQL |
+
+Relaciones:
+
+- `frontend` depende de `backend` saludable.
+- `backend` depende de `db` saludable.
+- `backend` usa `DATABASE_URL` con host Docker `db`.
+- El navegador consume la API via `http://127.0.0.1:3000/api/v1`.
+
+URL canonica local del frontend: `http://127.0.0.1:5173`. No mezclar `localhost` y `127.0.0.1`: el navegador los trata como sitios distintos para cookies HttpOnly (`SameSite=Lax`). Detalle en el README raiz.
+
+El compose esta orientado a desarrollo. No incluye TLS, reverse proxy productivo ni migraciones automaticas al arranque.
+
+---
+
+## Topologia staging GCP
+
+Staging **existe y esta operativo**. Este documento no copia el runbook: solo ubica las piezas.
+
+| Pieza | Rol |
+|-------|-----|
+| Cloud Run frontend | SPA publica; Nginx proxea `/api/*` al backend |
+| Cloud Run backend | API Express; invocable publicamente en este staging |
+| Cloud SQL PostgreSQL | Base de staging; no se seedéa con datos demo |
+| Cloud Storage (GCS) | Bucket privado; el navegador no accede directo |
+| Job migrate | `prisma migrate deploy` (target Docker `jobs`) |
+| Job bootstrap | Crea el primer `SUPERADMIN` (sin seed demo) |
+| Secret Manager | Secretos de aplicacion (no se documentan valores) |
+| IAM | Service accounts dedicadas por rol |
+
+Proyecto GCP: `maps-staging-landing-page`. Region: `southamerica-east1`.
+
+Local y staging son entornos distintos: Compose + seed demo vs Cloud Run + migrate/bootstrap. Contrato operativo: [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md).
+
+---
+
+## Topologia de produccion GCP
+
+La produccion esta definida como infraestructura como codigo en `infra/terraform/`. El root module vive en `infra/terraform/environments/production/`. Al 27/10/2026 el proyecto `maps-prod-landing-page` tiene Cloud Run, Cloud SQL, el balanceador y el monitoreo interno desplegados. El dominio oficial todavia no publica el sitio. El detalle esta en el runbook.
+
+La topologia no es la de staging. Un balanceador global externo enruta `/api` y `/api/*` al backend de Cloud Run y el resto al frontend. El backend llega a Cloud SQL por IP privada con Direct VPC. Esa arquitectura inicial no incluye Memorystore ni un conector VPC.
+
+El contrato operativo esta en [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md). Este documento no lo duplica.
+
+---
+
+## Frontend
+
+### Estructura principal
+
+```text
+frontend/src/
+  main.tsx
+  components/
+  store/
+  lib/
+  router/
+  modules/
+    public-web/
+    auth/
+    intranet/
+    admin/
+  shared/
+    components/
+    layouts/
+    constants/
+    types/
+    utils/
+```
+
+### Responsabilidades
+
+| Carpeta | Responsabilidad |
+|---------|-----------------|
+| `router/` | Definicion de rutas y guards (`PublicRoutes`, `ProtectedRoutes`, `RoleGuard`) |
+| `store/` | Estado global de autenticacion con Zustand |
+| `lib/` | Clientes y utilidades transversales, por ejemplo Axios |
+| `modules/public-web/` | Landing, mapa publico y perfil publico |
+| `modules/auth/` | Login y flujo de autenticacion |
+| `modules/intranet/` | Experiencia del productor autenticado |
+| `modules/admin/` | Panel administrativo |
+| `shared/` | Layouts, componentes, tipos y utilidades reutilizables |
+
+### Flujo de datos frontend
+
+1. Una pagina o componente usa un hook/servicio del modulo.
+2. El servicio HTTP llama a la API con `api` o cliente publico Axios.
+3. `frontend/src/lib/axios.ts` agrega `Authorization` si hay access token.
+4. Ante `401`, el interceptor intenta `POST /auth/refresh` (excepto en `/auth/login`, `/auth/refresh` y `/auth/logout`).
+5. El estado de sesion vive en `frontend/src/store/authStore.ts`.
+
+---
+
+## Backend
+
+### Estructura principal
+
+```text
+backend/src/
+  server.ts
+  app.ts
+  api/v1/
+    index.ts
+    routes/
+  controllers/
+  services/
+  validations/
+  middlewares/
+  lib/
+  config/
+  types/
+```
+
+### Responsabilidades
+
+| Carpeta | Responsabilidad |
+|---------|-----------------|
+| `server.ts` | Entrada HTTP: carga env y ejecuta `listen` |
+| `app.ts` | Factory Express: middlewares globales, rutas y error handler |
+| `api/v1/routes/` | Definicion de endpoints y middlewares por recurso |
+| `controllers/` | Capa HTTP: request, response, status codes y envelope JSON |
+| `services/` | Logica de negocio y acceso a Prisma |
+| `validations/` | Schemas Zod para params, query y body |
+| `middlewares/` | Auth, RBAC, validacion y manejo de errores |
+| `lib/` | Helpers compartidos: Prisma, errores, storage, geocode, mappers |
+| `config/` | Variables de entorno y configuracion runtime |
+
+### Flujo de una request
+
+```text
+React component/hook
+  -> frontend service
+  -> Axios
+  -> Express route
+  -> authenticate/authorize/validate
+  -> controller
+  -> service
+  -> Prisma
+  -> PostgreSQL
+  -> response envelope
+```
+
+Envelope de respuesta esperado:
+
+```json
+{
+  "data": {},
+  "message": "OK",
+  "error": null
+}
+```
+
+### Uploads multipart (D3A)
+
+Los cinco caminos de upload (certificaciones productor/admin, foto de perfil, portada y galería de noticias) comparten este flujo transversal:
+
+```text
+Ruta + Multer (memoryStorage, fileFilter, límite)
+  → file.buffer
+  → detectAllowedUploadType (lib) — identificación binaria
+  → assertAllowedUploadContent (lib) — allowlist por dominio
+  → service — familia correcta antes de storage
+  → StorageAdapter.upload* — persiste; NO detecta bytes
+  → MIME canónico detectado → extensión / metadatos persistidos
+```
+
+| Capa | Responsabilidad |
+|------|-----------------|
+| Multer | Tamaño + filtro preliminar por MIME **declarado** |
+| `detectAllowedUploadType` | Firma binaria → MIME o `null` |
+| `uploadContentValidation` | Allowlist por familia + `AppError(400)` |
+| Service | Invoca D3A antes de cualquier `upload*` |
+| StorageAdapter | Almacena; confía en `mimeType` recibido |
+
+Detalle por módulo: [`modules/producers.md`](./modules/producers.md), [`modules/news.md`](./modules/news.md). Diseño e implementación: [`worklog/D3A-validacion-contenido-uploads.md`](./worklog/D3A-validacion-contenido-uploads.md).
+
+---
+
+## Autenticacion y autorizacion
+
+El sistema usa tres roles:
+
+| Rol | Acceso principal |
+|-----|------------------|
+| `PRODUCTOR` | `/intranet/*` |
+| `ADMIN` | `/admin/*` |
+| `SUPERADMIN` | `/admin/*` con permisos adicionales, incluida la gestión de cuentas `ADMIN` (`/admin/admins`) |
+
+Backend:
+
+- Access token JWT via `Authorization: Bearer <token>`.
+- Refresh token en cookie httpOnly `maps_refresh`.
+- Sesiones persistidas como hash en `SesionToken`.
+- `authenticate` valida access token.
+- `authorize` restringe por rol.
+- Logout de producto (`POST /api/v1/auth/logout`, D2A): **sin** `authenticate`; identifica la sesion solo por refresh (cookie `maps_refresh` con prioridad sobre body); revoca esa fila `SesionToken` tras validar firma/tipo con `jwt.verify(..., { ignoreExpiration: true })`; idempotente; no incrementa `tokenVersion`. El access ya emitido puede seguir valido hasta su `exp` natural (~15 min).
+- Cambio self-service de contraseña: `PATCH /api/v1/auth/me/password` para cualquier `Usuario` autenticado (D1A). Revoca `SesionToken` e incrementa `tokenVersion`.
+- Gestión de administradores: `SUPERADMIN` opera cuentas `ADMIN` en `/api/v1/admins` (D1B). Detalle: [`modules/admins.md`](./modules/admins.md).
+
+Frontend:
+
+- Access token en memoria.
+- Usuario persistido en Zustand.
+- `AuthInitializer` intenta renovar access token al cargar.
+- Guards de rutas redirigen segun autenticacion y rol.
+
+Detalle: [`modules/auth.md`](./modules/auth.md).
+
+---
+
+## Base de datos
+
+Prisma es la fuente de verdad para el modelo de datos:
+
+- Schema: `backend/prisma/schema.prisma`.
+- Migraciones: `backend/prisma/migrations/`.
+- Seed: `backend/prisma/seed.ts`.
+
+Modelos principales:
+
+- `Usuario`
+- `SesionToken`
+- `Productor`
+- `Certificacion`
+- `RedSocial`
+- `Noticia`
+- `Biblioteca`
+- `Ramo`
+- `Recurso`
+
+Las migraciones deben versionarse en Git. Para el flujo detallado, ver `docs/MIGRATIONS.md`.
+
+---
+
+## Modulos funcionales
+
+| Modulo | Estado actual resumido |
+|--------|------------------------|
+| [Auth/routing](./modules/auth.md) | Implementado (self-service D1A; logout robusto D2A) |
+| [Productores](./modules/producers.md) | CRUD admin, perfil productor, mapa publico, certificaciones y validacion D3A en uploads |
+| [Biblioteca](./modules/library.md) | API real de ramos e integracion frontend |
+| [Web publica/mapa](./modules/public-web.md) | Landing, mapa y perfil publico conectados a productores |
+| [Noticias](./modules/news.md) | API real; admin, Home, intranet conectados; validacion D3A en imagenes |
+| [Admins](./modules/admins.md) | Gestión de cuentas ADMIN por SUPERADMIN (`/admin/admins`, `/api/v1/admins`); perfil + self-service D1A |
+
+Los detalles de cada modulo deben vivir en `docs/modules/*.md`.
+
+---
+
+## Variables de entorno
+
+Backend valida variables en `backend/src/config/env.ts`.
+
+Frontend usa variables `VITE_*`, principalmente:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:3000/api/v1
+```
+
+En Docker desarrollo, Compose define los defaults. En ejecucion local host, usar `backend/.env` y `frontend/.env`.
+
+---
+
+## Principios de organizacion
+
+- Mantener rutas, controllers, services y validations separados.
+- Mantener codigo de modulo dentro de `frontend/src/modules/<modulo>`.
+- Promover a `shared/` solo lo que realmente se reutiliza entre modulos.
+- No usar TDDs/work-logs como fuente de verdad del estado actual.
+- Documentar cambios de arquitectura en este archivo cuando afecten a mas de un modulo.
+- El detalle de provision y variables de staging vive en [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md), no aqui.
+- La produccion como codigo y su operacion viven en `infra/terraform/` y en [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md).

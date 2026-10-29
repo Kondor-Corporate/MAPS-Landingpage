@@ -1,3 +1,4 @@
+/** Badge visual del estado editorial (borrador, publicado, despublicado). */
 import { ESTADO_LABEL, type NewsEstado } from '@/modules/admin/types/news';
 
 type Props = {
@@ -14,6 +15,11 @@ const STYLES: Record<NewsEstado, { bg: string; text: string; dot: string }> = {
     bg: 'bg-amber-50',
     text: 'text-amber-700',
     dot: 'bg-amber-500',
+  },
+  DESPUBLICADA: {
+    bg: 'bg-slate-100',
+    text: 'text-slate-600',
+    dot: 'bg-slate-400',
   },
 };
 

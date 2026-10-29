@@ -1,22 +1,21 @@
 export function CtaSection() {
   return (
     <section
-      id="contacto"
-      className="bg-gradient-to-br from-maps-brand to-maps-brand-hover px-4 sm:px-6 lg:px-10 py-16 sm:py-20 lg:py-24 text-white"
+      id="encontra-tu-asesor"
+      className="bg-gradient-to-br from-maps-brand to-maps-brand-hover px-4 py-[clamp(2.75rem,7vw,6rem)] text-white sm:px-6 lg:px-10"
     >
-      <div className="mx-auto flex max-w-[948px] flex-col items-center gap-8 text-center">
-        <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-bold leading-tight lg:leading-[48px] tracking-[-0.6px]">
-          ¿Listo para asegurar tu futuro?
+      <div className="mx-auto flex max-w-[948px] flex-col items-center gap-5 text-center sm:gap-8">
+        <h2 className="text-[clamp(1.6rem,5vw,2.5rem)] font-bold leading-[1.15] tracking-[-0.6px] lg:leading-[48px]">
+          Elegí cómo querés que te acompañemos
         </h2>
-        <p className="max-w-[672px] text-lg leading-[28px] text-white/85">
-          Conectate con un asesor MAPS y recibí orientación personalizada
-          para proteger lo que más te importa, hoy mismo.
+        <p className="max-w-[872px] text-[clamp(1rem,2.5vw,1.125rem)] leading-relaxed text-white/85">
+          Buscá a tu asesor, conocé su propuesta y contactalo directamente. La elección es tuya. <br /> El compromiso es nuestro.
         </p>
         <a
-          href="/#contacto"
-          className="inline-flex h-16 min-w-[244px] items-center justify-center rounded-xl bg-white px-8 text-lg font-bold text-maps-brand shadow-cta transition-transform hover:-translate-y-0.5"
+          href="#mapa"
+          className="inline-flex h-12 items-center justify-center rounded-xl bg-white px-7 text-base font-bold text-maps-brand shadow-cta transition-transform hover:-translate-y-0.5 sm:h-16 sm:min-w-[244px] sm:px-8 sm:text-lg"
         >
-          Contactanos
+          Encontrá tu asesor
         </a>
       </div>
     </section>

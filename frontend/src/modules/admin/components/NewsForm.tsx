@@ -1,32 +1,77 @@
-import { useMemo, useState } from 'react';
+/**
+ * Formulario de alta/edición de Noticias en el panel admin.
+ * Agrupa campos editoriales, audiencia, portada (upload), galería y acciones de guardado.
+ * Las imágenes se recolectan como operaciones pendientes y se aplican tras crear/editar.
+ */
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CATEGORIA_OPTIONS,
   type NewsAudiencia,
   type NewsCategoria,
   type NewsEstado,
+  type NewsGaleriaImagen,
   type NewsInput,
 } from '@/modules/admin/types/news';
 import { NewsAudienceCard } from '@/modules/admin/components/NewsAudienceCard';
-import { NewsImageUploader } from '@/modules/admin/components/NewsImageUploader';
+import { NewsGalleryUploader } from '@/modules/admin/components/NewsGalleryUploader';
+import { NewsImageUploader, type CoverCropValue } from '@/modules/admin/components/NewsImageUploader';
 import { NewsPublishActionsCard } from '@/modules/admin/components/NewsPublishActionsCard';
 import { NewsRichTextEditor } from '@/modules/admin/components/NewsRichTextEditor';
+import { MapsSelect } from '@/shared/components/MapsSelect';
 
 export type NewsFormState = {
   titulo: string;
+  descripcion: string;
   categoria: NewsCategoria | '';
   audiencia: NewsAudiencia;
   cuerpo: string;
   imagenPortada: string | null;
+  portadaFile: File | null;
+  removePortada: boolean;
+  /**
+   * Encuadre elegido para la portada (posición + zoom). Se aplica en el
+   * frontend vía `object-position` para el preview del formulario.
+   * Pendiente: el backend todavía no persiste esta propiedad, por lo que no
+   * se respeta fuera de esta sesión de edición (cards públicas, otras
+   * sesiones de admin). Ver docs/worklog/MAPS-019-galeria-imagenes-noticias.md.
+   */
+  portadaCrop: CoverCropValue | null;
+  galeria: NewsGaleriaImagen[];
+  galeriaNuevas: File[];
+  galeriaEliminar: number[];
+  /**
+   * Orden visual combinado de la galería: tokens `p:<id>` (imagen persistida) o
+   * `n:<key>` (archivo pendiente, key estable asignada por `NewsForm`). Se resuelve
+   * a ids reales recién al guardar, una vez que las nuevas imágenes tienen id server-side.
+   */
+  galeriaOrder: string[];
   estado: NewsEstado;
   ultimaModificacion: string;
 };
 
+/** Operaciones de imágenes pendientes que el padre aplica tras persistir el texto. */
+export type NewsImageOps = {
+  portadaFile: File | null;
+  removePortada: boolean;
+  galeriaNuevas: { key: string; file: File }[];
+  galeriaEliminar: number[];
+  galeriaOrder: string[];
+};
+
 export const EMPTY_FORM: NewsFormState = {
   titulo: '',
+  descripcion: '',
   categoria: '',
   audiencia: 'PRODUCTORES',
   cuerpo: '',
   imagenPortada: null,
+  portadaFile: null,
+  removePortada: false,
+  portadaCrop: null,
+  galeria: [],
+  galeriaNuevas: [],
+  galeriaEliminar: [],
+  galeriaOrder: [],
   estado: 'BORRADOR',
   ultimaModificacion: new Date().toISOString(),
 };
@@ -34,8 +79,10 @@ export const EMPTY_FORM: NewsFormState = {
 type Props = {
   mode: 'create' | 'edit';
   state: NewsFormState;
+  isSubmitting?: boolean;
   onChange: (next: NewsFormState) => void;
-  onSubmit: (input: NewsInput) => void;
+  onSubmit: (input: NewsInput, images: NewsImageOps) => Promise<void>;
+  onUnpublish?: () => Promise<void>;
   onCancelEdit?: () => void;
 };
 
@@ -55,10 +102,38 @@ function validate(state: NewsFormState): Errors {
   return errors;
 }
 
-export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Props) {
+export function NewsForm({
+  mode,
+  state,
+  isSubmitting = false,
+  onChange,
+  onSubmit,
+  onUnpublish,
+  onCancelEdit,
+}: Props) {
   const [showErrors, setShowErrors] = useState(false);
+  const actionLockRef = useRef(false);
+  // Key estable por File pendiente de galería, para poder reordenar/resolver el
+  // orden final sin depender del índice (que cambia al agregar/quitar).
+  const nuevaKeysRef = useRef(new WeakMap<File, string>());
+  const nuevaKeyCounterRef = useRef(0);
+
+  function keyForNueva(file: File): string {
+    const existing = nuevaKeysRef.current.get(file);
+    if (existing) return existing;
+    nuevaKeyCounterRef.current += 1;
+    const key = `f${nuevaKeyCounterRef.current}`;
+    nuevaKeysRef.current.set(file, key);
+    return key;
+  }
+
+  const nuevaKeys = state.galeriaNuevas.map(keyForNueva);
 
   const errors = useMemo(() => validate(state), [state]);
+
+  useEffect(() => {
+    setShowErrors(false);
+  }, [mode]);
 
   function patch(partial: Partial<NewsFormState>) {
     onChange({
@@ -68,27 +143,63 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
     });
   }
 
-  function tryCommit(estado: NewsEstado) {
+  async function tryCommit(estado: NewsEstado) {
+    if (isSubmitting || actionLockRef.current) return;
+    const currentErrors = validate(state);
     setShowErrors(true);
-    if (Object.keys(errors).length > 0) return;
+    if (Object.keys(currentErrors).length > 0) return;
+
+    actionLockRef.current = true;
     const now = new Date().toISOString();
-    const fechaPublicacion =
-      estado === 'PUBLICADO' && state.estado !== 'PUBLICADO' ? now : undefined;
-    onSubmit({
-      titulo: state.titulo.trim(),
-      categoria: state.categoria as NewsCategoria,
-      audiencia: state.audiencia,
-      cuerpo: state.cuerpo.trim(),
-      imagenPortada: state.imagenPortada,
-      estado,
-      fechaPublicacion: fechaPublicacion ?? state.ultimaModificacion,
-    });
+    try {
+      await onSubmit(
+        {
+          titulo: state.titulo.trim(),
+          descripcion: state.descripcion.trim() || null,
+          categoria: state.categoria as NewsCategoria,
+          audiencia: state.audiencia,
+          cuerpo: state.cuerpo.trim(),
+          portadaEncuadre: state.portadaCrop,
+          estado,
+          fechaPublicacion: now,
+        },
+        {
+          portadaFile: state.portadaFile,
+          // Un archivo nuevo reemplaza; solo se quita si no hay reemplazo.
+          removePortada: state.removePortada && !state.portadaFile,
+          galeriaNuevas: state.galeriaNuevas.map((file, index) => ({
+            key: nuevaKeys[index],
+            file,
+          })),
+          galeriaEliminar: state.galeriaEliminar,
+          galeriaOrder: state.galeriaOrder,
+        },
+      );
+      setShowErrors(false);
+    } finally {
+      actionLockRef.current = false;
+    }
   }
 
+  async function tryUnpublish() {
+    if (!onUnpublish || isSubmitting || actionLockRef.current) return;
+    actionLockRef.current = true;
+    try {
+      await onUnpublish();
+      setShowErrors(false);
+    } finally {
+      actionLockRef.current = false;
+    }
+  }
+
+  const categoriaOptions = CATEGORIA_OPTIONS.map((opt) => ({
+    value: opt.value,
+    label: opt.label,
+  }));
+
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-      {/* Columna izquierda — Contenido */}
-      <section className="flex flex-col gap-4 rounded-2xl border border-maps-border bg-white p-6 shadow-card">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]" aria-busy={isSubmitting}>
+      <section className={`flex flex-col gap-4 rounded-2xl border border-maps-border bg-white p-4 shadow-card sm:p-6 ${isSubmitting ? 'pointer-events-none opacity-70' : ''}`}>
         <h2 className="text-base font-semibold text-maps-heading">Contenido de la Noticia</h2>
 
         <div className="flex flex-col gap-1.5">
@@ -101,11 +212,27 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
             value={state.titulo}
             onChange={(e) => patch({ titulo: e.target.value })}
             placeholder="Ej: Nueva circular de cumplimiento 2024"
-            className="rounded-lg border border-maps-border bg-white px-3 py-2.5 text-sm text-maps-heading placeholder:text-maps-muted-soft focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
+            disabled={isSubmitting}
+            className="rounded-xl border border-maps-border bg-white px-3 py-2.5 text-sm text-maps-heading placeholder:text-maps-muted-soft focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20 disabled:opacity-60"
           />
           {showErrors && errors.titulo ? (
             <span className="text-xs text-rose-600">{errors.titulo}</span>
           ) : null}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="news-descripcion" className="text-sm font-medium text-maps-heading">
+            Bajada / resumen <span className="font-normal text-maps-muted">(opcional)</span>
+          </label>
+          <textarea
+            id="news-descripcion"
+            value={state.descripcion}
+            onChange={(e) => patch({ descripcion: e.target.value })}
+            placeholder="Breve resumen que aparecerá debajo del título de la noticia"
+            rows={2}
+            disabled={isSubmitting}
+            className="resize-y rounded-xl border border-maps-border bg-white px-3 py-2.5 text-sm text-maps-heading placeholder:text-maps-muted-soft focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20 disabled:opacity-60"
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -113,19 +240,15 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
             <label htmlFor="news-categoria" className="text-sm font-medium text-maps-heading">
               Categoría
             </label>
-            <select
+            <MapsSelect
               id="news-categoria"
               value={state.categoria}
-              onChange={(e) => patch({ categoria: e.target.value as NewsCategoria | '' })}
-              className="rounded-lg border border-maps-border bg-white px-3 py-2.5 text-sm text-maps-heading focus:border-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/20"
-            >
-              <option value="">Seleccionar...</option>
-              {CATEGORIA_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => patch({ categoria: value as NewsCategoria | '' })}
+              options={categoriaOptions}
+              placeholder="Seleccionar..."
+              disabled={isSubmitting}
+              hasError={showErrors && Boolean(errors.categoria)}
+            />
             {showErrors && errors.categoria ? (
               <span className="text-xs text-rose-600">{errors.categoria}</span>
             ) : null}
@@ -134,10 +257,52 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-maps-heading">Imagen de portada</span>
             <NewsImageUploader
-              value={state.imagenPortada}
-              onChange={(dataUrl) => patch({ imagenPortada: dataUrl })}
+              previewUrl={state.removePortada ? null : state.imagenPortada}
+              pendingFile={state.portadaFile}
+              crop={state.portadaCrop}
+              disabled={isSubmitting}
+              onSelectFile={(file) => patch({ portadaFile: file, removePortada: false })}
+              onRemove={() => patch({ portadaFile: null, removePortada: true, portadaCrop: null })}
+              onCropChange={(crop) => patch({ portadaCrop: crop })}
             />
           </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-maps-heading">
+            Galería de imágenes <span className="font-normal text-maps-muted">(opcional)</span>
+          </span>
+          <NewsGalleryUploader
+            persisted={state.galeria}
+            eliminar={state.galeriaEliminar}
+            nuevas={state.galeriaNuevas}
+            nuevaKeys={nuevaKeys}
+            order={state.galeriaOrder}
+            disabled={isSubmitting}
+            onAddFiles={(files) =>
+              patch({
+                galeriaNuevas: [...state.galeriaNuevas, ...files],
+                galeriaOrder: [
+                  ...state.galeriaOrder,
+                  ...files.map((file) => `n:${keyForNueva(file)}`),
+                ],
+              })
+            }
+            onRemovePersisted={(id) =>
+              patch({
+                galeriaEliminar: [...state.galeriaEliminar, id],
+                galeriaOrder: state.galeriaOrder.filter((token) => token !== `p:${id}`),
+              })
+            }
+            onRemoveNueva={(index) => {
+              const key = nuevaKeys[index];
+              patch({
+                galeriaNuevas: state.galeriaNuevas.filter((_, i) => i !== index),
+                galeriaOrder: state.galeriaOrder.filter((token) => token !== `n:${key}`),
+              });
+            }}
+            onReorder={(nextOrder) => patch({ galeriaOrder: nextOrder })}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -145,6 +310,7 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
           <NewsRichTextEditor
             value={state.cuerpo}
             onChange={(value) => patch({ cuerpo: value })}
+            disabled={isSubmitting}
           />
           {showErrors && errors.cuerpo ? (
             <span className="text-xs text-rose-600">{errors.cuerpo}</span>
@@ -152,18 +318,16 @@ export function NewsForm({ mode, state, onChange, onSubmit, onCancelEdit }: Prop
         </div>
       </section>
 
-      {/* Columna derecha — Sidebar */}
-      <aside className="flex flex-col gap-4">
-        <NewsAudienceCard
-          value={state.audiencia}
-          onChange={(audiencia) => patch({ audiencia })}
-        />
+      <aside className={`flex flex-col gap-4 ${isSubmitting ? 'pointer-events-none opacity-70' : ''}`}>
+        <NewsAudienceCard value={state.audiencia} onChange={(audiencia) => patch({ audiencia })} />
         <NewsPublishActionsCard
           mode={mode}
           estado={state.estado}
           ultimaModificacion={state.ultimaModificacion}
-          onPublish={() => tryCommit('PUBLICADO')}
-          onSaveDraft={() => tryCommit('BORRADOR')}
+          isSubmitting={isSubmitting}
+          onPublish={() => void tryCommit('PUBLICADO')}
+          onSaveDraft={() => void tryCommit('BORRADOR')}
+          onUnpublish={onUnpublish ? () => void tryUnpublish() : undefined}
           onCancelEdit={onCancelEdit}
         />
       </aside>

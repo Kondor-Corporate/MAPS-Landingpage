@@ -6,7 +6,111 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 70px;
+}
+
+/*
+ * Estilos editoriales del cuerpo de una noticia enriquecida (ver NewsBody).
+ * El contenido guardado sólo aporta estructura semántica; estos estilos fijan
+ * la presentación para mantener consistencia en todo el portal de Noticias.
+ */
+.news-prose > *:first-child {
+  margin-top: 0;
+}
+.news-prose > *:last-child {
+  margin-bottom: 0;
+}
+.news-prose p {
+  margin: 0 0 1.15em;
+}
+.news-prose strong,
+.news-prose b {
+  font-weight: 700;
+}
+.news-prose em,
+.news-prose i {
+  font-style: italic;
+}
+.news-prose h2 {
+  font-family: '"Source Serif 4"', Georgia, serif;
+  font-size: clamp(23px, 2.4vw, 28px);
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: #131117;
+  margin: clamp(28px, 5vw, 44px) 0 clamp(12px, 2vw, 18px);
+}
+.news-prose ul,
+.news-prose ol {
+  margin: 0 0 1.25em;
+  padding-left: 1.5em;
+}
+.news-prose ul {
+  list-style: disc;
+}
+.news-prose ol {
+  list-style: decimal;
+}
+.news-prose li {
+  margin: 0.4em 0;
+}
+.news-prose blockquote {
+  border-left: 2px solid #00a4c0;
+  padding-left: clamp(16px, 3vw, 24px);
+  margin: clamp(24px, 4vw, 36px) 0;
+  color: #374151;
+  font-style: italic;
+}
+.news-prose a {
+  color: #00a4c0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.news-prose a:hover {
+  color: #0089a3;
+}
+.news-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 24px 0;
+}
+
+/* Editor admin: placeholder y estructura visible mientras se edita. */
+.news-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+}
+.news-editor p {
+  margin: 0 0 0.75em;
+}
+.news-editor h2 {
+  font-family: '"Source Serif 4"', Georgia, serif;
+  font-size: 1.35em;
+  font-weight: 700;
+  margin: 0.6em 0 0.4em;
+}
+.news-editor ul,
+.news-editor ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.5em;
+}
+.news-editor ul {
+  list-style: disc;
+}
+.news-editor ol {
+  list-style: decimal;
+}
+.news-editor blockquote {
+  border-left: 2px solid #00a4c0;
+  padding-left: 16px;
+  margin: 0.75em 0;
+  color: #374151;
+  font-style: italic;
+}
+.news-editor a {
+  color: #00a4c0;
+  text-decoration: underline;
 }
 
 .maplibregl-ctrl-attrib {
@@ -17,18 +121,121 @@ html {
 }
 
 .maplibregl-popup.maps-popup .maplibregl-popup-content {
+  width: min(320px, calc(100vw - 32px));
+  max-width: 100%;
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 16px;
   box-shadow: 0 12px 32px rgba(15, 42, 63, 0.18);
   font-family: inherit;
 }
 
 .maplibregl-popup.maps-popup .maplibregl-popup-close-button {
-  font-size: 18px;
-  padding: 4px 8px;
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0;
   color: #5b6b7a;
 }
 
 .maplibregl-popup.maps-popup .maplibregl-popup-tip {
   border-top-color: #ffffff;
+}
+
+@media (max-width: 419px) {
+  .maplibregl-popup.maps-popup .maplibregl-popup-content {
+    padding: 14px;
+  }
+}
+
+@keyframes maps-feedback-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes maps-feedback-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.maps-feedback-toast {
+  animation: maps-feedback-enter 0.22s ease-out;
+}
+
+.maps-feedback-toast-leave {
+  animation: maps-feedback-exit 0.18s ease-in forwards;
+}
+
+@keyframes maps-admin-row-highlight {
+  from {
+    background-color: rgba(0, 164, 192, 0.14);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.maps-admin-row-highlight {
+  animation: maps-admin-row-highlight 1s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .maps-feedback-toast,
+  .maps-feedback-toast-leave {
+    animation: none;
+  }
+
+  .maps-admin-row-highlight {
+    animation: none;
+    background-color: rgba(0, 164, 192, 0.08);
+  }
+}
+
+@keyframes maps-select-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.maps-select-dropdown {
+  animation: maps-select-enter 0.15s ease-out;
+  transform-origin: top center;
+}
+
+.maps-modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #dedce5 transparent;
+}
+
+.maps-modal-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.maps-modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.maps-modal-scroll::-webkit-scrollbar-thumb {
+  background-color: #dedce5;
+  border-radius: 999px;
 }

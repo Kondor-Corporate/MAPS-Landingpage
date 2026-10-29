@@ -1,10 +1,9 @@
+/**
+ * Filtros client-side del listado admin de Noticias.
+ * La API filtra por flags básicos; fechas, búsqueda y DESPUBLICADA se resuelven en memoria.
+ */
 import { useMemo, useState } from 'react';
-import type {
-  News,
-  NewsAudiencia,
-  NewsCategoria,
-  NewsEstado,
-} from '@/modules/admin/types/news';
+import type { News, NewsAudiencia, NewsCategoria, NewsEstado } from '@/modules/admin/types/news';
 
 export type NewsFilters = {
   audiencia: NewsAudiencia | 'TODOS';
@@ -41,10 +40,7 @@ export function useNewsFilters() {
           if (filters.estado !== 'TODOS' && n.estado !== filters.estado) return false;
           if (filters.categoria !== 'TODOS' && n.categoria !== filters.categoria) return false;
           if (filters.fechaDesde && n.fechaPublicacion < filters.fechaDesde) return false;
-          if (
-            filters.fechaHasta &&
-            n.fechaPublicacion > `${filters.fechaHasta}T23:59:59.999Z`
-          )
+          if (filters.fechaHasta && n.fechaPublicacion > `${filters.fechaHasta}T23:59:59.999Z`)
             return false;
           if (term) {
             const haystack = `${n.titulo} ${n.cuerpo}`.toLowerCase();

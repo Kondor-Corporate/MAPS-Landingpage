@@ -9,8 +9,8 @@ import { useAuthStore } from '@/store/authStore';
  * 2. Limpia el store de Zustand independientemente del resultado.
  * 3. Redirige a /login.
  *
- * Si la petición falla (red, token ya expirado, etc.) la sesión local
- * se limpia de todas formas para no dejar estado inconsistente.
+ * Si la petición falla (red, 5xx, etc.) la sesión local se limpia
+ * de todas formas: el logout local no depende del backend.
  */
 export function useLogout() {
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ export function useLogout() {
     try {
       await api.post('/auth/logout');
     } catch {
-      // intencional: fallo de red o token expirado no bloquean el logout local
+      // intencional: fallo de red o 5xx no bloquean el logout local
     } finally {
       storeLogout();
       void navigate('/login', { replace: true });

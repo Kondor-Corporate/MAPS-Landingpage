@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { useProducers } from '@/modules/admin/hooks/useProducers';
+import { useAdminProducers } from '@/modules/admin/hooks/useAdminProducers';
 import { useProducerFilters } from '@/modules/admin/hooks/useProducerFilters';
+import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
 import { ProducersGreeting } from '@/modules/admin/components/ProducersGreeting';
 import { ProducersToolbar } from '@/modules/admin/components/ProducersToolbar';
 import { ProducerTable } from '@/modules/admin/components/ProducerTable';
@@ -9,17 +10,19 @@ import { TablePagination } from '@/shared/components/TablePagination';
 import { ProducerFilterModal } from '@/modules/admin/components/ProducerFilterModal';
 import { ProducerFormModal } from '@/modules/admin/components/ProducerFormModal';
 import { ProducerViewModal } from '@/modules/admin/components/ProducerViewModal';
+import { ProducerResetPasswordModal } from '@/modules/admin/components/ProducerResetPasswordModal';
 import { DeactivateConfirmModal } from '@/modules/admin/components/DeactivateConfirmModal';
-import type { Producer } from '@/modules/admin/types/producer';
+import { MapsFeedbackToastHost, useMapsFeedback } from '@/shared/components/MapsFeedbackToast';
+import type { ResetProducerPasswordPayload } from '@/modules/admin/types/adminProducer';
+import type { Producer, ProducerFormSubmit } from '@/modules/admin/types/producer';
 
-type Scope = 'all' | 'active' | 'inactive';
+type Scope = 'active' | 'inactive';
 
 type Props = {
   scope: Scope;
 };
 
 const TITLE_BY_SCOPE: Record<Scope, string> = {
-  all: 'Listado de Productores',
   active: 'Listado de Productores',
   inactive: 'Productores Inactivos',
 };
@@ -28,10 +31,19 @@ export function ProducersDashboard({ scope }: Props) {
   const user = useAuthStore((s) => s.user);
   const greetingName = user?.rol === 'SUPERADMIN' ? 'SuperAdmin' : 'Admin';
 
-  const producers = useProducers((s) => s.producers);
-  const addProducer = useProducers((s) => s.addProducer);
-  const updateProducer = useProducers((s) => s.updateProducer);
-  const setEstado = useProducers((s) => s.setEstado);
+  const {
+    data: producers,
+    loading,
+    error,
+    refetch,
+    create,
+    update,
+    uploadCertificacion,
+    deleteCertificacion,
+    activate,
+    deactivate,
+    resetPassword,
+  } = useAdminProducers(scope);
 
   const filtersHook = useProducerFilters();
   const { search, setSearch, filters, setFilter, reset, apply, activeCount } = filtersHook;
@@ -44,14 +56,21 @@ export function ProducersDashboard({ scope }: Props) {
   const [editing, setEditing] = useState<Producer | null>(null);
   const [creating, setCreating] = useState(false);
   const [confirming, setConfirming] = useState<Producer | null>(null);
+  const [resettingPassword, setResettingPassword] = useState<Producer | null>(null);
 
-  const scoped = useMemo(() => {
-    if (scope === 'active') return producers.filter((p) => p.estado === 'ACTIVO');
-    if (scope === 'inactive') return producers.filter((p) => p.estado === 'INACTIVO');
-    return producers;
-  }, [producers, scope]);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const filtered = useMemo(() => apply(scoped), [apply, scoped]);
+  const [toggleBusy, setToggleBusy] = useState(false);
+  const [toggleError, setToggleError] = useState<string | null>(null);
+  const toggleLockRef = useRef(false);
+
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+
+  const { toast, dismiss, showSuccess } = useMapsFeedback();
+
+  const filtered = useMemo(() => apply(producers), [apply, producers]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -63,27 +82,112 @@ export function ProducersDashboard({ scope }: Props) {
   const totalProductores = producers.length;
 
   function handleNew() {
+    setFormError(null);
     setEditing(null);
     setCreating(true);
   }
 
   function handleEdit(p: Producer) {
+    setFormError(null);
     setViewing(null);
     setCreating(false);
     setEditing(p);
   }
 
   function handleToggleEstado(p: Producer) {
+    setToggleError(null);
     setConfirming(p);
   }
 
-  function confirmToggle(p: Producer) {
-    setEstado(p.id, p.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO');
+  function handleResetPassword(p: Producer) {
+    setResetError(null);
+    setResettingPassword(p);
+  }
+
+  async function confirmResetPassword(payload: ResetProducerPasswordPayload) {
+    if (!resettingPassword) return;
+    setResetSubmitting(true);
+    setResetError(null);
+    try {
+      await resetPassword(resettingPassword.id, payload);
+      showSuccess('Contraseña restablecida');
+      setResettingPassword(null);
+    } catch (err) {
+      setResetError(getApiErrorMessage(err));
+    } finally {
+      setResetSubmitting(false);
+    }
+  }
+
+  async function confirmToggle(p: Producer) {
+    if (toggleLockRef.current) return;
+    toggleLockRef.current = true;
+    setToggleBusy(true);
+    setToggleError(null);
+    try {
+      if (p.estado === 'ACTIVO') {
+        await deactivate(p.id);
+        showSuccess('Productor desactivado');
+      } else {
+        await activate(p.id);
+        showSuccess('Productor reactivado');
+      }
+      setConfirming(null);
+    } catch (err) {
+      setToggleError(getApiErrorMessage(err));
+    } finally {
+      toggleLockRef.current = false;
+      setToggleBusy(false);
+    }
+  }
+
+  async function handleCreate(input: ProducerFormSubmit) {
+    setFormSubmitting(true);
+    setFormError(null);
+    try {
+      await create({
+        ...input,
+        activo: true,
+      });
+      showSuccess('Productor creado');
+      setCreating(false);
+      setPage(1);
+    } catch (err) {
+      setFormError(getApiErrorMessage(err));
+    } finally {
+      setFormSubmitting(false);
+    }
+  }
+
+  async function handleUpdate(input: ProducerFormSubmit) {
+    if (!editing) return;
+    setFormSubmitting(true);
+    setFormError(null);
+    try {
+      await update(editing.id, input);
+      showSuccess('Cambios guardados');
+      setEditing(null);
+    } catch (err) {
+      setFormError(getApiErrorMessage(err));
+    } finally {
+      setFormSubmitting(false);
+    }
   }
 
   return (
-    <div className="flex flex-col gap-6 px-8 py-6">
+    <div className="flex min-w-0 flex-col gap-6 px-4 py-5 sm:px-8 sm:py-6">
+      <MapsFeedbackToastHost toast={toast} onDismiss={dismiss} />
+
       <ProducersGreeting name={greetingName} totalProductores={totalProductores} />
+
+      {error ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">
+          <span>{error}</span>
+          <button type="button" onClick={() => void refetch()} className="font-semibold underline">
+            Reintentar
+          </button>
+        </div>
+      ) : null}
 
       <ProducersToolbar
         title={TITLE_BY_SCOPE[scope]}
@@ -95,21 +199,31 @@ export function ProducersDashboard({ scope }: Props) {
         onFilterClick={() => setFilterOpen(true)}
         onNewClick={handleNew}
         filterBadge={activeCount}
-        newButtonHint={
-          scope === 'inactive'
-            ? 'Crear nuevo productor (quedará Activo)'
-            : undefined
-        }
+        newButtonHint={scope === 'inactive' ? 'Crear nuevo productor (quedará Activo)' : undefined}
       />
 
-      <ProducerTable
-        producers={paginated}
-        onView={(p) => setViewing(p)}
-        onEdit={handleEdit}
-        onToggleEstado={handleToggleEstado}
-      />
+      {loading ? (
+        <div className="rounded-2xl border border-maps-border bg-white px-6 py-10 text-center text-sm text-maps-muted">
+          Cargando productores…
+        </div>
+      ) : !error || producers.length > 0 ? (
+        <ProducerTable
+          producers={paginated}
+          emptyMessage={
+            search || activeCount > 0
+              ? 'No encontramos productores con los filtros aplicados.'
+              : scope === 'inactive'
+                ? 'Todavía no hay productores desactivados.'
+                : 'Todavía no hay productores activos. Podés crear el primero desde “Nuevo productor”.'
+          }
+          onView={(p) => setViewing(p)}
+          onEdit={handleEdit}
+          onToggleEstado={handleToggleEstado}
+          onResetPassword={handleResetPassword}
+        />
+      ) : null}
 
-      {filtered.length > 0 ? (
+      {!loading && filtered.length > 0 ? (
         <TablePagination
           page={safePage}
           totalPages={totalPages}
@@ -135,26 +249,37 @@ export function ProducersDashboard({ scope }: Props) {
           reset();
           setPage(1);
         }}
-        hideEstado={scope !== 'all'}
+        hideEstado
       />
 
       <ProducerFormModal
         isOpen={creating}
         mode="create"
-        onClose={() => setCreating(false)}
-        onSubmit={(input) => {
-          addProducer(input);
-          setPage(1);
+        submitError={formError}
+        submitting={formSubmitting}
+        onClose={() => {
+          if (!formSubmitting) setCreating(false);
         }}
+        onSubmit={handleCreate}
       />
 
       <ProducerFormModal
         isOpen={editing !== null}
         mode="edit"
-        producer={editing}
-        onClose={() => setEditing(null)}
-        onSubmit={(input) => {
-          if (editing) updateProducer(editing.id, input);
+        producer={editing ? producers.find((p) => p.id === editing.id) ?? editing : null}
+        submitError={formError}
+        submitting={formSubmitting}
+        onClose={() => {
+          if (!formSubmitting) setEditing(null);
+        }}
+        onSubmit={handleUpdate}
+        onUploadCertificacion={async (file, nombre) => {
+          if (!editing) return;
+          await uploadCertificacion(editing.id, file, nombre);
+        }}
+        onDeleteCertificacion={async (certId) => {
+          if (!editing) return;
+          await deleteCertificacion(editing.id, certId);
         }}
       />
 
@@ -169,8 +294,23 @@ export function ProducersDashboard({ scope }: Props) {
         isOpen={confirming !== null}
         producer={confirming}
         mode={confirming?.estado === 'ACTIVO' ? 'deactivate' : 'reactivate'}
-        onClose={() => setConfirming(null)}
+        isBusy={toggleBusy}
+        submitError={toggleError}
+        onClose={() => {
+          if (!toggleBusy) setConfirming(null);
+        }}
         onConfirm={confirmToggle}
+      />
+
+      <ProducerResetPasswordModal
+        isOpen={resettingPassword !== null}
+        producer={resettingPassword}
+        submitting={resetSubmitting}
+        submitError={resetError}
+        onClose={() => {
+          if (!resetSubmitting) setResettingPassword(null);
+        }}
+        onSubmit={confirmResetPassword}
       />
     </div>
   );

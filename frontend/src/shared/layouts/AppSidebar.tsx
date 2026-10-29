@@ -11,6 +11,25 @@ const ROLE_LABEL: Record<Rol, string> = {
   SUPERADMIN: 'SuperAdmin',
 };
 
+const CollapseNavIcon = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+  >
+    <path
+      d="M15 6l-6 6 6 6"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg
     width="18"
@@ -110,16 +129,14 @@ export function AppSidebarPanel({ user, headerTrailing }: AppSidebarPanelProps) 
   return (
     <>
       <div className="flex items-center gap-3 border-b border-maps-border px-5 py-5">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-maps-brand text-base font-bold text-white">
-          M
-        </div>
+        <img
+          src="/mapsLogo.webp"
+          alt="MAPS Asesores"
+          className="h-10 w-10 shrink-0 object-contain"
+        />
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-sm font-bold leading-tight text-maps-heading">
-            MAPS Asesores
-          </span>
-          <span className="text-xs leading-tight text-maps-muted">
-            Portal de Productores
-          </span>
+          <span className="text-sm font-bold leading-tight text-maps-heading">MAPS Asesores</span>
+          <span className="text-xs leading-tight text-maps-muted">Portal de Productores</span>
         </div>
         {headerTrailing ? (
           <div className="flex shrink-0 items-center justify-end">{headerTrailing}</div>
@@ -138,9 +155,7 @@ export function AppSidebarPanel({ user, headerTrailing }: AppSidebarPanelProps) 
             {getInitials(user.usuario)}
           </div>
           <div className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-semibold text-maps-heading">
-              {user.usuario}
-            </span>
+            <span className="truncate text-sm font-semibold text-maps-heading">{user.usuario}</span>
             <span className="truncate text-xs text-maps-muted">{roleLabel}</span>
           </div>
         </div>
@@ -157,14 +172,40 @@ export function AppSidebarPanel({ user, headerTrailing }: AppSidebarPanelProps) 
   );
 }
 
-export function AppSidebar() {
+type AppSidebarProps = {
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+};
+
+export function AppSidebar({ collapsed = false, onToggleCollapse }: AppSidebarProps) {
   const user = useAuthStore((s) => s.user);
 
   if (!user) return null;
 
+  const collapseControl =
+    onToggleCollapse != null ? (
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        aria-label="Ocultar menú de navegación"
+        title="Ocultar menú"
+        className="flex h-10 w-10 items-center justify-center rounded-lg text-maps-heading transition-colors hover:bg-maps-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-maps-brand"
+      >
+        <CollapseNavIcon />
+      </button>
+    ) : null;
+
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-maps-border bg-white lg:flex">
-      <AppSidebarPanel user={user} />
+    <aside
+      className={[
+        'hidden shrink-0 flex-col overflow-hidden border-maps-border bg-white transition-[width] duration-200 ease-in-out lg:sticky lg:top-0 lg:flex lg:h-screen',
+        collapsed ? 'w-0 border-r-0' : 'w-64 border-r',
+      ].join(' ')}
+      aria-hidden={collapsed}
+    >
+      {!collapsed ? (
+        <AppSidebarPanel user={user} headerTrailing={collapseControl} />
+      ) : null}
     </aside>
   );
 }

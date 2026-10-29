@@ -1,3 +1,4 @@
+/** Selector de audiencia (público vs productores) dentro del formulario admin. */
 import { Users } from 'lucide-react';
 import type { NewsAudiencia } from '@/modules/admin/types/news';
 
@@ -16,6 +17,11 @@ const OPTIONS: { value: NewsAudiencia; label: string; hint: string }[] = [
     value: 'PUBLICO',
     label: 'Público General',
     hint: 'Visible en el sitio web público',
+  },
+  {
+    value: 'AMBOS',
+    label: 'Ambos',
+    hint: 'Visible para productores y público general',
   },
 ];
 

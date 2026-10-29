@@ -1,0 +1,48 @@
+import { mkdirSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadEnv } from '../config/env.js';
+
+const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+
+export function getCertificacionesUploadDir(): string {
+  const dir = path.join(backendRoot, 'uploads', 'certificaciones');
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+export function certificacionPublicUrl(filename: string): string {
+  const env = loadEnv();
+  const base =
+    env.API_PUBLIC_URL?.replace(/\/$/, '') ??
+    `http://localhost:${env.PORT}`;
+  return `${base}/uploads/certificaciones/${filename}`;
+}
+
+export function getFotosUploadDir(): string {
+  const dir = path.join(backendRoot, 'uploads', 'fotos');
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+export function fotoPublicUrl(filename: string): string {
+  const env = loadEnv();
+  const base =
+    env.API_PUBLIC_URL?.replace(/\/$/, '') ??
+    `http://localhost:${env.PORT}`;
+  return `${base}/uploads/fotos/${filename}`;
+}
+
+export function getNoticiasUploadDir(): string {
+  const dir = path.join(backendRoot, 'uploads', 'noticias');
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+export function noticiaPublicUrl(filename: string): string {
+  const env = loadEnv();
+  const base =
+    env.API_PUBLIC_URL?.replace(/\/$/, '') ??
+    `http://localhost:${env.PORT}`;
+  return `${base}/uploads/noticias/${filename}`;
+}

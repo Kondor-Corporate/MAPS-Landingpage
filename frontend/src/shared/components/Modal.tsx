@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 
 type ModalProps = {
@@ -6,53 +6,123 @@ type ModalProps = {
   onClose: () => void;
   children: ReactNode;
   maxWidth?: string;
+  closeButtonVariant?: 'light' | 'dark';
+  ariaLabel?: string;
+  /** Por defecto `true`. Si es `false`, no se renderiza el botón X (el overlay y Escape siguen igual). */
+  showCloseButton?: boolean;
 };
 
-export function Modal({ isOpen, onClose, children, maxWidth = 'max-w-5xl' }: ModalProps) {
+export function Modal({
+  isOpen,
+  onClose,
+  children,
+  maxWidth = 'max-w-5xl',
+  closeButtonVariant = 'light',
+  ariaLabel = 'Contenido emergente',
+  showCloseButton = true,
+}: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+    if (!isOpen) return;
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const focusFrame = window.requestAnimationFrame(() => closeButtonRef.current?.focus());
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = 'unset';
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onClose se lee vía ref para no reiniciar el setup (foco/scroll-lock) en cada re-render del padre.
   }, [isOpen]);
 
   if (!isOpen) return null;
 
+  const closeButtonClass =
+    closeButtonVariant === 'dark'
+      ? 'bg-black/35 text-white border border-white/25 backdrop-blur-sm hover:bg-black/50'
+      : 'bg-white text-maps-muted border border-maps-border shadow-card hover:bg-maps-surface hover:text-maps-heading';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6">
       <div
         className="absolute inset-0 bg-black/50 transition-opacity"
         onClick={onClose}
         role="presentation"
       />
-      <div className={`relative flex flex-col max-h-[90vh] w-full ${maxWidth} overflow-hidden rounded-2xl bg-white shadow-2xl`}>
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-600 transition-colors hover:bg-gray-100"
-          aria-label="Cerrar modal"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel}
+        className={`relative flex max-h-[calc(100dvh-1rem)] w-full flex-col overflow-hidden rounded-xl bg-white shadow-2xl sm:max-h-[min(90vh,880px)] sm:rounded-2xl ${maxWidth}`}
+      >
+        {showCloseButton ? (
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={onClose}
+            className={`absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-maps-brand/30 ${closeButtonClass}`}
+            aria-label="Cerrar modal"
+            title="Cerrar"
           >
-            <path
-              d="M15 5L5 15M5 5L15 15"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 20 20"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden
+            >
+              <path
+                d="M15 5L5 15M5 5L15 15"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        ) : null}
+        <div className="maps-modal-scroll min-h-0 flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

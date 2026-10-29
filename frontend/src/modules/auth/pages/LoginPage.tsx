@@ -1,10 +1,37 @@
 import { isAxiosError } from 'axios';
-import { useId, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useId, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/axios';
+import { getApiErrorMessage } from '@/modules/admin/lib/apiError';
 import { AuthLayout } from '@/shared/layouts/AuthLayout';
+import { getWhatsappLink, MAPS_WHATSAPP_NUMBER } from '@/shared/lib/producerContact';
 import type { Rol } from '@/store/authStore';
 import { useAuthStore } from '@/store/authStore';
+
+const ACCESS_REQUEST_MESSAGE = `Hola, quiero solicitar acceso al Portal de MAPS Asesores.
+
+Por favor, completo mis datos para gestionar la solicitud:
+
+Nombre:
+Apellido:
+Teléfono:
+Correo electrónico:
+
+Quedo a la espera de indicaciones para continuar con el alta y conocer el funcionamiento del portal.`;
+
+const PASSWORD_RESET_MESSAGE = `Hola, necesito solicitar una nueva contraseña para acceder al Portal de MAPS Asesores.
+
+Mis datos son:
+
+Nombre:
+Apellido:
+Correo electrónico:
+
+Quedo a la espera de una nueva clave de acceso.
+
+Luego de ingresar al Portal realizaré el cambio de contraseña desde mi perfil.
+
+Gracias.`;
 
 type FieldErrors = {
   usuario?: string;
@@ -28,7 +55,7 @@ function validatePassword(value: string): string | undefined {
 type LoginResponse = {
   data: {
     accessToken: string;
-    user: { id: number; usuario: string; rol: string };
+    user: { id: number; usuario: string; rol: string; slug: string | null };
   } | null;
   message: string;
   error: unknown;
@@ -47,9 +74,11 @@ export function LoginPage() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const submitLockRef = useRef(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isLoading || submitLockRef.current) return;
     setApiError(null);
 
     const next: FieldErrors = {};
@@ -60,6 +89,7 @@ export function LoginPage() {
     setErrors(next);
     if (uErr || pErr) return;
 
+    submitLockRef.current = true;
     setIsLoading(true);
     try {
       const { data: body } = await api.post<LoginResponse>('/auth/login', {
@@ -77,6 +107,7 @@ export function LoginPage() {
         id: u.id,
         usuario: u.usuario,
         rol: u.rol as Rol,
+        slug: u.slug ?? null,
       };
       login(user, accessToken);
       if (user.rol === 'PRODUCTOR') {
@@ -86,14 +117,12 @@ export function LoginPage() {
       }
     } catch (err) {
       if (isAxiosError(err) && err.response) {
-        const data = err.response.data as { message?: string } | undefined;
-        setApiError(
-          data?.message ?? 'No se pudo iniciar sesión.',
-        );
+        setApiError(getApiErrorMessage(err, 'No se pudo iniciar sesión.'));
         return;
       }
       setApiError('Error de red. Comprueba tu conexión y la URL del API.');
     } finally {
+      submitLockRef.current = false;
       setIsLoading(false);
     }
   }
@@ -101,6 +130,14 @@ export function LoginPage() {
   return (
     <AuthLayout>
       <div className="flex flex-col gap-8">
+        <Link
+          to="/"
+          className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-maps-muted transition hover:text-maps-brand focus:outline-none focus:ring-2 focus:ring-maps-brand/40 rounded"
+        >
+          <BackArrowIcon />
+          Volver al sitio público
+        </Link>
+
         <header>
           <h2 className="text-3xl font-bold tracking-tight text-maps-heading">
             Bienvenido{' '}
@@ -124,18 +161,15 @@ export function LoginPage() {
           ) : null}
 
           <div className="flex flex-col gap-2">
-            <label
-              htmlFor={usuarioId}
-              className="text-sm font-medium text-maps-body"
-            >
-              Usuario
+            <label htmlFor={usuarioId} className="text-sm font-medium text-maps-body">
+              Email o usuario
             </label>
             <input
               id={usuarioId}
               name="usuario"
               type="text"
               autoComplete="username"
-              placeholder="nombre@ejemplo.com"
+              placeholder="nombre@ejemplo.com o usuario"
               value={usuario}
               onChange={(e) => {
                 setUsuario(e.target.value);
@@ -153,10 +187,7 @@ export function LoginPage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label
-              htmlFor={passwordId}
-              className="text-sm font-medium text-maps-body"
-            >
+            <label htmlFor={passwordId} className="text-sm font-medium text-maps-body">
               Contraseña
             </label>
             <div className="relative">
@@ -172,9 +203,7 @@ export function LoginPage() {
                   if (errors.password) setErrors((s) => ({ ...s, password: undefined }));
                 }}
                 aria-invalid={Boolean(errors.password)}
-                aria-describedby={
-                  errors.password ? `${passwordId}-err` : undefined
-                }
+                aria-describedby={errors.password ? `${passwordId}-err` : undefined}
                 className="h-14 w-full rounded-lg border border-maps-border bg-white py-3 pl-4 pr-12 text-sm text-maps-heading outline-none ring-maps-brand transition placeholder:text-maps-muted focus:border-maps-brand focus:ring-2 focus:ring-maps-brand/25"
               />
               <button
@@ -193,14 +222,24 @@ export function LoginPage() {
             ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
-            <a
-              href="#"
-              className="font-medium text-maps-brand transition hover:text-maps-brand-hover hover:underline focus:outline-none focus:ring-2 focus:ring-maps-brand/40 rounded"
-              onClick={(e) => e.preventDefault()}
-            >
-              ¿Olvidaste tu contraseña?
-            </a>
+          <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-center" >
+            {MAPS_WHATSAPP_NUMBER ? (
+              <a
+                href={getWhatsappLink(MAPS_WHATSAPP_NUMBER, PASSWORD_RESET_MESSAGE)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-maps-brand transition hover:text-maps-brand-hover focus:outline-none focus:ring-2 focus:ring-maps-brand/40 rounded"
+              >
+                ¿Olvidaste tu contraseña? Solicitá una nueva clave!
+              </a>
+            ) : (
+              <span
+                className="cursor-not-allowed font-medium text-maps-muted"
+                title="La recuperación de contraseña todavía no está disponible."
+              >
+                Recuperación de contraseña no disponible
+              </span>
+            )}
           </div>
 
           <button
@@ -222,29 +261,54 @@ export function LoginPage() {
             </div>
           </div>
 
-          <button
-            type="button"
-            className="h-[3.75rem] w-full rounded-lg border-2 border-maps-brand bg-white font-semibold text-maps-brand transition hover:bg-maps-brand/5 focus:outline-none focus:ring-2 focus:ring-maps-brand focus:ring-offset-2"
-            onClick={() => {
-              /* Solicitar acceso: enlazar cuando exista la ruta */
-            }}
-          >
-            Solicitar Acceso
-          </button>
+          {MAPS_WHATSAPP_NUMBER ? (
+            <a
+              href={getWhatsappLink(MAPS_WHATSAPP_NUMBER, ACCESS_REQUEST_MESSAGE)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-[3.75rem] w-full items-center justify-center rounded-lg border-2 border-maps-brand bg-white font-semibold text-maps-brand transition hover:bg-maps-brand hover:text-white focus:outline-none focus:ring-2 focus:ring-maps-brand/40 focus:ring-offset-2"
+            >
+              Solicitar acceso por WhatsApp
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title="La solicitud de acceso todavía no está disponible."
+              className="h-[3.75rem] w-full cursor-not-allowed rounded-lg border-2 border-maps-border bg-maps-surface font-semibold text-maps-muted"
+            >
+              Solicitud de acceso no disponible
+            </button>
+          )}
         </form>
 
-        <p className="text-center text-sm text-maps-body">
-          ¿Necesitas ayuda?{' '}
-          <a
-            href="#"
-            className="font-semibold text-maps-brand transition hover:text-maps-brand-hover hover:underline focus:outline-none focus:ring-2 focus:ring-maps-brand/40 rounded"
-            onClick={(e) => e.preventDefault()}
-          >
-            Contactar soporte
-          </a>
+        <p className="text-center text-sm text-maps-muted">
+          {MAPS_WHATSAPP_NUMBER
+            ? 'Solicitá tu acceso y nuestro equipo se pondrá en contacto con vos.'
+            : 'El canal de soporte todavía no está disponible.'}
         </p>
       </div>
     </AuthLayout>
+  );
+}
+
+function BackArrowIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M19 12H5" />
+      <path d="M12 19l-7-7 7-7" />
+    </svg>
   );
 }
 
