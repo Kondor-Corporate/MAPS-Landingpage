@@ -45,7 +45,14 @@ FROM nginxinc/nginx-unprivileged:1.27-alpine AS runner
 
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
-COPY --chmod=755 docker-entrypoint.d/15-validate-backend-origin.sh /docker-entrypoint.d/15-validate-backend-origin.sh
+# nginxinc/nginx-unprivileged leaves USER 101 (nginx). The classic Cloud Build
+# builder has no BuildKit, so COPY --chmod is rejected. Root owns the script
+# and nginx can execute it; the final user is 101 again.
+USER root
+COPY docker-entrypoint.d/15-validate-backend-origin.sh /docker-entrypoint.d/15-validate-backend-origin.sh
+RUN chmod 755 /docker-entrypoint.d/15-validate-backend-origin.sh \
+  && chown root:root /docker-entrypoint.d/15-validate-backend-origin.sh
+USER 101
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 8080

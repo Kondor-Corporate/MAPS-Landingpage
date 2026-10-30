@@ -220,3 +220,73 @@ jobs:
             frontend/test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  frontend-image:
+    name: Frontend image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir sin BuildKit
+        working-directory: frontend
+        env:
+          DOCKER_BUILDKIT: "0"
+        run: |
+          set -euo pipefail
+          docker build \
+            --target runner \
+            --build-arg VITE_API_BASE_URL=/api/v1 \
+            --build-arg VITE_PUBLIC_INDEXING=true \
+            --build-arg VITE_PUBLIC_SITE_URL=https://mapsasesores.com.ar \
+            --build-arg VITE_MAPS_WHATSAPP_NUMBER= \
+            --tag maps-frontend-ci:production \
+            .
+          docker build \
+            --target runner \
+            --build-arg VITE_API_BASE_URL=/api/v1 \
+            --build-arg VITE_PUBLIC_INDEXING=false \
+            --build-arg VITE_PUBLIC_SITE_URL= \
+            --build-arg VITE_MAPS_WHATSAPP_NUMBER= \
+            --tag maps-frontend-ci:staging \
+            .
+
+      - name: Comprobar usuario, script e indexación
+        run: |
+          set -euo pipefail
+          check_user() {
+            user="$(docker image inspect --format '{{.Config.User}}' "$1")"
+            case "$user" in
+              101|nginx) ;;
+              *)
+                echo "::error::${1} corre como '${user}'."
+                exit 1
+                ;;
+            esac
+          }
+          check_script() {
+            stat_line="$(docker run --rm --entrypoint stat "$1" -c '%u %a' /docker-entrypoint.d/15-validate-backend-origin.sh)"
+            if [ "$stat_line" != "0 755" ]; then
+              echo "::error::${1} tiene el script como '${stat_line}', se espera root y 755."
+              exit 1
+            fi
+          }
+          check_html() {
+            cid="$(docker create "$1")"
+            docker cp "$cid:/usr/share/nginx/html/index.html" "/tmp/${2}-index.html"
+            docker rm "$cid" >/dev/null
+          }
+          check_user maps-frontend-ci:production
+          check_user maps-frontend-ci:staging
+          check_script maps-frontend-ci:production
+          check_script maps-frontend-ci:staging
+          check_html maps-frontend-ci:production production
+          check_html maps-frontend-ci:staging staging
+          grep -F -q '<meta name="robots" content="index,follow" />' /tmp/production-index.html
+          grep -F -q 'href="https://mapsasesores.com.ar/"' /tmp/production-index.html
+          grep -F -q '<meta name="robots" content="noindex,nofollow" />' /tmp/staging-index.html
+          if grep -F -q 'https://mapsasesores.com.ar/' /tmp/staging-index.html; then
+            echo "::error::La imagen de staging incluye el origen canónico de producción."
+            exit 1
+          fi
