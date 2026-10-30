@@ -107,6 +107,7 @@ export async function runPromotionPreflight(options) {
 
   const tfvarsHcl = formatPromotionTfvarsHcl(images.tfvars);
   const report = {
+    operation: 'forward',
     git_sha: options.gitSha,
     release_build_run_id: options.releaseBuildRunId,
     images: images.images,

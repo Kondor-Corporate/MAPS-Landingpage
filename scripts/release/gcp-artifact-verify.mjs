@@ -160,3 +160,24 @@ export function verifyManifestImagesInRegistry(manifest, options = {}) {
   }
   return { ok: true };
 }
+
+/**
+ * Comprueba que una referencia @sha256 exista. No exige etiqueta OCI (baseline R5).
+ * @param {string} imageRef
+ * @param {{ runGcloudFn?: typeof runGcloud }} [options]
+ */
+export function verifyImmutableImageRef(imageRef, options = {}) {
+  const exec = options.runGcloudFn ?? runGcloud;
+  if (typeof imageRef !== 'string' || !/@sha256:[0-9a-f]{64}$/i.test(imageRef)) {
+    return { ok: false, errors: [`Referencia no inmutable: ${String(imageRef)}`] };
+  }
+  const described = exec(
+    'artifacts',
+    ['docker', 'images', 'describe', imageRef, '--format=json'],
+    options,
+  );
+  if (described.status !== 0) {
+    return { ok: false, errors: [`${imageRef} no está en Artifact Registry.`] };
+  }
+  return { ok: true };
+}

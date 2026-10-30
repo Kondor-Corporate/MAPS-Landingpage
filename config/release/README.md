@@ -51,6 +51,17 @@ Ruta: `promotion/plans/<verify_run_id>/<plan_mode>.binding.json` (preferir `x-go
 
 Tras `jobs-only` + `maps-prod-migrate` exitoso, el workflow escribe `promotion/migrate-done/<verify_run_id>.json`. `services-only` exige ese objeto antes del apply.
 
+## Registro de despliegues (GCS)
+
+Cada apply exitoso (promoción o rollback) crea **`promotion/deployments/<apply_run_id>.json`** con `git_sha`, digests, `promotion_verify_run_id`, evidencia post-verify y, en rollback, `replaced_deployment_id` / `rollback_from`.
+
+- **Persistencia:** cada apply `succeeded` guarda `verified_manifest` (el manifiesto ya verificado en ese apply) dentro del mismo objeto. Un artifact de GitHub expirado no alcanza para inventar una versión: sin ese campo el rollback falla.
+- Baseline R5: `operation: baseline`, `release_build_run_id` nulo, `cloud_run_digest_evidence` obligatoria. No hay manifiesto R6-B.
+- Baseline R5 inicial: subir registro `operation: baseline` con `cloud_run_digest_evidence` verificada (`record-deployment-outcome.mjs` / runbook).
+- Rollback: `release-promote` con `operation=rollback` y `target_deployment_id` **solo** desde este registro (no JSON arbitrario del operador).
+
+Aprobación de esquema en GCS **no** desbloquea un rollback: la cuenta de deploy no puede aprobarse a sí misma. Si hay migraciones Prisma entre el target y la versión actual, el rollback de imágenes queda bloqueado y la recuperación es el restore de Cloud SQL del runbook.
+
 ## CI / verify en GitHub
 
 Fase **verify** no incluye el archivo gitignored. Configurar **`MAPS_PRODUCTION_BASELINE_JSON`** (variable de repositorio) con el JSON completo. Sin baseline válido, el preflight falla y no hay comparación automática de migraciones Prisma ni promoción automática segura.

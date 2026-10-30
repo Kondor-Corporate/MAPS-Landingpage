@@ -429,19 +429,38 @@ Archivos principales:
 
 Concurrencia: `maps-prod-release`. Prohibido `maps-prod-bootstrap`. Smoke público: pendiente DNS.
 
-### R6-C4 — Rollback (pendiente)
+### R6-C4 — Rollback seguro (implementado en repo, no ejecutado)
 
-Criterios:
+Mismo workflow **`release-promote.yml`**, input `operation=rollback`:
 
-- dos promociones disparadas juntas no se aplican en paralelo;
-- el apply sin aprobación no corre;
-- un plan que toque Cloud SQL, IAM, el balanceador o secretos falla solo;
-- con migraciones nuevas, migrate termina bien antes de cambiar frontend y backend;
-- `maps-prod-bootstrap` no se ejecuta;
-- el rollback de prueba vuelve a los digests anteriores y deja el state igual que las revisiones;
-- el resultado queda en el deployment de GitHub.
+- Registro persistente en GCS `promotion/deployments/*.json`, con `verified_manifest` del apply (el rollback no depende del artifact de 30 días).
+- Baseline R5: sin `release_build_run_id`. Rollback con migraciones intermedias: **bloqueado** (sin auto-aprobación). Apply usa checkout `github.sha` (main), no el SHA de la app.
+- Verify rollback (environment `production`): lee registro, valida target, manifiesto ligado al `release_build_run_id` del registro, compatibilidad Prisma (`rollback-schema-guard.mjs`).
+- Apply: mismos plan/binding/SHA-256/C3; **sin migrate**; post-verify + nuevo registro.
+- Concurrencia compartida `maps-prod-release`.
 
-El ensayo de staging espera la decisión de cómo compartir artefactos. Los nombres de servicio ya están confirmados. El primer apply de producción puede ensayarse antes del DNS; el smoke del dominio, no.
+Scripts: `run-rollback-preflight.mjs`, `fetch-deployment-registry.mjs`, `record-deployment-outcome.mjs`, `post-deployment-verify.mjs`, tests `promotion-c4.test.mjs`.
+
+Criterios de aceptación (ensayo en GCP pendiente):
+
+- dos operaciones no corren en paralelo;
+- rollback rechaza target no registrado, mismos digests que producción, o incompatibilidad de esquema sin aprobación;
+- plan fuera de alcance (SQL, IAM, etc.) falla;
+- bootstrap prohibido;
+- smoke del dominio oficial sigue pendiente DNS.
+
+### Checklist activación R6-C en GCP (Git ≠ producción lista)
+
+| Ítem | Estado |
+|------|--------|
+| `deploy_identity` aplicado | Pendiente operador |
+| Environment `production` + revisores | Pendiente |
+| `GCP_DEPLOY_*`, `TF_STATE_BUCKET` | Pendiente |
+| `MAPS_PRODUCTION_BASELINE_JSON` o baseline local | Pendiente |
+| Registro R5 en GCS (`baseline` + evidencia Cloud Run) | Pendiente |
+| Bucket: sin acceso público; prefijos `promotion/*` | Verificar IAM |
+| Primer `release-promote` verify+plan+apply (sin DNS smoke) | Pendiente ensayo |
+| Rollback de prueba contra registro real | Pendiente ensayo |
 
 ### R6-D — Retención en simulación y cierre operativo
 

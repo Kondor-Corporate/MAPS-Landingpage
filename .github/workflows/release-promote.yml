@@ -1,4 +1,4 @@
-# Promoción controlada a producción (R6-C3).
+# Promoción y rollback controlados (R6-C3 / R6-C4).
 #
 # No reemplaza la revisión humana del terraform plan: el operador genera el plan
 # localmente, lo valida, lo sube a GCS y recién entonces dispara la fase apply.
@@ -19,8 +19,8 @@ on:
         required: true
         type: string
       release_build_run_id:
-        description: ID numérico de la corrida release-build que publicó el manifiesto
-        required: true
+        description: ID de release-build. Vacío solo para rollback al baseline R5.
+        required: false
         type: string
       phase:
         description: verify = preflight; apply = ejecutar plan ya revisado
@@ -46,6 +46,18 @@ on:
           - jobs-only
           - services-only
         default: full
+      operation:
+        description: promote = avance; rollback = volver a despliegue registrado
+        required: true
+        type: choice
+        options:
+          - promote
+          - rollback
+        default: promote
+      target_deployment_id:
+        description: 'Rollback verify: deployment_id del registro GCS (p. ej. 900001 o r5-baseline)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -61,9 +73,9 @@ env:
   TF_DIR: infra/terraform/environments/production
 
 jobs:
-  verify-release:
-    name: Verificar release
-    if: github.ref == 'refs/heads/main' && inputs.phase == 'verify'
+  verify-promote:
+    name: Verificar promoción
+    if: github.ref == 'refs/heads/main' && inputs.phase == 'verify' && inputs.operation == 'promote'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -129,6 +141,86 @@ jobs:
           echo "8) Disparar phase=apply con verify_run_id, plan_sha256 y plan_mode=${PLAN_MODE}."
           echo "Planes: no publicar en artifacts ni logs; bucket con acceso restringido."
 
+  verify-rollback:
+    name: Verificar rollback
+    if: github.ref == 'refs/heads/main' && inputs.phase == 'verify' && inputs.operation == 'rollback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production
+
+    steps:
+      - name: Exigir target_deployment_id
+        run: |
+          set -euo pipefail
+          if [ -z "${{ inputs.target_deployment_id }}" ]; then
+            echo "::error::Rollback verify exige target_deployment_id del registro GCS."
+            exit 1
+          fi
+          if ! printf '%s' "${{ inputs.git_sha }}" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::git_sha debe coincidir con el registro (40 hex)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Autenticar lectura de registro (GCS)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_DEPLOY_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Instalar gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Cargar registro de despliegues desde GCS
+        env:
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          set -euo pipefail
+          node scripts/release/fetch-deployment-registry.mjs \
+            --bucket="${STATE_BUCKET}" \
+            --out=deployment-registry.snapshot.json
+
+      - name: Preflight de rollback
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOYMENT_REGISTRY_PATH: deployment-registry.snapshot.json
+        run: |
+          set -euo pipefail
+          node scripts/release/run-rollback-preflight.mjs \
+            "${{ inputs.git_sha }}" \
+            "${{ inputs.release_build_run_id }}" \
+            promotion-bundle \
+            --target-deployment-id="${{ inputs.target_deployment_id }}"
+
+      - name: Publicar bundle de rollback
+        uses: actions/upload-artifact@v4
+        with:
+          name: promotion-bundle
+          path: |
+            promotion-bundle/release-manifest.json
+            promotion-bundle/promotion.auto.tfvars
+            promotion-bundle/promotion-report.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Instrucciones de plan rollback
+        env:
+          PLAN_MODE: full
+        run: |
+          set -euo pipefail
+          echo "::notice::Run id de verify rollback: ${{ github.run_id }}"
+          echo "Si el preflight falla por migraciones intermedias, el rollback de imágenes no está disponible: recuperación por backup (runbook)."
+          echo "Plan: plan_mode=full. El apply ejecuta scripts de main (github.sha), no del SHA de la app."
+          echo "Apply: operation=rollback, target_deployment_id=${{ inputs.target_deployment_id }}."
+
   apply-approved-plan:
     name: Apply plan aprobado
     if: github.ref == 'refs/heads/main' && inputs.phase == 'apply'
@@ -183,7 +275,9 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.git_sha }}
+          # Automatización privilegiada: el commit de main que disparó el workflow.
+          # El SHA de la aplicación va en el plan, no en este checkout.
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -205,22 +299,41 @@ jobs:
           github-token: ${{ github.token }}
           path: promotion-bundle
 
-      - name: Revalidar manifiesto del bundle
+      - name: Revalidar manifiesto según su origen
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          node scripts/release/verify-release-authenticity.mjs \
-            promotion-bundle/release-manifest.json \
-            "${{ inputs.git_sha }}" \
-            --github
-          node -e "
-            const m=require('fs').readFileSync('promotion-bundle/release-manifest.json','utf8');
-            const j=JSON.parse(m);
-            const u=j.build_run_url||'';
-            const id=(u.match(/\\/runs\\/([0-9]+)/)||[])[1];
-            if(id!=='${{ inputs.release_build_run_id }}'){process.exit(1)}
-          " || { echo "::error::Manifiesto del bundle no coincide con release_build_run_id."; exit 1; }
+          source="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).manifest_source||'github'")"
+          if [ "$source" = "baseline" ]; then
+            echo "Baseline R5: sin artifact release-build. Digests tomados del registro con evidencia Cloud Run."
+            node -e "
+              const r=JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8'));
+              for (const k of ['frontend_image','backend_image','jobs_image']) {
+                if (!/@sha256:[0-9a-f]{64}$/i.test(String(r.images?.[k]||''))) {
+                  console.error('digest inválido', k);
+                  process.exit(1);
+                }
+              }
+            "
+          elif [ "$source" = "registry" ]; then
+            echo "Manifiesto persistido en el registro de despliegue; el artifact de GitHub puede haber expirado."
+            node scripts/release/verify-release-authenticity.mjs \
+              promotion-bundle/release-manifest.json \
+              "${{ inputs.git_sha }}"
+          else
+            node scripts/release/verify-release-authenticity.mjs \
+              promotion-bundle/release-manifest.json \
+              "${{ inputs.git_sha }}" \
+              --github
+            node -e "
+              const m=require('fs').readFileSync('promotion-bundle/release-manifest.json','utf8');
+              const j=JSON.parse(m);
+              const u=j.build_run_url||'';
+              const id=(u.match(/\/runs\/([0-9]+)/)||[])[1];
+              if(id!=='${{ inputs.release_build_run_id }}'){process.exit(1)}
+            " || { echo "::error::Manifiesto del bundle no coincide con release_build_run_id."; exit 1; }
+          fi
 
       - name: Autenticar identidad de deploy (no build)
         uses: google-github-actions/auth@v2
@@ -234,6 +347,11 @@ jobs:
       - name: Verificar digests en Artifact Registry
         run: |
           set -euo pipefail
+          source="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).manifest_source||'github'")"
+          if [ "$source" = "baseline" ]; then
+            node scripts/release/verify-image-refs.mjs promotion-bundle/promotion-report.json
+            exit 0
+          fi
           node scripts/release/verify-release-authenticity.mjs \
             promotion-bundle/release-manifest.json \
             "${{ inputs.git_sha }}" \
@@ -247,8 +365,9 @@ jobs:
         run: |
           set -euo pipefail
           gsutil cp "gs://${STATE_BUCKET}/promotion/plans/${VERIFY_RUN_ID}/${PLAN_MODE}.binding.json" plan.binding.json
+          operation="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).operation||'promote'")"
           needs="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).migration?.requires_jobs_first_apply===true")"
-          if [ "$needs" = "true" ] && [ "$PLAN_MODE" = "services-only" ]; then
+          if [ "$operation" != "rollback" ] && [ "$needs" = "true" ] && [ "$PLAN_MODE" = "services-only" ]; then
             gsutil cp "gs://${STATE_BUCKET}/promotion/migrate-done/${VERIFY_RUN_ID}.json" migrate-evidence.json
           fi
 
@@ -270,7 +389,8 @@ jobs:
             --release-build-run-id="${{ inputs.release_build_run_id }}"
           )
           needs="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).migration?.requires_jobs_first_apply===true")"
-          if [ "$needs" = "true" ] && [ "$PLAN_MODE" = "services-only" ]; then
+          operation="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).operation||'promote'")"
+          if [ "$needs" = "true" ] && [ "$PLAN_MODE" = "services-only" ] && [ "$operation" != "rollback" ]; then
             args+=(--migrate-evidence=migrate-evidence.json)
           fi
           node scripts/release/validate-promotion-apply-gate.mjs "${args[@]}"
@@ -311,6 +431,11 @@ jobs:
           VERIFY_RUN_ID: ${{ inputs.verify_run_id }}
         run: |
           set -euo pipefail
+          operation="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).operation||'promote'")"
+          if [ "$operation" = "rollback" ]; then
+            echo "Rollback: migrate Prisma prohibido."
+            exit 0
+          fi
           needs="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).migration?.requires_jobs_first_apply===true")"
           if [ "$needs" != "true" ]; then
             echo "Sin migraciones nuevas: no se ejecuta maps-prod-migrate."
@@ -335,11 +460,40 @@ jobs:
             --release-build-run-id="${{ inputs.release_build_run_id }}" \
             --execution-name="${exec_name}"
 
-      - name: Verificación posterior (sin smoke público del dominio)
+      - name: Verificación posterior y registro de despliegue
+        env:
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          VERIFY_RUN_ID: ${{ inputs.verify_run_id }}
         run: |
           set -euo pipefail
-          node -e "
-            const r=JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8'));
-            console.log('post_checks: cloud_run_ready_and_digests=run post-promotion-verify when operational');
-            console.log('public_smoke=pending_dns_and_certificate');
-          "
+          set +e
+          node scripts/release/post-deployment-verify.mjs \
+            --report=promotion-bundle/promotion-report.json \
+            --out=post-verify.json
+          verify_status=$?
+          set -e
+          if [ "$verify_status" -ne 0 ]; then
+            echo "::warning::Verificación posterior incompleta; no declarar éxito operativo."
+            outcome=partial
+          else
+            outcome=succeeded
+          fi
+          set +e
+          node scripts/release/record-deployment-outcome.mjs \
+            --bucket="${STATE_BUCKET}" \
+            --deployment-id="${{ github.run_id }}" \
+            --promotion-verify-run-id="${VERIFY_RUN_ID}" \
+            --apply-run-id="${{ github.run_id }}" \
+            --promotion-report=promotion-bundle/promotion-report.json \
+            --post-verify=post-verify.json \
+            --manifest=promotion-bundle/release-manifest.json \
+            --outcome="${outcome}"
+          record_status=$?
+          set -e
+          if [ "$record_status" -ne 0 ]; then
+            echo "::error::Apply o verificación ya ocurrieron, pero el registro GCS no se escribió. No es un éxito. Reconciliar: comparar digests de Cloud Run con promotion-report.json y volver a registrar solo con esa evidencia (generation-match 0)."
+            exit 1
+          fi
+          if [ "$verify_status" -ne 0 ]; then
+            exit 1
+          fi

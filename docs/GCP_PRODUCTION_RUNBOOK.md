@@ -382,6 +382,23 @@ Secuencia resumida:
    segundo plan `services-only`.
 5. Smoke del dominio oficial sigue pendiente de DNS/certificado.
 
+### Rollback de aplicación (R6-C4)
+
+No es restauración de base de datos. Si el esquema avanzó con migraciones que el
+código anterior no tolera, detener el rollback de imágenes y seguir **Backups y
+recuperación** (instancia nueva + validación + Secret Manager).
+
+1. Listar despliegues: `node scripts/release/fetch-deployment-registry.mjs --bucket=<TF_STATE_BUCKET>`.
+2. Elegir `deployment_id` con `outcome: succeeded` (incluye baseline R5 con evidencia).
+3. Disparar `release-promote` con `operation=rollback`, `phase=verify`, `target_deployment_id=<id>` y el `git_sha` del registro. `release_build_run_id` solo si el registro lo tiene; el baseline R5 no tiene corrida release-build ni artifact.
+4. Si hay migraciones Prisma entre esa versión y la actual, el preflight **bloquea** el rollback de imágenes. No hay aprobación automática. Seguir **Backups y recuperación**.
+5. Generar plan Terraform **`plan_mode=full`**, validar con `validate-terraform-plan.mjs`, subir plan + binding (igual que promoción).
+6. Fase **apply** con environment `production`; no se ejecuta `maps-prod-migrate` ni bootstrap.
+7. Post-verify: digests Cloud Run Ready; si falla, estado **parcial** — no declarar éxito.
+8. El apply registra el rollback en `promotion/deployments/<apply_run_id>.json`.
+
+Concurrencia: `maps-prod-release` (compartida con promociones).
+
 ## Secretos y rotación
 
 Siempre una versión numérica. Nunca `latest`.

@@ -15,6 +15,24 @@ import { BOOTSTRAP_JOB_NAME } from './promotion-plan-contract.mjs';
  */
 export function validatePromotionPhaseGate(input) {
   const errors = [];
+  const operation = input.operation ?? 'forward';
+
+  if (operation === 'rollback') {
+    if (input.planMode !== 'full') {
+      errors.push('Rollback: solo plan_mode full (imágenes Cloud Run).');
+    }
+    const migration = input.migration ?? {};
+    if (migration.requires_human_schema_review === true) {
+      errors.push(
+        'Rollback bloqueado: hay migraciones entre target y versión actual, o el diff no es fiable. No se acepta auto-aprobación. Recuperación por backup de Cloud SQL.',
+      );
+    }
+    if (errors.length > 0) {
+      return { ok: false, errors };
+    }
+    return { ok: true };
+  }
+
   const migration = input.migration ?? {};
   const requiresJobsFirst = migration.requires_jobs_first_apply === true;
   const automatic = migration.automatic_migration_comparison !== false;

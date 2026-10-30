@@ -21,11 +21,15 @@ export function validatePromotionApplyGate(options) {
   errors.push(
     ...validatePromotionPhaseGate({
       planMode: options.planMode,
+      operation: options.operation ?? options.migration?.operation ?? 'forward',
       migration: options.migration ?? {},
       migrateEvidence: options.migrateEvidence ?? null,
+      schemaApproval: options.schemaApproval ?? null,
       verifyRunId: options.verifyRunId,
       gitSha: options.gitSha,
       releaseBuildRunId: options.releaseBuildRunId,
+      targetDeploymentId: options.targetDeploymentId,
+      currentGitSha: options.currentGitSha,
     }).errors ?? [],
   );
 
@@ -74,13 +78,21 @@ function runCli(argv) {
   const report = JSON.parse(readFileSync(reportPath, 'utf8'));
   const binding = bindingPath ? JSON.parse(readFileSync(bindingPath, 'utf8')) : null;
   const migrateEvidence = evidencePath ? JSON.parse(readFileSync(evidencePath, 'utf8')) : null;
+  const schemaApprovalPath = args['schema-approval'];
+  const schemaApproval = schemaApprovalPath
+    ? JSON.parse(readFileSync(schemaApprovalPath, 'utf8'))
+    : null;
   const result = validatePromotionApplyGate({
     planMode: /** @type any */ (args['plan-mode']),
+    operation: report.operation ?? 'forward',
     migration: report.migration ?? {},
     migrateEvidence,
+    schemaApproval,
     verifyRunId: args['verify-run-id'],
     gitSha: args['git-sha'] ?? report.git_sha,
     releaseBuildRunId: args['release-build-run-id'] ?? report.release_build_run_id,
+    targetDeploymentId: report.target_deployment_id,
+    currentGitSha: report.migration?.current_git_sha,
     planBinding: binding,
     requirePlanBinding: args['require-plan-binding'] === 'true',
     planSha256: args['plan-sha256'],

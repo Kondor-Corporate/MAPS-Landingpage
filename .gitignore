@@ -132,6 +132,7 @@ credentials.tfrc.json
 
 # Baseline R5 real (digests + git_sha); usar production-baseline.json.example como plantilla
 config/release/production-baseline.json
+config/release/deployment-registry.snapshot.json
 promotion-bundle/
 plan.tfplan
 plan.json
