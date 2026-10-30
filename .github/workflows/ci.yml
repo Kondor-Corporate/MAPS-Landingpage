@@ -20,7 +20,10 @@ jobs:
           node-version: '22'
 
       - name: Validador de manifiesto de release (tests)
-        run: node --test scripts/release/validate-manifest.test.mjs
+        run: |
+          node --test scripts/release/validate-manifest.test.mjs
+          node --test scripts/release/verify-release-authenticity.test.mjs
+          node --test scripts/release/deploy-identity-contract.test.mjs
 
   backend:
     runs-on: ubuntu-latest

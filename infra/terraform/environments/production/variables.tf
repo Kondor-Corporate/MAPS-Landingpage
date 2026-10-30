@@ -171,3 +171,13 @@ variable "bootstrap_admin_password_secret_version" {
     error_message = "bootstrap_admin_password_secret_version must be a positive integer string such as 1."
   }
 }
+
+variable "terraform_state_bucket_name" {
+  description = "GCS bucket for Terraform state (backend GCS). Required on every plan/apply. Pass via gitignored tfvars or -var; never commit the name."
+  type        = string
+
+  validation {
+    condition     = length(trimspace(var.terraform_state_bucket_name)) >= 3 && length(var.terraform_state_bucket_name) <= 63
+    error_message = "terraform_state_bucket_name must be 3 to 63 characters and must not be blank. Omitting it must fail the plan, not silently remove deploy_identity."
+  }
+}

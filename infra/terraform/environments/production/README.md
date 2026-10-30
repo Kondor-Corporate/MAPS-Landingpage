@@ -385,6 +385,7 @@ que existir antes del primer plan. Los payloads no van en `terraform.tfvars`.
 | `refresh_secret_version` | Igual, secreto de refresh. | Después de cargar esa versión. |
 | `bootstrap_admin_email_secret_version` | Igual, email del primer superadmin. | Antes del job de bootstrap. |
 | `bootstrap_admin_password_secret_version` | Igual, contraseña inicial. | Antes del job de bootstrap. Puede deshabilitarse después. |
+| `terraform_state_bucket_name` | Bucket GCS del backend (mismo nombre que en `terraform init -backend-config`). **No commitear.** Obligatorio en todo `plan`/`apply` para componer `deploy_identity` sin `count`. | Archivo tfvars gitignored o `-var` en cada operación. Omitirla debe fallar el plan, no eliminar el módulo en silencio. |
 
 Si el primer plan ocurre antes de tener imágenes y versiones reales, los
 valores tienen que pasar igual la validación, y el apply de esa corrida no
@@ -407,6 +408,8 @@ terraform init -backend-config="bucket=BUCKET_DE_STATE"
 ```
 
 `BUCKET_DE_STATE` se elige en el bootstrap. No está en el repositorio.
+Pásalo también como `-var="terraform_state_bucket_name=BUCKET_DE_STATE"` (o en un tfvars gitignored) en cada `plan`/`apply` del root.
+
 Un `terraform init -backend=false` no lee ese state y no sirve para el plan.
 
 ## Workload Identity Federation

@@ -384,6 +384,30 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Los tests del validador corren en CI en el job `Release manifest validator`, sin credenciales de GCP.
 
+### R6-C2 — Autenticidad, identidad de deploy y environment
+
+Entregables en repositorio (sin apply ni workflow de promoción):
+
+- `scripts/release/verify-release-authenticity.mjs` y módulos `github-release-api`, `gcp-artifact-verify`, `git-development-verify`;
+- tests en `verify-release-authenticity.test.mjs`;
+- módulo Terraform `infra/terraform/modules/deploy-identity` (cuenta `maps-prod-deploy`, pool WIF **`maps-github-deploy`** independiente de `maps-github`);
+- instrucciones del environment GitHub: [`R6_GITHUB_PRODUCTION_ENVIRONMENT.md`](./R6_GITHUB_PRODUCTION_ENVIRONMENT.md).
+
+Capas de verificación:
+
+| Capa | Requiere | Qué demuestra |
+|------|---------|----------------|
+| Local | nada | Contrato C1 + coherencia de `build_run_url` |
+| GitHub API | `GH_TOKEN` | Run de `release-build.yml` exitoso, artifact `release-manifest-<sha>` en esa run, CI verde, SHA en `development` |
+| git | remoto `origin` | Ancestro en `origin/development` |
+| GCP | `gcloud` autenticado | Digest y etiqueta OCI `org.opencontainers.image.revision` en Artifact Registry |
+
+El manifiesto descargado en promoción debe obtenerse del artifact de la run citada en `build_run_url`, no confiar en un JSON subido a mano.
+
+Identidades: el provider de builds **no** se amplía. Deploy usa el pool **`maps-github-deploy`** (distinto de `maps-github`) con provider OIDC que exige `release-promote.yml` en `main`, IDs numéricos de org/repo, `workflow_dispatch` y claim **`environment=production`**. El `workloadIdentityUser` de deploy apunta solo a principals de ese pool. Ver README del módulo `deploy-identity`.
+
+El módulo `deploy_identity` en producción **no usa `count`**: `terraform_state_bucket_name` es obligatoria en cada plan/apply (tfvars gitignored o `-var`). Omitirla debe fallar el plan, no destruir recursos en silencio.
+
 Entregables pendientes de R6-C (conjunto):
 
 - workflow de promoción (R6-C3);

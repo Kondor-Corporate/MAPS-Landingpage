@@ -73,6 +73,21 @@ output "workload_identity_provider" {
   value       = module.build_identity.workload_identity_provider
 }
 
+output "deploy_service_account_email" {
+  description = "Production deploy identity for release-promote.yml."
+  value       = module.deploy_identity.deploy_service_account_email
+}
+
+output "promote_workload_identity_provider" {
+  description = "WIF provider in pool maps-github-deploy for release-promote.yml."
+  value       = module.deploy_identity.promote_workload_identity_provider
+}
+
+output "deploy_workload_identity_pool_id" {
+  description = "Isolated deploy WIF pool ID (maps-github-deploy)."
+  value       = module.deploy_identity.deploy_workload_identity_pool_id
+}
+
 output "artifact_registry_repository" {
   description = "Production Artifact Registry repository ID."
   value       = module.artifact_registry.repository_id
