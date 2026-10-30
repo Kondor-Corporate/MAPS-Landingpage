@@ -82,6 +82,21 @@ module "build_identity" {
   depends_on = [module.project_services]
 }
 
+module "deploy_identity" {
+  source = "../../modules/deploy-identity"
+
+  project_id                   = var.project_id
+  region                       = var.region
+  prefix                       = local.prefix
+  terraform_state_bucket_name  = var.terraform_state_bucket_name
+  artifact_registry_repository = module.artifact_registry.repository_id
+
+  depends_on = [
+    module.project_services,
+    module.artifact_registry,
+  ]
+}
+
 module "runtime_services" {
   source = "../../modules/runtime-services"
 

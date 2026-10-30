@@ -1,0 +1,21 @@
+{
+  "git_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "images": [
+    {
+      "id": "backend",
+      "immutable_ref": "southamerica-east1-docker.pkg.dev/maps-prod-landing-page/maps-prod/backend@sha256:0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    {
+      "id": "backend-jobs",
+      "immutable_ref": "southamerica-east1-docker.pkg.dev/maps-prod-landing-page/maps-prod/backend-jobs@sha256:0000000000000000000000000000000000000000000000000000000000000002"
+    },
+    {
+      "id": "frontend",
+      "immutable_ref": "southamerica-east1-docker.pkg.dev/maps-prod-landing-page/maps-prod/frontend@sha256:0000000000000000000000000000000000000000000000000000000000000003"
+    },
+    {
+      "id": "frontend-staging",
+      "immutable_ref": "southamerica-east1-docker.pkg.dev/maps-prod-landing-page/maps-prod/frontend-staging@sha256:0000000000000000000000000000000000000000000000000000000000000004"
+    }
+  ]
+}

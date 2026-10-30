@@ -1,0 +1,34 @@
+{
+  "resource_changes": [
+    {
+      "address": "module.runtime_services.google_cloud_run_v2_service.frontend",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "template": [
+            {
+              "containers": [
+                {
+                  "image": "us-docker.pkg.dev/p/frontend@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "env": [{ "name": "NODE_ENV", "value": "production" }]
+                }
+              ]
+            }
+          ]
+        },
+        "after": {
+          "template": [
+            {
+              "containers": [
+                {
+                  "image": "us-docker.pkg.dev/p/frontend@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "env": [{ "name": "NODE_ENV", "value": "staging" }]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

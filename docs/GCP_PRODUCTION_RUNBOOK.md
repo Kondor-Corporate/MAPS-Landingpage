@@ -363,8 +363,41 @@ vuelve a correr el bootstrap.
 9. Smoke tests de la fase 6 que toque el cambio.
 
 La promoción inmutable, la limpieza de Artifact Registry y las release
-operations las cierra R6. Esos mecanismos no están implementados. No se
-adelantan aquí.
+operations las cierra R6. El flujo automatizado está en
+`.github/workflows/release-promote.yml` y en
+[`docs/R6_RELEASE_OPERATIONS_PLAN.md`](./R6_RELEASE_OPERATIONS_PLAN.md) (R6-C3).
+Hasta activar `deploy_identity`, el environment `production` y completar
+`config/release/production-baseline.json`, la fase **apply** del workflow
+permanece bloqueada.
+
+Secuencia resumida:
+
+1. Release build (R6-B) deja manifiesto en GitHub Actions.
+2. `release-promote` fase **verify** descarga el manifiesto y publica `promotion-bundle`.
+3. Operador genera **`terraform plan` local**, valida con
+   `scripts/release/validate-terraform-plan.mjs` y sube el plan a
+   `gs://<state-bucket>/promotion/plans/<verify_run_id>.tfplan`.
+4. Fase **apply** (environment `production`, identidad deploy) aplica **ese**
+   plan; si hay migraciones, `jobs-only` + `maps-prod-migrate` y luego un
+   segundo plan `services-only`.
+5. Smoke del dominio oficial sigue pendiente de DNS/certificado.
+
+### Rollback de aplicación (R6-C4)
+
+No es restauración de base de datos. Si el esquema avanzó con migraciones que el
+código anterior no tolera, detener el rollback de imágenes y seguir **Backups y
+recuperación** (instancia nueva + validación + Secret Manager).
+
+1. Listar despliegues: `node scripts/release/fetch-deployment-registry.mjs --bucket=<TF_STATE_BUCKET>`.
+2. Elegir `deployment_id` con `outcome: succeeded` (incluye baseline R5 con evidencia).
+3. Disparar `release-promote` con `operation=rollback`, `phase=verify`, `target_deployment_id=<id>` y el `git_sha` del registro. `release_build_run_id` solo si el registro lo tiene; el baseline R5 no tiene corrida release-build ni artifact.
+4. Si hay migraciones Prisma entre esa versión y la actual, el preflight **bloquea** el rollback de imágenes. No hay aprobación automática. Seguir **Backups y recuperación**.
+5. Generar plan Terraform **`plan_mode=full`**, validar con `validate-terraform-plan.mjs`, subir plan + binding (igual que promoción).
+6. Fase **apply** con environment `production`; no se ejecuta `maps-prod-migrate` ni bootstrap.
+7. Post-verify: digests Cloud Run Ready; si falla, estado **parcial** — no declarar éxito.
+8. El apply registra el rollback en `promotion/deployments/<apply_run_id>.json`.
+
+Concurrencia: `maps-prod-release` (compartida con promociones).
 
 ## Secretos y rotación
 

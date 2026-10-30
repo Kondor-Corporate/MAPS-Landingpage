@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-01-01T00:00:00Z",
+  "recorded_by": "operador@example.com",
+  "git_sha": "0000000000000000000000000000000000000000",
+  "images": {
+    "frontend_image": "southamerica-east1-docker.pkg.dev/PROJECT/REPO/frontend@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "backend_image": "southamerica-east1-docker.pkg.dev/PROJECT/REPO/backend@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "jobs_image": "southamerica-east1-docker.pkg.dev/PROJECT/REPO/jobs@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "notes": "Copiar a production-baseline.json (gitignored) con valores reales R5. Ver config/release/README.md."
+}

@@ -1,0 +1,77 @@
+[
+  {
+    "schema_version": 1,
+    "deployment_id": "r5-baseline",
+    "operation": "baseline",
+    "git_sha": "1111111111111111111111111111111111111111",
+    "release_build_run_id": null,
+    "images": {
+      "frontend_image": "southamerica-east1-docker.pkg.dev/p/r/frontend@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "backend_image": "southamerica-east1-docker.pkg.dev/p/r/backend@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "jobs_image": "southamerica-east1-docker.pkg.dev/p/r/jobs@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "promotion_verify_run_id": "manual-r5",
+    "apply_run_id": "manual-r5",
+    "applied_at": "2025-06-01T12:00:00Z",
+    "outcome": "succeeded",
+    "migrations_executed": false,
+    "cloud_run_digest_evidence": {
+      "verified_at": "2025-06-01T12:00:00Z",
+      "method": "manual_gcloud_describe"
+    }
+  },
+  {
+    "schema_version": 1,
+    "deployment_id": "900001",
+    "operation": "forward",
+    "git_sha": "2222222222222222222222222222222222222222",
+    "release_build_run_id": "100",
+    "images": {
+      "frontend_image": "southamerica-east1-docker.pkg.dev/p/r/frontend@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "backend_image": "southamerica-east1-docker.pkg.dev/p/r/backend@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "jobs_image": "southamerica-east1-docker.pkg.dev/p/r/jobs@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "promotion_verify_run_id": "800001",
+    "apply_run_id": "900001",
+    "applied_at": "2026-01-15T10:00:00Z",
+    "outcome": "succeeded",
+    "migrations_executed": true,
+    "post_verify": { "ok": true },
+    "verified_manifest": {
+      "git_sha": "2222222222222222222222222222222222222222",
+      "build_run_url": "https://github.com/Kondor-Corporate/MAPS-Landingpage/actions/runs/100",
+      "images": [
+        { "id": "frontend", "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/frontend@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" },
+        { "id": "backend", "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/backend@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" },
+        { "id": "backend-jobs", "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/jobs@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" }
+      ]
+    }
+  },
+  {
+    "schema_version": 1,
+    "deployment_id": "900002",
+    "operation": "forward",
+    "git_sha": "3333333333333333333333333333333333333333",
+    "release_build_run_id": "101",
+    "images": {
+      "frontend_image": "southamerica-east1-docker.pkg.dev/p/r/frontend@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "backend_image": "southamerica-east1-docker.pkg.dev/p/r/backend@sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "jobs_image": "southamerica-east1-docker.pkg.dev/p/r/jobs@sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    "promotion_verify_run_id": "800002",
+    "apply_run_id": "900002",
+    "applied_at": "2026-02-01T10:00:00Z",
+    "outcome": "succeeded",
+    "migrations_executed": false,
+    "post_verify": { "ok": true },
+    "verified_manifest": {
+      "git_sha": "3333333333333333333333333333333333333333",
+      "build_run_url": "https://github.com/Kondor-Corporate/MAPS-Landingpage/actions/runs/101",
+      "images": [
+        { "id": "frontend", "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/frontend@sha256:1111111111111111111111111111111111111111111111111111111111111111" },
+        { "id": "backend", "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/backend@sha256:2222222222222222222222222222222222222222222222222222222222222222" },
+        { "id": "backend-jobs", "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/jobs@sha256:3333333333333333333333333333333333333333333333333333333333333333" }
+      ]
+    }
+  }
+]

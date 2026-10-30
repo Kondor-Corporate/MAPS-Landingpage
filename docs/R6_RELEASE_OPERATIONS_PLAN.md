@@ -343,6 +343,8 @@ Hecho cuando el equipo confirma o corrige las decisiones abiertas de la sección
 
 ### R6-B — Construcción y manifiesto
 
+**Estado (30/10/2026):** R6-B cerrado en operación. El Release build #6 (`40992146277`) terminó en success para el SHA `274a938e483e0474ab5d4bf8f344a8387690c6d0`, publicó cuatro imágenes en `maps-prod` y dejó el artifact `release-manifest-<sha>`.
+
 R6-B.1, en el repositorio y sin ejecutar:
 
 - `backend/cloudbuild.yaml` y `frontend/cloudbuild.yaml`, con `CLOUD_LOGGING_ONLY` y `maps-prod-build`;
@@ -362,29 +364,103 @@ Criterios para dar por cerrado R6-B, cuando eso se active:
 - Cloud Run, los jobs y el state no cambian;
 - los logs no muestran payloads de secretos.
 
-### R6-C — Staging, producción, migrate y rollback
+### R6-C — Promoción, identidad y rollback
 
-Entregables:
+R6-C se divide en sub-bloques. Staging deja de ser un requisito obligatorio del camino de promoción: no tiene que permanecer operativo para promover a producción. Apagar o reducir staging es una tarea aparte de control de costos, no parte de R6-C1.
 
-- workflow de promoción;
-- environment `production` con revisores;
-- grupos de concurrencia;
-- cuenta de deploy con el permiso mínimo que el plan haya justificado;
-- lectura de `maps-staging` o el mecanismo de compartición que se haya elegido;
-- workflow de rollback por un manifiesto anterior;
-- actualización breve del runbook de producción para que «Deploys posteriores» apunte a este flujo.
+| Sub-bloque | Contenido |
+|------------|-----------|
+| **R6-C1** | Validación reutilizable del manifiesto (`scripts/release/validate-manifest.mjs`). Primera barrera estructural; **no** autoriza despliegue ni demuestra por sí sola que el artifact vino de un Release build exitoso ni que los digests existen en Artifact Registry. |
+| **R6-C2** | Identidad de deploy, environment `production`, aprobación humana y comprobaciones de autenticidad del manifiesto (procedencia del artifact, coherencia con la corrida de release). |
+| **R6-C3** | Workflow de promoción: `release-promote.yml`, plan revisado localmente, apply del plan en GCS, migrate si corresponde. |
+| **R6-C4** | Workflow de rollback por manifiesto anterior y nota breve en el runbook de producción. |
 
-Criterios:
+Validación local del manifiesto (Windows PowerShell, desde la raíz del repositorio):
 
-- dos promociones disparadas juntas no se aplican en paralelo;
-- el apply sin aprobación no corre;
-- un plan que toque Cloud SQL, IAM, el balanceador o secretos falla solo;
-- con migraciones nuevas, migrate termina bien antes de cambiar frontend y backend;
-- `maps-prod-bootstrap` no se ejecuta;
-- el rollback de prueba vuelve a los digests anteriores y deja el state igual que las revisiones;
-- el resultado queda en el deployment de GitHub.
+```powershell
+node scripts/release/validate-manifest.mjs .\ruta\release-manifest.json 274a938e483e0474ab5d4bf8f344a8387690c6d0
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+```
 
-El ensayo de staging espera la decisión de cómo compartir artefactos. Los nombres de servicio ya están confirmados. El primer apply de producción puede ensayarse antes del DNS; el smoke del dominio, no.
+Los tests del validador corren en CI en el job `Release manifest validator`, sin credenciales de GCP.
+
+### R6-C2 — Autenticidad, identidad de deploy y environment
+
+Entregables en repositorio (sin apply ni workflow de promoción):
+
+- `scripts/release/verify-release-authenticity.mjs` y módulos `github-release-api`, `gcp-artifact-verify`, `git-development-verify`;
+- tests en `verify-release-authenticity.test.mjs`;
+- módulo Terraform `infra/terraform/modules/deploy-identity` (cuenta `maps-prod-deploy`, pool WIF **`maps-github-deploy`** independiente de `maps-github`);
+- instrucciones del environment GitHub: [`R6_GITHUB_PRODUCTION_ENVIRONMENT.md`](./R6_GITHUB_PRODUCTION_ENVIRONMENT.md).
+
+Capas de verificación:
+
+| Capa | Requiere | Qué demuestra |
+|------|---------|----------------|
+| Local | nada | Contrato C1 + coherencia de `build_run_url` |
+| GitHub API | `GH_TOKEN` | Run de `release-build.yml` exitoso, artifact `release-manifest-<sha>` en esa run, CI verde, SHA en `development` |
+| git | remoto `origin` | Ancestro en `origin/development` |
+| GCP | `gcloud` autenticado | Digest y etiqueta OCI `org.opencontainers.image.revision` en Artifact Registry |
+
+El manifiesto descargado en promoción debe obtenerse del artifact de la run citada en `build_run_url`, no confiar en un JSON subido a mano.
+
+Identidades: el provider de builds **no** se amplía. Deploy usa el pool **`maps-github-deploy`** (distinto de `maps-github`) con provider OIDC que exige `release-promote.yml` en `main`, IDs numéricos de org/repo, `workflow_dispatch` y claim **`environment=production`**. El `workloadIdentityUser` de deploy apunta solo a principals de ese pool. Ver README del módulo `deploy-identity`.
+
+El módulo `deploy_identity` en producción **no usa `count`**: `terraform_state_bucket_name` es obligatoria en cada plan/apply (tfvars gitignored o `-var`). Omitirla debe fallar el plan, no destruir recursos en silencio.
+
+Entregables pendientes de R6-C (conjunto):
+
+- environment `production` con revisores (R6-C2);
+- apply de `deploy_identity` en GCP y variables `GCP_DEPLOY_*` / `TF_STATE_BUCKET`;
+- completar `config/release/production-baseline.json` antes de la primera promoción automática;
+- workflow de rollback por manifiesto anterior (R6-C4);
+- actualización breve del runbook de producción para que «Deploys posteriores» apunte a este flujo (R6-C4, parcialmente hecho en R6-C3).
+
+### R6-C3 — Promoción controlada (implementado en repo, no ejecutado)
+
+Archivos principales:
+
+- `.github/workflows/release-promote.yml` — fases `verify` (sin environment) y `apply` (environment `production`, identidad deploy);
+- `scripts/release/run-promotion-preflight.mjs` — descarga manifiesto desde artifact GitHub;
+- `scripts/release/validate-terraform-plan.mjs` — alcance del plan;
+- `config/release/production-baseline.json` — punto de recuperación R5 (completar manualmente).
+
+**Revisión del plan (no simulada):** GitHub aprueba el job `apply` **antes** de que corra; por eso el `terraform plan` ocurre **fuera** del job protegido. El operador valida `plan.json`, sube `plan.tfplan` a GCS y dispara apply con `verify_run_id` + `plan_sha256`. El job apply vuelve a validar manifiesto, digests GCP, hash del plan y JSON del plan antes de `terraform apply plan.tfplan`.
+
+Concurrencia: `maps-prod-release`. Prohibido `maps-prod-bootstrap`. Smoke público: pendiente DNS.
+
+### R6-C4 — Rollback seguro (implementado en repo, no ejecutado)
+
+Mismo workflow **`release-promote.yml`**, input `operation=rollback`:
+
+- Registro persistente en GCS `promotion/deployments/*.json`, con `verified_manifest` del apply (el rollback no depende del artifact de 30 días).
+- Baseline R5: sin `release_build_run_id`. Rollback con migraciones intermedias: **bloqueado** (sin auto-aprobación). Apply usa checkout `github.sha` (main), no el SHA de la app.
+- Verify rollback (environment `production`): lee registro, valida target, manifiesto ligado al `release_build_run_id` del registro, compatibilidad Prisma (`rollback-schema-guard.mjs`).
+- Apply: mismos plan/binding/SHA-256/C3; **sin migrate**; post-verify + nuevo registro.
+- Concurrencia compartida `maps-prod-release`.
+
+Scripts: `run-rollback-preflight.mjs`, `fetch-deployment-registry.mjs`, `record-deployment-outcome.mjs`, `post-deployment-verify.mjs`, tests `promotion-c4.test.mjs`.
+
+Criterios de aceptación (ensayo en GCP pendiente):
+
+- dos operaciones no corren en paralelo;
+- rollback rechaza target no registrado, mismos digests que producción, o incompatibilidad de esquema sin aprobación;
+- plan fuera de alcance (SQL, IAM, etc.) falla;
+- bootstrap prohibido;
+- smoke del dominio oficial sigue pendiente DNS.
+
+### Checklist activación R6-C en GCP (Git ≠ producción lista)
+
+| Ítem | Estado |
+|------|--------|
+| `deploy_identity` aplicado | Pendiente operador |
+| Environment `production` + revisores | Pendiente |
+| `GCP_DEPLOY_*`, `TF_STATE_BUCKET` | Pendiente |
+| `MAPS_PRODUCTION_BASELINE_JSON` o baseline local | Pendiente |
+| Registro R5 en GCS (`baseline` + evidencia Cloud Run) | Pendiente |
+| Bucket: sin acceso público; prefijos `promotion/*` | Verificar IAM |
+| Primer `release-promote` verify+plan+apply (sin DNS smoke) | Pendiente ensayo |
+| Rollback de prueba contra registro real | Pendiente ensayo |
 
 ### R6-D — Retención en simulación y cierre operativo
 

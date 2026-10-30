@@ -1,0 +1,52 @@
+{
+  "resource_changes": [
+    {
+      "address": "module.runtime_services.google_cloud_run_v2_service.frontend",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/frontend@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }] }]
+        },
+        "after": {
+          "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/frontend@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }] }]
+        }
+      }
+    },
+    {
+      "address": "module.runtime_services.google_cloud_run_v2_service.backend",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/backend@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" }] }]
+        },
+        "after": {
+          "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/backend@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" }] }]
+        }
+      }
+    },
+    {
+      "address": "module.runtime_jobs.google_cloud_run_v2_job.migrate",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/jobs@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" }] }]
+        },
+        "after": {
+          "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/jobs@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" }] }]
+        }
+      }
+    },
+    {
+      "address": "module.runtime_jobs.google_cloud_run_v2_job.bootstrap",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/jobs@sha256:1111111111111111111111111111111111111111111111111111111111111111" }] }]
+        },
+        "after": {
+          "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/jobs@sha256:2222222222222222222222222222222222222222222222222222222222222222" }] }]
+        }
+      }
+    }
+  ]
+}
