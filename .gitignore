@@ -129,3 +129,10 @@ credentials.tfrc.json
 # IMPORTANTE:
 # .terraform.lock.hcl SÍ se versiona.
 # terraform.tfvars de MAPS puede versionarse solo con valores NO sensibles.
+
+# Baseline R5 real (digests + git_sha); usar production-baseline.json.example como plantilla
+config/release/production-baseline.json
+promotion-bundle/
+plan.tfplan
+plan.json
+migrate-evidence.json

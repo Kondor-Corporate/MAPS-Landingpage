@@ -1,0 +1,345 @@
+# Promoción controlada a producción (R6-C3).
+#
+# No reemplaza la revisión humana del terraform plan: el operador genera el plan
+# localmente, lo valida, lo sube a GCS y recién entonces dispara la fase apply.
+#
+# Requiere en GitHub (environment production): revisores, TF_STATE_BUCKET,
+# GCP_DEPLOY_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOY_SERVICE_ACCOUNT.
+# Requiere en GCP: module deploy_identity aplicado.
+#
+# Solo disponible en main (workflow_dispatch).
+
+name: Release promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_sha:
+        description: SHA de 40 hex del release (debe estar en development)
+        required: true
+        type: string
+      release_build_run_id:
+        description: ID numérico de la corrida release-build que publicó el manifiesto
+        required: true
+        type: string
+      phase:
+        description: verify = preflight; apply = ejecutar plan ya revisado
+        required: true
+        type: choice
+        options:
+          - verify
+          - apply
+      verify_run_id:
+        description: 'Fase apply: run id de esta misma workflow en fase verify'
+        required: false
+        type: string
+      plan_sha256:
+        description: 'Fase apply: SHA256 del plan.tfplan subido a GCS'
+        required: false
+        type: string
+      plan_mode:
+        description: Modo usado al validar el plan (full, jobs-only, services-only)
+        required: false
+        type: choice
+        options:
+          - full
+          - jobs-only
+          - services-only
+        default: full
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+concurrency:
+  group: maps-prod-release
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: true
+  TF_DIR: infra/terraform/environments/production
+
+jobs:
+  verify-release:
+    name: Verificar release
+    if: github.ref == 'refs/heads/main' && inputs.phase == 'verify'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Rechazar SHA mal formado
+        env:
+          GIT_SHA: ${{ inputs.git_sha }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$GIT_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::git_sha debe ser 40 hex en minúscula."
+            exit 1
+          fi
+          if ! printf '%s' "${{ inputs.release_build_run_id }}" | grep -Eq '^[0-9]+$'; then
+            echo "::error::release_build_run_id debe ser numérico."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Preflight de promoción (descarga manifiesto desde GitHub)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MAPS_PRODUCTION_BASELINE_JSON: ${{ vars.MAPS_PRODUCTION_BASELINE_JSON }}
+        run: |
+          set -euo pipefail
+          node scripts/release/run-promotion-preflight.mjs \
+            "${{ inputs.git_sha }}" \
+            "${{ inputs.release_build_run_id }}" \
+            promotion-bundle
+
+      - name: Publicar bundle de promoción
+        uses: actions/upload-artifact@v4
+        with:
+          name: promotion-bundle
+          path: |
+            promotion-bundle/release-manifest.json
+            promotion-bundle/promotion.auto.tfvars
+            promotion-bundle/promotion-report.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Instrucciones de plan (revisión humana obligatoria)
+        env:
+          PLAN_MODE: ${{ inputs.plan_mode }}
+        run: |
+          set -euo pipefail
+          echo "::notice::Run id de verify: ${{ github.run_id }}"
+          echo "1) Descargar promotion-bundle de este run."
+          echo "2) En ${TF_DIR}, plan local con tfvars existentes + promotion.auto.tfvars."
+          echo "3) terraform show -json plan.tfplan > plan.json"
+          echo "4) node scripts/release/validate-terraform-plan.mjs plan.json --mode ${PLAN_MODE}"
+          echo "5) sha256sum plan.tfplan  # usar como plan_sha256 en apply"
+          echo "6) gsutil -h x-goog-if-generation-match:0 cp plan.tfplan gs://\$TF_STATE_BUCKET/promotion/plans/${{ github.run_id }}/${PLAN_MODE}.tfplan"
+          echo "7) Subir binding JSON a promotion/plans/${{ github.run_id }}/${PLAN_MODE}.binding.json (schema en promotion-phase-guard / README)."
+          echo "8) Disparar phase=apply con verify_run_id, plan_sha256 y plan_mode=${PLAN_MODE}."
+          echo "Planes: no publicar en artifacts ni logs; bucket con acceso restringido."
+
+  apply-approved-plan:
+    name: Apply plan aprobado
+    if: github.ref == 'refs/heads/main' && inputs.phase == 'apply'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+
+    steps:
+      - name: Exigir parámetros de apply
+        run: |
+          set -euo pipefail
+          if [ -z "${{ inputs.verify_run_id }}" ] || [ -z "${{ inputs.plan_sha256 }}" ]; then
+            echo "::error::apply exige verify_run_id y plan_sha256 del plan ya revisado."
+            exit 1
+          fi
+          if ! printf '%s' "${{ inputs.plan_sha256 }}" | grep -Eq '^[0-9a-f]{64}$'; then
+            echo "::error::plan_sha256 debe ser 64 hex (sha256 del plan.tfplan)."
+            exit 1
+          fi
+
+      - name: Bloquear sin identidad de deploy configurada
+        env:
+          DEPLOY_PROVIDER: ${{ vars.GCP_DEPLOY_WORKLOAD_IDENTITY_PROVIDER }}
+          DEPLOY_SA: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "$DEPLOY_PROVIDER" ]; then
+            echo "::error::Falta variable GCP_DEPLOY_WORKLOAD_IDENTITY_PROVIDER (environment production)."
+            missing=1
+          fi
+          if [ -z "$DEPLOY_SA" ]; then
+            echo "::error::Falta variable GCP_DEPLOY_SERVICE_ACCOUNT."
+            missing=1
+          fi
+          if [ -z "$STATE_BUCKET" ]; then
+            echo "::error::Falta variable TF_STATE_BUCKET."
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Apply bloqueado hasta apply de deploy_identity y configuración del environment."
+            exit 1
+          fi
+          case "$DEPLOY_PROVIDER" in
+            projects/*/locations/global/workloadIdentityPools/*/providers/*) ;;
+            *)
+              echo "::error::GCP_DEPLOY_WORKLOAD_IDENTITY_PROVIDER mal formado."
+              exit 1
+              ;;
+          esac
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_sha }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+
+      - name: Recuperar bundle del verify (no manifiesto local arbitrario)
+        uses: actions/download-artifact@v4
+        with:
+          name: promotion-bundle
+          run-id: ${{ inputs.verify_run_id }}
+          github-token: ${{ github.token }}
+          path: promotion-bundle
+
+      - name: Revalidar manifiesto del bundle
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node scripts/release/verify-release-authenticity.mjs \
+            promotion-bundle/release-manifest.json \
+            "${{ inputs.git_sha }}" \
+            --github
+          node -e "
+            const m=require('fs').readFileSync('promotion-bundle/release-manifest.json','utf8');
+            const j=JSON.parse(m);
+            const u=j.build_run_url||'';
+            const id=(u.match(/\\/runs\\/([0-9]+)/)||[])[1];
+            if(id!=='${{ inputs.release_build_run_id }}'){process.exit(1)}
+          " || { echo "::error::Manifiesto del bundle no coincide con release_build_run_id."; exit 1; }
+
+      - name: Autenticar identidad de deploy (no build)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_DEPLOY_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Instalar gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Verificar digests en Artifact Registry
+        run: |
+          set -euo pipefail
+          node scripts/release/verify-release-authenticity.mjs \
+            promotion-bundle/release-manifest.json \
+            "${{ inputs.git_sha }}" \
+            --gcp
+
+      - name: Descargar binding y evidencia de migrate (GCS)
+        env:
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          VERIFY_RUN_ID: ${{ inputs.verify_run_id }}
+          PLAN_MODE: ${{ inputs.plan_mode }}
+        run: |
+          set -euo pipefail
+          gsutil cp "gs://${STATE_BUCKET}/promotion/plans/${VERIFY_RUN_ID}/${PLAN_MODE}.binding.json" plan.binding.json
+          needs="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).migration?.requires_jobs_first_apply===true")"
+          if [ "$needs" = "true" ] && [ "$PLAN_MODE" = "services-only" ]; then
+            gsutil cp "gs://${STATE_BUCKET}/promotion/migrate-done/${VERIFY_RUN_ID}.json" migrate-evidence.json
+          fi
+
+      - name: Comprobaciones de fase y binding (apply gate)
+        env:
+          VERIFY_RUN_ID: ${{ inputs.verify_run_id }}
+          PLAN_MODE: ${{ inputs.plan_mode }}
+          PLAN_SHA256: ${{ inputs.plan_sha256 }}
+        run: |
+          set -euo pipefail
+          args=(
+            --promotion-report=promotion-bundle/promotion-report.json
+            --plan-mode="${PLAN_MODE}"
+            --verify-run-id="${VERIFY_RUN_ID}"
+            --plan-binding=plan.binding.json
+            --require-plan-binding=true
+            --plan-sha256="${PLAN_SHA256}"
+            --git-sha="${{ inputs.git_sha }}"
+            --release-build-run-id="${{ inputs.release_build_run_id }}"
+          )
+          needs="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).migration?.requires_jobs_first_apply===true")"
+          if [ "$needs" = "true" ] && [ "$PLAN_MODE" = "services-only" ]; then
+            args+=(--migrate-evidence=migrate-evidence.json)
+          fi
+          node scripts/release/validate-promotion-apply-gate.mjs "${args[@]}"
+
+      - name: Descargar plan aprobado desde GCS
+        env:
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          VERIFY_RUN_ID: ${{ inputs.verify_run_id }}
+          PLAN_MODE: ${{ inputs.plan_mode }}
+        run: |
+          set -euo pipefail
+          gsutil cp "gs://${STATE_BUCKET}/promotion/plans/${VERIFY_RUN_ID}/${PLAN_MODE}.tfplan" plan.tfplan
+          printf '%s' "${{ inputs.plan_sha256 }}" > expected.sha256
+          actual="$(sha256sum plan.tfplan | awk '{print $1}')"
+          expected="$(tr -d '[:space:]' < expected.sha256)"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::SHA256 del plan no coincide con plan_sha256."
+            exit 1
+          fi
+
+      - name: Validar alcance del plan (JSON)
+        run: |
+          set -euo pipefail
+          terraform show -json plan.tfplan > plan.json
+          node scripts/release/validate-terraform-plan.mjs plan.json --mode "${{ inputs.plan_mode }}"
+
+      - name: Apply del plan aprobado (no apply suelto)
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          set -euo pipefail
+          terraform init -input=false
+          terraform apply -input=false "${{ github.workspace }}/plan.tfplan"
+
+      - name: Ejecutar maps-prod-migrate y registrar evidencia (jobs-only)
+        if: inputs.plan_mode == 'jobs-only'
+        env:
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          VERIFY_RUN_ID: ${{ inputs.verify_run_id }}
+        run: |
+          set -euo pipefail
+          needs="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).migration?.requires_jobs_first_apply===true")"
+          if [ "$needs" != "true" ]; then
+            echo "Sin migraciones nuevas: no se ejecuta maps-prod-migrate."
+            exit 0
+          fi
+          exec_name="$(gcloud run jobs execute maps-prod-migrate \
+            --project=maps-prod-landing-page \
+            --region=southamerica-east1 \
+            --wait \
+            --format='value(name)')"
+          node scripts/release/validate-promotion-apply-gate.mjs \
+            --promotion-report=promotion-bundle/promotion-report.json \
+            --plan-mode=jobs-only \
+            --verify-run-id="${VERIFY_RUN_ID}" \
+            --git-sha="${{ inputs.git_sha }}" \
+            --release-build-run-id="${{ inputs.release_build_run_id }}" \
+            --shell-command="gcloud run jobs execute maps-prod-migrate"
+          node scripts/release/record-migrate-evidence.mjs \
+            --bucket="${STATE_BUCKET}" \
+            --verify-run-id="${VERIFY_RUN_ID}" \
+            --git-sha="${{ inputs.git_sha }}" \
+            --release-build-run-id="${{ inputs.release_build_run_id }}" \
+            --execution-name="${exec_name}"
+
+      - name: Verificación posterior (sin smoke público del dominio)
+        run: |
+          set -euo pipefail
+          node -e "
+            const r=JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8'));
+            console.log('post_checks: cloud_run_ready_and_digests=run post-promotion-verify when operational');
+            console.log('public_smoke=pending_dns_and_certificate');
+          "

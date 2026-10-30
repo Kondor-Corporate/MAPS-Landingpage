@@ -372,7 +372,7 @@ R6-C se divide en sub-bloques. Staging deja de ser un requisito obligatorio del 
 |------------|-----------|
 | **R6-C1** | Validación reutilizable del manifiesto (`scripts/release/validate-manifest.mjs`). Primera barrera estructural; **no** autoriza despliegue ni demuestra por sí sola que el artifact vino de un Release build exitoso ni que los digests existen en Artifact Registry. |
 | **R6-C2** | Identidad de deploy, environment `production`, aprobación humana y comprobaciones de autenticidad del manifiesto (procedencia del artifact, coherencia con la corrida de release). |
-| **R6-C3** | Workflow de promoción: `terraform plan` acotado, migrate si corresponde, apply con aprobación. |
+| **R6-C3** | Workflow de promoción: `release-promote.yml`, plan revisado localmente, apply del plan en GCS, migrate si corresponde. |
 | **R6-C4** | Workflow de rollback por manifiesto anterior y nota breve en el runbook de producción. |
 
 Validación local del manifiesto (Windows PowerShell, desde la raíz del repositorio):
@@ -410,13 +410,26 @@ El módulo `deploy_identity` en producción **no usa `count`**: `terraform_state
 
 Entregables pendientes de R6-C (conjunto):
 
-- workflow de promoción (R6-C3);
 - environment `production` con revisores (R6-C2);
-- grupos de concurrencia;
-- cuenta de deploy con el permiso mínimo que el plan haya justificado (R6-C2);
-- mecanismo de compartición con staging, solo si el equipo lo retoma (opcional);
-- workflow de rollback por un manifiesto anterior (R6-C4);
-- actualización breve del runbook de producción para que «Deploys posteriores» apunte a este flujo (R6-C4).
+- apply de `deploy_identity` en GCP y variables `GCP_DEPLOY_*` / `TF_STATE_BUCKET`;
+- completar `config/release/production-baseline.json` antes de la primera promoción automática;
+- workflow de rollback por manifiesto anterior (R6-C4);
+- actualización breve del runbook de producción para que «Deploys posteriores» apunte a este flujo (R6-C4, parcialmente hecho en R6-C3).
+
+### R6-C3 — Promoción controlada (implementado en repo, no ejecutado)
+
+Archivos principales:
+
+- `.github/workflows/release-promote.yml` — fases `verify` (sin environment) y `apply` (environment `production`, identidad deploy);
+- `scripts/release/run-promotion-preflight.mjs` — descarga manifiesto desde artifact GitHub;
+- `scripts/release/validate-terraform-plan.mjs` — alcance del plan;
+- `config/release/production-baseline.json` — punto de recuperación R5 (completar manualmente).
+
+**Revisión del plan (no simulada):** GitHub aprueba el job `apply` **antes** de que corra; por eso el `terraform plan` ocurre **fuera** del job protegido. El operador valida `plan.json`, sube `plan.tfplan` a GCS y dispara apply con `verify_run_id` + `plan_sha256`. El job apply vuelve a validar manifiesto, digests GCP, hash del plan y JSON del plan antes de `terraform apply plan.tfplan`.
+
+Concurrencia: `maps-prod-release`. Prohibido `maps-prod-bootstrap`. Smoke público: pendiente DNS.
+
+### R6-C4 — Rollback (pendiente)
 
 Criterios:
 

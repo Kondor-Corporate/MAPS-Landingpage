@@ -45,6 +45,25 @@ export function createGithubReleaseClient(options = {}) {
     return response.json();
   }
 
+  async function githubGetBuffer(url) {
+    if (!token) {
+      throw new Error('Falta GH_TOKEN o GITHUB_TOKEN para consultar GitHub.');
+    }
+    const response = await fetchFn(url, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      redirect: 'follow',
+    });
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`GitHub download ${response.status}: ${body.slice(0, 200)}`);
+    }
+    return Buffer.from(await response.arrayBuffer());
+  }
+
   return {
     owner,
     repo,
@@ -97,6 +116,32 @@ export function createGithubReleaseClient(options = {}) {
         `/repos/${owner}/${repo}/compare/${commitSha}...${branch}`,
       );
       return comparison.status === 'ahead' || comparison.status === 'identical';
+    },
+
+    /**
+     * Descarga el ZIP del artifact release-manifest-<gitSha> de una corrida release-build.
+     * @param {string} runId
+     * @param {string} gitSha
+     */
+    async downloadReleaseManifestZip(runId, gitSha) {
+      const artifacts = await this.listRunArtifacts(runId);
+      const assertErrors = assertReleaseManifestArtifact(artifacts, gitSha, runId);
+      if (assertErrors.length > 0) {
+        throw new Error(assertErrors.join(' '));
+      }
+      const expectedName = releaseManifestArtifactName(gitSha);
+      const artifact = artifacts.find(
+        (a) =>
+          a.name === expectedName
+          && String(a.workflow_run_id ?? '') === String(runId),
+      );
+      const artifactId = artifact?.id;
+      if (artifactId === undefined || artifactId === null) {
+        throw new Error('Artifact de manifiesto no encontrado tras validación.');
+      }
+      return githubGetBuffer(
+        `${apiBase}/repos/${owner}/${repo}/actions/artifacts/${artifactId}/zip`,
+      );
     },
   };
 }

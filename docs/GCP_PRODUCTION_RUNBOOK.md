@@ -363,8 +363,24 @@ vuelve a correr el bootstrap.
 9. Smoke tests de la fase 6 que toque el cambio.
 
 La promoción inmutable, la limpieza de Artifact Registry y las release
-operations las cierra R6. Esos mecanismos no están implementados. No se
-adelantan aquí.
+operations las cierra R6. El flujo automatizado está en
+`.github/workflows/release-promote.yml` y en
+[`docs/R6_RELEASE_OPERATIONS_PLAN.md`](./R6_RELEASE_OPERATIONS_PLAN.md) (R6-C3).
+Hasta activar `deploy_identity`, el environment `production` y completar
+`config/release/production-baseline.json`, la fase **apply** del workflow
+permanece bloqueada.
+
+Secuencia resumida:
+
+1. Release build (R6-B) deja manifiesto en GitHub Actions.
+2. `release-promote` fase **verify** descarga el manifiesto y publica `promotion-bundle`.
+3. Operador genera **`terraform plan` local**, valida con
+   `scripts/release/validate-terraform-plan.mjs` y sube el plan a
+   `gs://<state-bucket>/promotion/plans/<verify_run_id>.tfplan`.
+4. Fase **apply** (environment `production`, identidad deploy) aplica **ese**
+   plan; si hay migraciones, `jobs-only` + `maps-prod-migrate` y luego un
+   segundo plan `services-only`.
+5. Smoke del dominio oficial sigue pendiente de DNS/certificado.
 
 ## Secretos y rotación
 

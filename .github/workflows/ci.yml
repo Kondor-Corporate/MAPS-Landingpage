@@ -24,6 +24,7 @@ jobs:
           node --test scripts/release/validate-manifest.test.mjs
           node --test scripts/release/verify-release-authenticity.test.mjs
           node --test scripts/release/deploy-identity-contract.test.mjs
+          node --test scripts/release/promotion-c3.test.mjs
 
   backend:
     runs-on: ubuntu-latest

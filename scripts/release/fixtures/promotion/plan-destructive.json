@@ -1,0 +1,8 @@
+{
+  "resource_changes": [
+    {
+      "address": "module.runtime_services.google_cloud_run_v2_service.frontend",
+      "change": { "actions": ["delete"] }
+    }
+  ]
+}
