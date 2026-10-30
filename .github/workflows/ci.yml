@@ -6,6 +6,22 @@ on:
   pull_request:
 
 jobs:
+  release-manifest-validator:
+    name: Release manifest validator
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validador de manifiesto de release (tests)
+        run: node --test scripts/release/validate-manifest.test.mjs
+
   backend:
     runs-on: ubuntu-latest
     timeout-minutes: 20

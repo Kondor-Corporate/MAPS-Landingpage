@@ -343,6 +343,8 @@ Hecho cuando el equipo confirma o corrige las decisiones abiertas de la sección
 
 ### R6-B — Construcción y manifiesto
 
+**Estado (30/10/2026):** R6-B cerrado en operación. El Release build #6 (`40992146277`) terminó en success para el SHA `274a938e483e0474ab5d4bf8f344a8387690c6d0`, publicó cuatro imágenes en `maps-prod` y dejó el artifact `release-manifest-<sha>`.
+
 R6-B.1, en el repositorio y sin ejecutar:
 
 - `backend/cloudbuild.yaml` y `frontend/cloudbuild.yaml`, con `CLOUD_LOGGING_ONLY` y `maps-prod-build`;
@@ -362,17 +364,35 @@ Criterios para dar por cerrado R6-B, cuando eso se active:
 - Cloud Run, los jobs y el state no cambian;
 - los logs no muestran payloads de secretos.
 
-### R6-C — Staging, producción, migrate y rollback
+### R6-C — Promoción, identidad y rollback
 
-Entregables:
+R6-C se divide en sub-bloques. Staging deja de ser un requisito obligatorio del camino de promoción: no tiene que permanecer operativo para promover a producción. Apagar o reducir staging es una tarea aparte de control de costos, no parte de R6-C1.
 
-- workflow de promoción;
-- environment `production` con revisores;
+| Sub-bloque | Contenido |
+|------------|-----------|
+| **R6-C1** | Validación reutilizable del manifiesto (`scripts/release/validate-manifest.mjs`). Primera barrera estructural; **no** autoriza despliegue ni demuestra por sí sola que el artifact vino de un Release build exitoso ni que los digests existen en Artifact Registry. |
+| **R6-C2** | Identidad de deploy, environment `production`, aprobación humana y comprobaciones de autenticidad del manifiesto (procedencia del artifact, coherencia con la corrida de release). |
+| **R6-C3** | Workflow de promoción: `terraform plan` acotado, migrate si corresponde, apply con aprobación. |
+| **R6-C4** | Workflow de rollback por manifiesto anterior y nota breve en el runbook de producción. |
+
+Validación local del manifiesto (Windows PowerShell, desde la raíz del repositorio):
+
+```powershell
+node scripts/release/validate-manifest.mjs .\ruta\release-manifest.json 274a938e483e0474ab5d4bf8f344a8387690c6d0
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+```
+
+Los tests del validador corren en CI en el job `Release manifest validator`, sin credenciales de GCP.
+
+Entregables pendientes de R6-C (conjunto):
+
+- workflow de promoción (R6-C3);
+- environment `production` con revisores (R6-C2);
 - grupos de concurrencia;
-- cuenta de deploy con el permiso mínimo que el plan haya justificado;
-- lectura de `maps-staging` o el mecanismo de compartición que se haya elegido;
-- workflow de rollback por un manifiesto anterior;
-- actualización breve del runbook de producción para que «Deploys posteriores» apunte a este flujo.
+- cuenta de deploy con el permiso mínimo que el plan haya justificado (R6-C2);
+- mecanismo de compartición con staging, solo si el equipo lo retoma (opcional);
+- workflow de rollback por un manifiesto anterior (R6-C4);
+- actualización breve del runbook de producción para que «Deploys posteriores» apunte a este flujo (R6-C4).
 
 Criterios:
 
