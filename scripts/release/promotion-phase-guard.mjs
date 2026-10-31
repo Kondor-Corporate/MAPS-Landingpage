@@ -2,7 +2,13 @@
  * Restricciones de fase para promoción con migraciones (R6-C3).
  */
 
-import { BOOTSTRAP_JOB_NAME } from './promotion-plan-contract.mjs';
+import {
+  BOOTSTRAP_JOB_NAME,
+  REPORT_OPERATION_BY_INPUT,
+  normalizeRunId,
+} from './promotion-plan-contract.mjs';
+
+const COMMIT_SHA_RE = /^[0-9a-f]{40}$/;
 
 /**
  * @param {object} input
@@ -83,8 +89,11 @@ export function validateMigrateEvidence(evidence, expected) {
   if (evidence.git_sha !== expected.gitSha) {
     errors.push('migrate evidence: git_sha no coincide.');
   }
-  if (String(evidence.release_build_run_id) !== String(expected.releaseBuildRunId)) {
+  if (normalizeRunId(evidence.release_build_run_id) !== normalizeRunId(expected.releaseBuildRunId)) {
     errors.push('migrate evidence: release_build_run_id no coincide.');
+  }
+  if (expected.automationSha !== undefined && evidence.automation_sha !== expected.automationSha) {
+    errors.push('migrate evidence: automation_sha no coincide con el commit de main que ejecuta este apply.');
   }
   if (evidence.job_name !== 'maps-prod-migrate') {
     errors.push('migrate evidence: job_name debe ser maps-prod-migrate.');
@@ -117,17 +126,106 @@ export function validatePlanBinding(binding, expected) {
   if (binding.git_sha !== expected.gitSha) {
     errors.push('plan binding: git_sha no coincide.');
   }
-  if (String(binding.release_build_run_id) !== String(expected.releaseBuildRunId)) {
+  if (normalizeRunId(binding.release_build_run_id) !== normalizeRunId(expected.releaseBuildRunId)) {
     errors.push('plan binding: release_build_run_id no coincide.');
   }
   if (binding.plan_mode !== expected.planMode) {
     errors.push('plan binding: plan_mode no coincide.');
+  }
+  // El plan solo vale para el commit de main (scripts y Terraform) bajo el que se generó.
+  if (typeof binding.automation_sha !== 'string' || !COMMIT_SHA_RE.test(binding.automation_sha)) {
+    errors.push('plan binding: falta automation_sha (commit de main del verify). Repetir verify y plan.');
+  } else if (binding.automation_sha !== expected.automationSha) {
+    errors.push(
+      'plan binding: el plan se generó con otro commit de main que el que ejecuta este apply. '
+      + 'Main cambió desde el verify: repetir verify, plan y binding.',
+    );
   }
   if (typeof binding.plan_sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(binding.plan_sha256)) {
     errors.push('plan binding: plan_sha256 inválido.');
   }
   if (expected.planSha256 && binding.plan_sha256 !== expected.planSha256) {
     errors.push('plan binding: plan_sha256 no coincide con el input del workflow.');
+  }
+  return errors;
+}
+
+/**
+ * Los inputs de la fase apply deben describir la misma operación que el bundle del verify.
+ * Sin esto, un bundle de promoción podría aplicarse con operation=rollback (o al revés) o con
+ * otro git_sha, porque el workflow solo comparaba el binding contra los inputs.
+ *
+ * @param {object} input
+ * @param {string} [input.inputOperation] promote | rollback
+ * @param {string} [input.inputGitSha]
+ * @param {string} [input.inputReleaseBuildRunId]
+ * @param {string} [input.inputTargetDeploymentId]
+ * @param {string} [input.inputAutomationSha] commit de main que ejecuta este apply (GITHUB_SHA)
+ * @param {Record<string, unknown>} input.report promotion-report.json del bundle
+ */
+export function validateApplyInputsMatchReport(input) {
+  const errors = [];
+  const report = input.report ?? {};
+
+  // El bundle lo produjo el verify bajo un commit de main concreto. Si main avanzó, los
+  // scripts y el Terraform de este apply ya no son los que se revisaron.
+  if (typeof input.inputAutomationSha !== 'string' || !COMMIT_SHA_RE.test(input.inputAutomationSha)) {
+    errors.push('Falta el commit de main que ejecuta el apply (--automation-sha).');
+  } else if (typeof report.automation_sha !== 'string' || !COMMIT_SHA_RE.test(report.automation_sha)) {
+    errors.push('El bundle del verify no declara automation_sha. Repetir la fase verify.');
+  } else if (report.automation_sha !== input.inputAutomationSha) {
+    errors.push(
+      `El verify corrió con el commit de main ${report.automation_sha} y este apply con ${input.inputAutomationSha}. `
+      + 'Main cambió: repetir verify, plan y binding.',
+    );
+  }
+  const reportOperation = report.operation === 'promote' ? 'forward' : (report.operation ?? 'forward');
+
+  if (input.inputOperation !== undefined) {
+    const expected = REPORT_OPERATION_BY_INPUT[input.inputOperation];
+    if (expected === undefined) {
+      errors.push('operation del workflow inválida.');
+    } else if (expected !== reportOperation) {
+      errors.push(
+        `operation=${input.inputOperation} no corresponde al bundle del verify (${String(report.operation)}).`,
+      );
+    }
+  }
+  if (input.inputGitSha !== undefined && input.inputGitSha !== report.git_sha) {
+    errors.push('git_sha del workflow no coincide con el del bundle del verify.');
+  }
+  if (
+    input.inputReleaseBuildRunId !== undefined
+    && normalizeRunId(input.inputReleaseBuildRunId) !== normalizeRunId(report.release_build_run_id)
+  ) {
+    errors.push('release_build_run_id del workflow no coincide con el del bundle del verify.');
+  }
+  if (reportOperation === 'rollback') {
+    if (
+      input.inputTargetDeploymentId !== undefined
+      && input.inputTargetDeploymentId !== String(report.target_deployment_id ?? '')
+    ) {
+      errors.push('target_deployment_id del workflow no coincide con el del bundle del verify.');
+    }
+  } else if (input.inputTargetDeploymentId) {
+    errors.push('target_deployment_id solo aplica a rollback.');
+  }
+  return errors;
+}
+
+/**
+ * Las imágenes del informe de promoción deben ser las del manifiesto del bundle: son las que
+ * el plan, la verificación posterior y el registro van a dar por aprobadas.
+ *
+ * @param {Record<string, unknown>} reportImages
+ * @param {Record<string, string>} manifestTfvars frontend_image, backend_image, jobs_image
+ */
+export function validateReportImagesMatchManifest(reportImages, manifestTfvars) {
+  const errors = [];
+  for (const key of ['frontend_image', 'backend_image', 'jobs_image']) {
+    if (reportImages?.[key] !== manifestTfvars[key]) {
+      errors.push(`promotion-report.json: ${key} no coincide con el manifiesto del bundle.`);
+    }
   }
   return errors;
 }

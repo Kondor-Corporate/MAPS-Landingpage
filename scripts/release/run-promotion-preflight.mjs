@@ -39,6 +39,7 @@ export function loadProductionBaseline(repoRoot) {
  * @param {string} options.releaseBuildRunId
  * @param {string} [options.repoRoot]
  * @param {string} [options.outDir]
+ * @param {string} [options.automationSha] GITHUB_SHA del workflow (commit de main)
  */
 export async function runPromotionPreflight(options) {
   const errors = [];
@@ -108,6 +109,8 @@ export async function runPromotionPreflight(options) {
   const tfvarsHcl = formatPromotionTfvarsHcl(images.tfvars);
   const report = {
     operation: 'forward',
+    // Commit de main que ejecuta este verify: el plan y el apply quedan ligados a él.
+    automation_sha: options.automationSha,
     git_sha: options.gitSha,
     release_build_run_id: options.releaseBuildRunId,
     images: images.images,
@@ -140,8 +143,14 @@ async function runCli(argv) {
   }
   const [gitSha, runId, outDirArg] = argv;
   const repoRoot = process.cwd();
+  const automationSha = process.env.GITHUB_SHA ?? '';
+  if (!/^[0-9a-f]{40}$/.test(automationSha)) {
+    process.stderr.write('error: GITHUB_SHA ausente o inválido; el verify solo corre dentro del workflow.\n');
+    process.exit(2);
+  }
   const result = await runPromotionPreflight({
     gitSha,
+    automationSha,
     releaseBuildRunId: runId,
     repoRoot,
     outDir: outDirArg,

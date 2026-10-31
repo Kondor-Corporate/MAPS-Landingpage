@@ -44,7 +44,7 @@
           "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/jobs@sha256:1111111111111111111111111111111111111111111111111111111111111111" }] }]
         },
         "after": {
-          "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/jobs@sha256:2222222222222222222222222222222222222222222222222222222222222222" }] }]
+          "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/jobs@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" }] }]
         }
       }
     }

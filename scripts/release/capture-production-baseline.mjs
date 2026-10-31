@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+import { extractJobImage, extractServiceImage } from './post-promotion-verify.mjs';
 import { validateProductionBaseline } from './validate-production-baseline.mjs';
 
 const IMAGE_REF_RE = /@sha256:[0-9a-f]{64}$/i;
@@ -29,11 +30,9 @@ function readImageFile(path) {
   const text = readFileSync(path, 'utf8').trim();
   if (text.startsWith('{')) {
     const j = JSON.parse(text);
-    const img =
-      j.image
-      ?? j.spec?.template?.spec?.containers?.[0]?.image
-      ?? j.template?.template?.spec?.containers?.[0]?.image;
-    if (typeof img === 'string') {
+    // describe de servicio o de job (forma v1 de gcloud o v2), o un {"image": "…"} suelto.
+    const img = j.image || extractServiceImage(j) || extractJobImage(j);
+    if (typeof img === 'string' && img !== '') {
       return normalizeImageRef(img);
     }
   }

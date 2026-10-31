@@ -17,6 +17,9 @@ export function buildMigrateEvidenceRecord(input) {
     schema_version: 1,
     verify_run_id: input.verifyRunId,
     git_sha: input.gitSha,
+    // Commit de main (scripts y Terraform) bajo el que se ejecutó la migración; el apply
+    // services-only solo la acepta si corre con ese mismo commit.
+    automation_sha: input.automationSha,
     release_build_run_id: String(input.releaseBuildRunId),
     job_name: 'maps-prod-migrate',
     execution_name: input.executionName,
@@ -65,9 +68,10 @@ function runCli(argv) {
     || !args['git-sha']
     || !args['release-build-run-id']
     || !args['execution-name']
+    || !/^[0-9a-f]{40}$/.test(args['automation-sha'] ?? '')
   ) {
     process.stderr.write(
-      'Uso: node record-migrate-evidence.mjs --bucket=BUCKET --verify-run-id=... --git-sha=... --release-build-run-id=... --execution-name=...\n',
+      'Uso: node record-migrate-evidence.mjs --bucket=BUCKET --verify-run-id=... --git-sha=... --release-build-run-id=... --execution-name=... --automation-sha=<GITHUB_SHA>\n',
     );
     process.exit(2);
   }
@@ -77,6 +81,7 @@ function runCli(argv) {
       gitSha: args['git-sha'],
       releaseBuildRunId: args['release-build-run-id'],
       executionName: args['execution-name'],
+      automationSha: args['automation-sha'],
     },
     args.bucket,
   );
@@ -96,5 +101,3 @@ const isMain =
 if (isMain) {
   runCli(process.argv.slice(2));
 }
-
-export { buildMigrateEvidenceRecord };

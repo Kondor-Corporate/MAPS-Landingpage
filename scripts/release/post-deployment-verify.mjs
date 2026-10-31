@@ -1,21 +1,27 @@
 /**
  * Informe estructurado post apply (promoción o rollback).
+ *
+ * Qué se comprueba depende del modo de plan aplicado (VERIFY_COMPONENTS_BY_MODE):
+ * tras `jobs-only` los servicios todavía tienen la imagen anterior y no deben medirse.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+import { PLAN_MODES, VERIFY_COMPONENTS_BY_MODE } from './promotion-plan-contract.mjs';
 import { PUBLIC_SMOKE_STATUS, verifyCloudRunDigests } from './post-promotion-verify.mjs';
 
 /**
  * @param {object} input
  * @param {Record<string, string>} input.expectedImages
- * @param {{ ok: boolean, errors?: string[] }} [input.cloudRunVerify]
+ * @param {{ ok: boolean, errors?: string[] }} input.cloudRunVerify resultado explícito: sin dato no hay éxito
+ * @param {Array<'services' | 'jobs'>} [input.components]
  * @param {string} [input.healthCheckStatus]
  */
 export function buildPostDeploymentVerifyReport(input) {
   const errors = [];
-  const cloudRun = input.cloudRunVerify ?? { ok: true };
+  const cloudRun = input.cloudRunVerify ?? { ok: false, errors: ['Cloud Run no verificado.'] };
+  const components = input.components ?? VERIFY_COMPONENTS_BY_MODE.full;
 
   if (!cloudRun.ok) {
     errors.push(...(cloudRun.errors ?? ['Cloud Run no verificado.']));
@@ -26,8 +32,8 @@ export function buildPostDeploymentVerifyReport(input) {
     ok,
     errors,
     cloud_run: cloudRun.ok
-      ? { verified: true, expected: input.expectedImages }
-      : { verified: false, errors: cloudRun.errors },
+      ? { verified: true, components, expected: input.expectedImages }
+      : { verified: false, components, errors: cloudRun.errors },
     health_checks: input.healthCheckStatus ?? 'not_run_in_ci',
     public_smoke: PUBLIC_SMOKE_STATUS,
     terraform_state: input.terraformStateNote ?? 'Verificar manualmente state vs revisiones.',
@@ -36,18 +42,34 @@ export function buildPostDeploymentVerifyReport(input) {
 
 /**
  * @param {Record<string, string>} expectedImages
- * @param {{ project?: string, region?: string, runVerify?: boolean }} [options]
+ * @param {{
+ *   planMode?: 'full' | 'jobs-only' | 'services-only',
+ *   project?: string,
+ *   region?: string,
+ *   runVerify?: boolean,
+ *   describe?: Function,
+ * }} [options]
  */
 export function runPostDeploymentVerification(expectedImages, options = {}) {
-  if (options.runVerify === false) {
+  const planMode = options.planMode ?? 'full';
+  const components = VERIFY_COMPONENTS_BY_MODE[planMode];
+  if (!components) {
     return buildPostDeploymentVerifyReport({
       expectedImages,
-      cloudRunVerify: { ok: true },
+      cloudRunVerify: { ok: false, errors: [`plan_mode desconocido: ${String(planMode)}.`] },
+    });
+  }
+  if (options.runVerify === false) {
+    // Modo offline: sirve para probar el formato, nunca para declarar éxito.
+    return buildPostDeploymentVerifyReport({
+      expectedImages,
+      components,
+      cloudRunVerify: { ok: false, errors: ['Modo offline: Cloud Run no se comprobó.'] },
       healthCheckStatus: 'skipped_offline',
     });
   }
-  const cloudRunVerify = verifyCloudRunDigests(expectedImages, options);
-  return buildPostDeploymentVerifyReport({ expectedImages, cloudRunVerify });
+  const cloudRunVerify = verifyCloudRunDigests(expectedImages, { ...options, components });
+  return buildPostDeploymentVerifyReport({ expectedImages, components, cloudRunVerify });
 }
 
 /**
@@ -92,19 +114,21 @@ function runCli(argv) {
       }),
   );
   const reportPath = args.report;
-  if (!reportPath) {
+  const planMode = args['plan-mode'];
+  if (!reportPath || !PLAN_MODES.includes(planMode)) {
     process.stderr.write(
-      'Uso: node post-deployment-verify.mjs --report=promotion-report.json [--out=post-verify.json] [--offline]\n',
+      'Uso: node post-deployment-verify.mjs --report=promotion-report.json --plan-mode=full|jobs-only|services-only [--out=post-verify.json] [--offline]\n',
     );
     process.exit(2);
   }
   const report = JSON.parse(readFileSync(reportPath, 'utf8'));
   const expected = expectedImagesFromPromotionReport(report);
   const result = runPostDeploymentVerification(expected, {
+    planMode,
     runVerify: args.offline !== 'true',
   });
   const summary = summarizeDeploymentOutcome(result, report);
-  const payload = { ...result, summary };
+  const payload = { ...result, plan_mode: planMode, summary };
   if (args.out) {
     writeFileSync(args.out, JSON.stringify(payload, null, 2));
   }

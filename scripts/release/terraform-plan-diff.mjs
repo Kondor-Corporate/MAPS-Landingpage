@@ -40,10 +40,22 @@ export function collectDiffPaths(before, after, prefix = '') {
 const IMAGE_PATH =
   /^template(\.\d+)?(\.template(\.\d+)?)?\.containers(\.\d+)?\.image$/;
 
+/**
+ * Atributos de solo salida de Cloud Run v2 (estado observado, no configuración).
+ * Se aceptan en cualquier profundidad: `conditions.0.last_transition_time` cuelga de
+ * `conditions`. Un cambio ahí no puede alterar lo que el apply configura.
+ */
 const COMPUTED_ROOT_PATHS = new Set([
   'generation',
   'observed_generation',
   'latest_ready_revision',
+  'latest_created_revision',
+  'latest_created_execution',
+  'execution_count',
+  'uri',
+  'urls',
+  'delete_time',
+  'expire_time',
   'update_time',
   'create_time',
   'uid',
@@ -99,15 +111,12 @@ export function isAllowedPromotionAttributePath(path) {
   if (IMAGE_PATH.test(path)) {
     return true;
   }
-  if (COMPUTED_ROOT_PATHS.has(path)) {
-    return true;
-  }
-  for (const check of FORBIDDEN_PATH_CHECKS) {
-    if (check(path)) {
-      return false;
-    }
-  }
-  return false;
+  return isComputedOutputPath(path);
+}
+
+/** @param {string} path */
+export function isComputedOutputPath(path) {
+  return COMPUTED_ROOT_PATHS.has(path.split('.')[0]);
 }
 
 /**
@@ -117,7 +126,7 @@ export function classifyAttributePath(path) {
   if (IMAGE_PATH.test(path)) {
     return 'allowed-image';
   }
-  if (COMPUTED_ROOT_PATHS.has(path)) {
+  if (isComputedOutputPath(path)) {
     return 'allowed-computed';
   }
   for (const check of FORBIDDEN_PATH_CHECKS) {
