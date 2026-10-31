@@ -9,7 +9,7 @@ Cuenta `maps-prod-deploy` y pool WIF **`maps-github-deploy`** (independiente de 
 | Pool WIF | `maps-github` | **`maps-github-deploy`** |
 | Provider | `github` | `github` (en el pool deploy) |
 | Service account | `maps-prod-build-submit` | `maps-prod-deploy` |
-| Workflow OIDC | `release-build.yml` | `release-promote.yml` (futuro) |
+| Workflow OIDC | `release-build.yml` | `release-promote.yml` (solo en `main`) |
 | Rama OIDC | `main` o `development` | solo `main` |
 | Claims | `workflow_dispatch`, IDs numéricos | + `environment == production` |
 | workloadIdentityUser | `principalSet …/maps-github/…/attribute.repository_id/1174729313` | `principalSet …/maps-github-deploy/…/attribute.workflow_ref/…release-promote.yml@refs/heads/main` |
@@ -47,11 +47,20 @@ terraform validate -var="terraform_state_bucket_name=placeholder-for-validate-on
 
 ## Permisos actuales
 
-- Lectura/escritura de objetos en el bucket de state (variable).
-- Lectura de metadatos de Artifact Registry.
-- Rol borrador Cloud Run (`run.services.get`, `run.jobs.get`).
+Cuatro bindings sobre el bucket de state (mismo bucket, sin recursos nuevos), definidos en `main.tf`:
 
-**Pendiente C3:** permisos adicionales tras un `terraform plan` real con `maps-prod-deploy`.
+| Binding | Rol | Condición (`resource.name`) | Permite |
+|---------|-----|-----------------------------|---------|
+| `deploy_bucket_list` | `roles/storage.legacyBucketReader` | ninguna | Listar objetos y leer metadatos del bucket (IAM no permite acotar `list` por prefijo). Sin contenido. |
+| `deploy_promotion_read` | `roles/storage.objectViewer` | `promotion/` | Leer planes, bindings, evidencia de migrate y registros. |
+| `deploy_promotion_create` | `roles/storage.objectCreator` | `promotion/deployments/` o `promotion/migrate-done/` | Crear objetos nuevos. Sin `delete`/`update`: no puede sobrescribir ni borrar. No escribe en `promotion/plans/` (los sube el operador). |
+| `deploy_state` | `mapsTerraformStateRW` (`create`, `get`, `update`, `delete`; sin `list`) | `terraform/production/` | State y locks de Terraform. |
+
+Las condiciones usan el nombre de recurso `projects/_/buckets/<bucket>/objects/<prefijo>`. Requieren acceso uniforme a nivel de bucket: el módulo lo comprueba en el plan y falla antes de cambiar nada. Más: lectura de metadatos de Artifact Registry y el rol borrador de Cloud Run (`run.services.get`, `run.jobs.get`). El contrato lo fija `scripts/release/deploy-identity-iam.test.mjs`.
+
+**Pendiente C3 (bloquea la activación):** estos permisos no alcanzan para que `release-promote.yml` actualice servicios ni ejecute `maps-prod-migrate`. Se completan con los 403 de un `terraform plan`/`apply` real con `maps-prod-deploy`, sin roles amplios, sin acceso a secretos y sin permisos sobre `maps-prod-bootstrap`. Ver el checklist de [`R6_RELEASE_OPERATIONS_PLAN.md`](../../../../docs/R6_RELEASE_OPERATIONS_PLAN.md).
+
+**Pendiente C3 (bloquea la activación): ensayar la política del bucket.** La política de la tabla está implementada pero **no aplicada ni ensayada**. Limitaciones y ensayos negativos previos a la activación (crear funciona; sobrescribir, borrar y escribir fuera de los prefijos dan 403): [`GCP_PRODUCTION_RUNBOOK.md`](../../../../docs/GCP_PRODUCTION_RUNBOOK.md), «Protección del registro de despliegues en GCS». No usar retention policy en este bucket: bloquearía los archivos de lock de Terraform. Los permisos exactos de los roles predefinidos se confirman con `gcloud iam roles describe` antes de aplicar.
 
 ## Apply
 
