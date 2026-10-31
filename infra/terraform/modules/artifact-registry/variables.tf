@@ -50,3 +50,14 @@ variable "build_service_account_email" {
     error_message = "build_service_account_email must be a service account email."
   }
 }
+
+variable "cleanup_policy_dry_run" {
+  description = "Simulación de la política de limpieza. R6-D la deja siempre en true: no se borra ninguna imagen."
+  type        = bool
+  default     = true
+
+  validation {
+    condition     = var.cleanup_policy_dry_run == true
+    error_message = "cleanup_policy_dry_run debe ser true. Salir de la simulación es un cambio posterior a R6, con el informe de simulación revisado: quitar esta validación solo en ese cambio."
+  }
+}
