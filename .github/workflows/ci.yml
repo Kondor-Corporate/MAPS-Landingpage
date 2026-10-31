@@ -36,6 +36,7 @@ jobs:
             "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz"
           echo "${sha256}  actionlint.tar.gz" | sha256sum -c -
           tar -xzf actionlint.tar.gz actionlint
+          command -v shellcheck >/dev/null || { echo "::error::ShellCheck obligatorio"; exit 1; }
           ./actionlint -color .github/workflows/*.yml
 
       - name: Leer versión de Terraform
