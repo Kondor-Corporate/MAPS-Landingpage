@@ -137,3 +137,15 @@ promotion-bundle/
 plan.tfplan
 plan.json
 migrate-evidence.json
+
+# Archivos que generan los helpers del operador de release (R6): evidencia de Cloud Run,
+# registro baseline, bindings de plan, salidas de verificación e informes de retención.
+# Pueden contener configuración de producción: no se versionan.
+evidence/
+r5-baseline.json
+*.binding.json
+plan.binding.json
+post-verify.json
+deployment-record.json
+deployment-registry.snapshot.json
+retention-report*.json

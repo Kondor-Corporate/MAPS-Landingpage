@@ -9,7 +9,7 @@ jobs:
   release-manifest-validator:
     name: Release manifest validator
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -19,13 +19,42 @@ jobs:
         with:
           node-version: '22'
 
+      # El glob evita que un test nuevo quede fuera de CI por no listarlo.
       - name: Validador de manifiesto de release (tests)
+        run: node --test scripts/release/*.test.mjs
+
+      - name: Manifiesto de activación en main
+        run: node scripts/release/check-main-activation.mjs
+
+      # Binario fijado por versión y SHA-256 (de actionlint_1.7.7_checksums.txt oficial).
+      - name: actionlint
         run: |
-          node --test scripts/release/validate-manifest.test.mjs
-          node --test scripts/release/verify-release-authenticity.test.mjs
-          node --test scripts/release/deploy-identity-contract.test.mjs
-          node --test scripts/release/promotion-c3.test.mjs
-          node --test scripts/release/promotion-c4.test.mjs
+          set -euo pipefail
+          version=1.7.7
+          sha256=023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
+          curl -fsSL -o actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz"
+          echo "${sha256}  actionlint.tar.gz" | sha256sum -c -
+          tar -xzf actionlint.tar.gz actionlint
+          ./actionlint -color .github/workflows/*.yml
+
+      - name: Leer versión de Terraform
+        id: tfversion
+        run: echo "version=$(tr -d '[:space:]' < infra/terraform/environments/production/.terraform-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.tfversion.outputs.version }}
+          terraform_wrapper: false
+
+      # Sin backend, sin credenciales y sin operaciones sobre GCP.
+      - name: Terraform fmt y validate
+        run: |
+          set -euo pipefail
+          terraform fmt -check -recursive infra/terraform
+          terraform -chdir=infra/terraform/environments/production init -backend=false -input=false -lockfile=readonly
+          terraform -chdir=infra/terraform/environments/production validate
 
   backend:
     runs-on: ubuntu-latest

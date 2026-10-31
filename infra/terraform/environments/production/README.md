@@ -263,9 +263,19 @@ contexto.
 ## Artifact Registry
 
 Repositorio Docker `maps-prod` en `southamerica-east1`. Terraform no sube
-imágenes ni define una política de limpieza. La referencia que acepta el
+imágenes. La referencia que acepta el
 root termina en `@sha256:` y 64 hexadecimales. Un tag solo no pasa la
 validación.
+
+El módulo declara además la política de limpieza de R6-D, **siempre en
+simulación** (`cleanup_policy_dry_run = true`; el módulo rechaza `false`).
+Conserva todo tag `prod-*` y las últimas 5 versiones de cada imagen, y solo
+marca como candidatas las versiones sin tag de más de 30 días. Con la
+simulación activa no se borra nada. Mientras no se aplique, el repositorio
+sigue sin política. Cómo etiquetar, aplicarla y revisar el resultado está en
+el [runbook](../../../../docs/GCP_PRODUCTION_RUNBOOK.md#retención-de-imágenes-r6-d).
+Esta política es infraestructura: se aplica por el camino normal de plan y
+apply humanos, no por `release-promote`, que solo admite cambios de Cloud Run.
 
 Forma esperada:
 
@@ -408,6 +418,10 @@ terraform init -backend-config="bucket=BUCKET_DE_STATE"
 ```
 
 `BUCKET_DE_STATE` se elige en el bootstrap. No está en el repositorio.
+`release-promote.yml` hace el mismo `init` con `-backend-config="bucket=…"`
+(variable `TF_STATE_BUCKET`) y con la versión de Terraform de
+`.terraform-version` (hoy `1.16.7`): un plan guardado solo se aplica con la
+misma versión que lo generó.
 Pásalo también como `-var="terraform_state_bucket_name=BUCKET_DE_STATE"` (o en un tfvars gitignored) en cada `plan`/`apply` del root.
 
 Un `terraform init -backend=false` no lee ese state y no sirve para el plan.
