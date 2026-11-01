@@ -14,6 +14,7 @@ Entregas posteriores a la etapa documentada antigua (docs vivos + Docker + auth 
 
 ### Added
 
+- Cierre de R6 (release operations), solo en el repositorio y sin ejecutar contra GCP: endurecimiento de `release-promote.yml` (inputs por entorno validados, permisos por job, Terraform fijado, backend explícito, verificación de la corrida de verify), validación del plan contra las imágenes aprobadas, verificación posterior por modo de plan, rollback al baseline R5 registrable, política de retención de Artifact Registry en simulación (R6-D) con informe de protección, y procedimiento acotado para llevar la automatización a `main`. Tras la revisión independiente: verify, plan y apply quedan ligados al mismo commit de `main` (`automation_sha`), el apply verifica el punto de partida contra el registro de despliegues y Cloud Run antes de cambiar nada, el informe de retención separa simulación de protecciones obligatorias, y las instrucciones del operador distinguen PowerShell de Bash. Ver `docs/R6_RELEASE_OPERATIONS_PLAN.md`; R6-C y R6-D no están operativos hasta ensayarlos en GCP.
 - Noticias fullstack reales (`/api/v1/news`): CRUD admin, listados público/intranet, visibilidad y publicación. Los mocks dejaron de alimentar el flujo principal.
 - Galería y portada de noticias por upload de archivo (storage adapter; no URL pegada en el body).
 - Geolocalización de productores (Nominatim) y mapa público con coordenadas persistidas.

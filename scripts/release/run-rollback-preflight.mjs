@@ -117,6 +117,8 @@ export async function runRollbackPreflight(options) {
   const tfvarsHcl = formatPromotionTfvarsHcl(resolved.tfvars);
   const report = {
     operation: 'rollback',
+    // Commit de main que ejecuta este verify: el plan y el apply quedan ligados a él.
+    automation_sha: options.automationSha,
     git_sha: gitSha,
     release_build_run_id: resolved.release_build_run_id,
     target_deployment_id: options.targetDeploymentId,
@@ -173,9 +175,15 @@ async function runCli(argv) {
     process.exit(2);
   }
   const [gitSha, runId, outDirArg] = positional;
+  const automationSha = process.env.GITHUB_SHA ?? '';
+  if (!/^[0-9a-f]{40}$/.test(automationSha)) {
+    process.stderr.write('error: GITHUB_SHA ausente o inválido; el verify solo corre dentro del workflow.\n');
+    process.exit(2);
+  }
 
   const result = await runRollbackPreflight({
     gitSha,
+    automationSha,
     releaseBuildRunId: runId,
     targetDeploymentId: args['target-deployment-id'],
     repoRoot: process.cwd(),

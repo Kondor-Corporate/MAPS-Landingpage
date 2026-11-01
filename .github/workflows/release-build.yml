@@ -271,7 +271,7 @@ jobs:
             echo "::error::El cloudbuild.yaml tiene que declarar una sola serviceAccount."
             exit 1
           fi
-          if ! grep -F -q 'serviceAccount: projects/${_BUILD_PROJECT}/serviceAccounts/${_BUILD_SERVICE_ACCOUNT}' "$CONFIG"; then
+          if ! grep -F -q "serviceAccount: projects/\${_BUILD_PROJECT}/serviceAccounts/\${_BUILD_SERVICE_ACCOUNT}" "$CONFIG"; then
             echo "::error::serviceAccount no usa _BUILD_PROJECT y _BUILD_SERVICE_ACCOUNT."
             exit 1
           fi

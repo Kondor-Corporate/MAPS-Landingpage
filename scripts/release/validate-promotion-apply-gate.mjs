@@ -7,9 +7,14 @@ import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 import {
-  validateMigrateEvidence,
+  assertManifestMatchesReleaseRun,
+  productionImagesFromManifest,
+} from './promotion-images.mjs';
+import {
+  validateApplyInputsMatchReport,
   validatePlanBinding,
   validatePromotionPhaseGate,
+  validateReportImagesMatchManifest,
 } from './promotion-phase-guard.mjs';
 import { assertCommandDoesNotRunBootstrap } from './validate-terraform-plan.mjs';
 
@@ -18,6 +23,11 @@ import { assertCommandDoesNotRunBootstrap } from './validate-terraform-plan.mjs'
  */
 export function validatePromotionApplyGate(options) {
   const errors = [];
+  // En un apply, toda evidencia (bundle, binding, migrate) debe estar ligada al commit de main
+  // que lo ejecuta; sin ese dato la comprobación no puede hacerse y se bloquea.
+  if ((options.report || options.planBinding || options.migrateEvidence) && !options.automationSha) {
+    errors.push('Falta automationSha (commit de main que ejecuta el apply): no se puede ligar la evidencia.');
+  }
   errors.push(
     ...validatePromotionPhaseGate({
       planMode: options.planMode,
@@ -30,6 +40,7 @@ export function validatePromotionApplyGate(options) {
       releaseBuildRunId: options.releaseBuildRunId,
       targetDeploymentId: options.targetDeploymentId,
       currentGitSha: options.currentGitSha,
+      automationSha: options.automationSha,
     }).errors ?? [],
   );
 
@@ -41,10 +52,39 @@ export function validatePromotionApplyGate(options) {
         releaseBuildRunId: options.releaseBuildRunId,
         planMode: options.planMode,
         planSha256: options.planSha256,
+        automationSha: options.automationSha,
       }),
     );
   } else if (options.requirePlanBinding) {
     errors.push('Falta plan binding JSON en GCS.');
+  }
+
+  if (options.report) {
+    errors.push(
+      ...validateApplyInputsMatchReport({
+        inputOperation: options.inputOperation,
+        inputGitSha: options.gitSha,
+        inputReleaseBuildRunId: options.releaseBuildRunId,
+        inputTargetDeploymentId: options.inputTargetDeploymentId,
+        inputAutomationSha: options.automationSha,
+        report: options.report,
+      }),
+    );
+    if (options.bundleManifest) {
+      // Con origen github/registry el manifiesto cita su corrida release-build; el baseline
+      // R5 no tiene corrida y su manifiesto es sintético.
+      if ((options.report.manifest_source ?? 'github') !== 'baseline') {
+        errors.push(
+          ...assertManifestMatchesReleaseRun(options.releaseBuildRunId, options.bundleManifest),
+        );
+      }
+      const fromManifest = productionImagesFromManifest(options.bundleManifest);
+      if (!fromManifest.ok) {
+        errors.push(...fromManifest.errors);
+      } else {
+        errors.push(...validateReportImagesMatchManifest(options.report.images, fromManifest.tfvars));
+      }
+    }
   }
 
   if (options.shellCommand) {
@@ -69,9 +109,10 @@ function runCli(argv) {
   const reportPath = args['promotion-report'];
   const bindingPath = args['plan-binding'];
   const evidencePath = args['migrate-evidence'];
+  const manifestPath = args.manifest;
   if (!reportPath || !args['plan-mode'] || !args['verify-run-id']) {
     process.stderr.write(
-      'Uso: node validate-promotion-apply-gate.mjs --promotion-report=... --plan-mode=... --verify-run-id=... [--plan-binding=...] [--migrate-evidence=...] [--plan-sha256=...] [--git-sha=...] [--release-build-run-id=...]\n',
+      'Uso: node validate-promotion-apply-gate.mjs --promotion-report=... --plan-mode=... --verify-run-id=... [--plan-binding=...] [--migrate-evidence=...] [--plan-sha256=...] [--git-sha=...] [--release-build-run-id=...] [--operation=promote|rollback] [--target-deployment-id=...] [--manifest=release-manifest.json] [--automation-sha=<GITHUB_SHA>]\n',
     );
     process.exit(2);
   }
@@ -91,6 +132,12 @@ function runCli(argv) {
     verifyRunId: args['verify-run-id'],
     gitSha: args['git-sha'] ?? report.git_sha,
     releaseBuildRunId: args['release-build-run-id'] ?? report.release_build_run_id,
+    // Solo si el workflow pasa los inputs se contrastan con el bundle (fase apply).
+    report: args['git-sha'] !== undefined ? report : undefined,
+    inputOperation: args.operation,
+    inputTargetDeploymentId: args['target-deployment-id'],
+    automationSha: args['automation-sha'],
+    bundleManifest: manifestPath ? JSON.parse(readFileSync(manifestPath, 'utf8')) : undefined,
     targetDeploymentId: report.target_deployment_id,
     currentGitSha: report.migration?.current_git_sha,
     planBinding: binding,

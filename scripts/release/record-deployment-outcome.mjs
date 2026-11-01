@@ -7,6 +7,7 @@ import { writeFileSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
+import { PLAN_MODES } from './promotion-plan-contract.mjs';
 import {
   DEPLOYMENT_RECORD_SCHEMA_VERSION,
   gcsDeploymentRecordPath,
@@ -36,6 +37,9 @@ export function buildDeploymentRecord(input) {
     post_verify: input.postVerify ?? null,
     verified_manifest: input.verifiedManifest ?? null,
   };
+  if (input.restoredBaseline === true) {
+    record.restored_baseline = true;
+  }
   const check = validateDeploymentRecord(record, { expectedDeploymentId: input.deploymentId });
   if (!check.ok) {
     return { ok: false, errors: check.errors };
@@ -103,10 +107,23 @@ function runCli(argv) {
   );
   const reportPath = args['promotion-report'];
   const postPath = args['post-verify'];
-  if (!args.bucket || !args['deployment-id'] || !args['promotion-verify-run-id'] || !reportPath) {
+  if (
+    !args.bucket
+    || !args['deployment-id']
+    || !args['promotion-verify-run-id']
+    || !reportPath
+    || !PLAN_MODES.includes(args['plan-mode'])
+  ) {
     process.stderr.write(
-      'Uso: node record-deployment-outcome.mjs --bucket=B --deployment-id=... --promotion-verify-run-id=... --apply-run-id=... --promotion-report=... [--post-verify=...] [--outcome=succeeded|partial|failed]\n',
+      'Uso: node record-deployment-outcome.mjs --bucket=B --deployment-id=... --promotion-verify-run-id=... --apply-run-id=... --promotion-report=... --plan-mode=full|services-only [--post-verify=...] [--migrations-executed=true] [--outcome=succeeded|partial|failed]\n',
     );
+    process.exit(2);
+  }
+  if (args['plan-mode'] === 'jobs-only') {
+    // jobs-only es una fase intermedia: los servicios siguen con la imagen anterior. Su
+    // evidencia es promotion/migrate-done/<verify_run_id>.json; el despliegue se registra
+    // al terminar services-only.
+    process.stderr.write('error: jobs-only no se registra como despliegue.\n');
     process.exit(2);
   }
   const report = JSON.parse(readFileSync(reportPath, 'utf8'));
@@ -123,11 +140,12 @@ function runCli(argv) {
       operation: report.operation === 'forward' ? 'promote' : (report.operation ?? 'promote'),
       gitSha: report.git_sha,
       releaseBuildRunId: report.release_build_run_id,
+      restoredBaseline: report.manifest_source === 'baseline',
       images: report.images,
       promotionVerifyRunId: args['promotion-verify-run-id'],
       applyRunId: args['apply-run-id'] ?? args['promotion-verify-run-id'],
       outcome,
-      migrationsExecuted: report.migration?.migrations_executed === true,
+      migrationsExecuted: args['migrations-executed'] === 'true',
       replacedDeploymentId: report.rollback_from?.deployment_id ?? null,
       previousGitSha: report.rollback_from?.git_sha ?? null,
       schemaReview: null,

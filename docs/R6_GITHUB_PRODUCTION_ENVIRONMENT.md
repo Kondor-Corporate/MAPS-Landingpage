@@ -11,9 +11,13 @@ Este documento describe la configuración **manual** del environment en el repos
 5. **Prevent self-review**: activar si quien dispara el workflow no debe aprobar solo.
 6. **Deployment protection rules** → conservar historial de deployments habilitado (por defecto).
 
+El revisor ve los inputs del workflow, no el contenido del plan. Antes de aprobar el job de apply
+debe haber leído el `terraform show plan.tfplan` del paso de revisión y comprobar que el
+`plan_sha256` del input es el del binding que subió el operador.
+
 ## Concurrencia
 
-En el futuro `release-promote.yml` (R6-C3), definir:
+`release-promote.yml` define:
 
 ```yaml
 concurrency:
@@ -22,25 +26,38 @@ concurrency:
 ```
 
 Eso evita dos applies concurrentes aunque dos workflows pasen la aprobación en paralelo.
+GitHub conserva una sola ejecución pendiente por grupo: si se lanza una tercera mientras otra
+corre y otra espera, la pendiente se cancela. Lanzar una operación a la vez.
 
-## Separación preflight vs apply
+## Qué job usa el environment
 
-| Fase | Environment | Identidad GCP |
-|------|-------------|---------------|
-| Preflight (validar manifiesto, plan en modo lectura) | ninguno o job sin secrets de apply | opcional: identidad de solo lectura |
-| Plan/apply autorizado | `production` | `maps-prod-deploy` vía provider `github-promote` |
+| Job | Environment | Por qué | Identidad GCP |
+|-----|-------------|---------|---------------|
+| `verify-promote` | ninguno | Solo lee GitHub (manifiesto, CI, ancestro en `development`). No toca GCP. | ninguna |
+| `verify-rollback` | `production` | Lee el registro de despliegues en GCS; el provider OIDC exige el claim `environment=production`. | `maps-prod-deploy` |
+| `apply-approved-plan` | `production` | `terraform apply` y `maps-prod-migrate`. | `maps-prod-deploy` |
 
-Los jobs de preflight de C1/C2 deben correr **sin** `environment: production` cuando solo validan artifacts. El job que ejecute `terraform apply` o `gcloud run jobs execute` debe ser el único con `environment: production` y `id-token: write` contra `GCP_DEPLOY_*`.
+`id-token: write` se concede solo a los dos jobs con environment (un test del repositorio lo exige).
+`verify-promote` corre sin aprobación y por lo tanto **sin** acceso a las variables del environment: la
+variable `MAPS_PRODUCTION_BASELINE_JSON` tiene que ser de **repositorio**.
 
-## Variables del environment (cuando exista C3)
+## Variables
 
-Configurar en el environment (no en el repo público):
+En el environment `production` (no en el repo público):
 
 | Variable | Uso |
 |----------|-----|
-| `TF_STATE_BUCKET` | Nombre del bucket GCS del backend (no commitear). |
-| `GCP_DEPLOY_WORKLOAD_IDENTITY_PROVIDER` | Output Terraform `promote_workload_identity_provider`. |
+| `TF_STATE_BUCKET` | Nombre del bucket GCS del backend (no commitear). El workflow lo pasa como `-backend-config="bucket=…"`. |
+| `GCP_DEPLOY_WORKLOAD_IDENTITY_PROVIDER` | Output Terraform `promote_workload_identity_provider`. Tiene que pertenecer al pool `maps-github-deploy` (el workflow lo comprueba). |
 | `GCP_DEPLOY_SERVICE_ACCOUNT` | Email `maps-prod-deploy@…`. |
+
+En el repositorio (**Settings → Secrets and variables → Actions → Variables**):
+
+| Variable | Uso |
+|----------|-----|
+| `MAPS_PRODUCTION_BASELINE_JSON` | JSON del baseline R5 (`git_sha` + digests), formato de `config/release/production-baseline.json.example`. Punto de comparación de migraciones. No es la fuente de verdad: antes de cualquier cambio el apply la contrasta con el registro de despliegues y con Cloud Run, y bloquea si está adelantada respecto del despliegue actual (corregirla y repetir verify). |
+
+Nota para quien aprueba: el apply exige correr en el **mismo commit de `main`** que el verify. Si entra un merge a `main` entre ambos, el apply se rechaza y hay que repetir verify, plan y binding.
 
 Los secretos de aplicación siguen en Secret Manager; no copiarlos al environment.
 

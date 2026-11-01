@@ -36,14 +36,39 @@
     "applied_at": "2026-01-15T10:00:00Z",
     "outcome": "succeeded",
     "migrations_executed": true,
-    "post_verify": { "ok": true },
+    "post_verify": {
+      "ok": true,
+      "errors": [],
+      "cloud_run": {
+        "verified": true,
+        "components": [
+          "services",
+          "jobs"
+        ],
+        "expected": {
+          "frontend_image": "southamerica-east1-docker.pkg.dev/p/r/frontend@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "backend_image": "southamerica-east1-docker.pkg.dev/p/r/backend@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "jobs_image": "southamerica-east1-docker.pkg.dev/p/r/jobs@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      },
+      "plan_mode": "full"
+    },
     "verified_manifest": {
       "git_sha": "2222222222222222222222222222222222222222",
       "build_run_url": "https://github.com/Kondor-Corporate/MAPS-Landingpage/actions/runs/100",
       "images": [
-        { "id": "frontend", "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/frontend@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" },
-        { "id": "backend", "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/backend@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" },
-        { "id": "backend-jobs", "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/jobs@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" }
+        {
+          "id": "frontend",
+          "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/frontend@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        {
+          "id": "backend",
+          "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/backend@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        },
+        {
+          "id": "backend-jobs",
+          "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/jobs@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
       ]
     }
   },
@@ -63,14 +88,39 @@
     "applied_at": "2026-02-01T10:00:00Z",
     "outcome": "succeeded",
     "migrations_executed": false,
-    "post_verify": { "ok": true },
+    "post_verify": {
+      "ok": true,
+      "errors": [],
+      "cloud_run": {
+        "verified": true,
+        "components": [
+          "services",
+          "jobs"
+        ],
+        "expected": {
+          "frontend_image": "southamerica-east1-docker.pkg.dev/p/r/frontend@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "backend_image": "southamerica-east1-docker.pkg.dev/p/r/backend@sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "jobs_image": "southamerica-east1-docker.pkg.dev/p/r/jobs@sha256:3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      },
+      "plan_mode": "full"
+    },
     "verified_manifest": {
       "git_sha": "3333333333333333333333333333333333333333",
       "build_run_url": "https://github.com/Kondor-Corporate/MAPS-Landingpage/actions/runs/101",
       "images": [
-        { "id": "frontend", "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/frontend@sha256:1111111111111111111111111111111111111111111111111111111111111111" },
-        { "id": "backend", "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/backend@sha256:2222222222222222222222222222222222222222222222222222222222222222" },
-        { "id": "backend-jobs", "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/jobs@sha256:3333333333333333333333333333333333333333333333333333333333333333" }
+        {
+          "id": "frontend",
+          "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/frontend@sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        {
+          "id": "backend",
+          "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/backend@sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        {
+          "id": "backend-jobs",
+          "immutable_ref": "southamerica-east1-docker.pkg.dev/p/r/jobs@sha256:3333333333333333333333333333333333333333333333333333333333333333"
+        }
       ]
     }
   }

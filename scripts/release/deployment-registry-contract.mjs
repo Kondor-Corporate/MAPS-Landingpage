@@ -5,7 +5,11 @@ export const DEPLOYMENT_RECORD_SCHEMA_VERSION = 1;
 export const GCS_DEPLOYMENT_REGISTRY_PREFIX = 'promotion/deployments';
 export const GCS_ROLLBACK_SCHEMA_APPROVAL_PREFIX = 'promotion/rollback-schema-approvals';
 
-/** @typedef {'forward' | 'rollback' | 'baseline'} DeploymentOperation */
+/**
+ * Valores aceptados en `operation`. El workflow escribe `promote` o `rollback`; el baseline R5
+ * es `baseline`. `forward` es el nombre interno de promotion-report.json y se tolera al leer.
+ * @typedef {'promote' | 'forward' | 'rollback' | 'baseline'} DeploymentOperation
+ */
 
 /** @param {string} deploymentId */
 export function gcsDeploymentRecordPath(deploymentId) {
@@ -52,12 +56,22 @@ export function validateDeploymentRecord(record, options = {}) {
     errors.push('git_sha debe ser 40 hex.');
   }
 
-  if (operation !== 'baseline') {
+  // Un rollback al baseline R5 restaura imágenes sin corrida release-build: lo declara
+  // restored_baseline=true y entonces el run id tiene que ser nulo. Sin ese marcador
+  // explícito, todo despliegue no baseline exige run id.
+  const restoredBaseline = r.restored_baseline === true;
+  if (restoredBaseline && operation !== 'rollback') {
+    errors.push('restored_baseline solo aplica a operation rollback.');
+  }
+  if (restoredBaseline && r.release_build_run_id != null) {
+    errors.push('Un rollback al baseline R5 no debe incluir release_build_run_id.');
+  }
+  if (operation !== 'baseline' && !restoredBaseline) {
     const runId = r.release_build_run_id;
     if (typeof runId !== 'string' && typeof runId !== 'number') {
       errors.push('release_build_run_id obligatorio salvo baseline R5.');
     }
-  } else if (r.release_build_run_id != null) {
+  } else if (operation === 'baseline' && r.release_build_run_id != null) {
     errors.push('Baseline R5 no debe incluir release_build_run_id.');
   }
 
@@ -89,9 +103,11 @@ export function validateDeploymentRecord(record, options = {}) {
     }
   }
   if (outcome === 'succeeded' && operation !== 'baseline') {
-    const post = r.post_verify;
-    if (post == null || typeof post !== 'object' || /** @type {Record<string, unknown>} */ (post).ok !== true) {
+    const post = /** @type {Record<string, any> | null | undefined} */ (r.post_verify);
+    if (post == null || typeof post !== 'object' || post.ok !== true) {
       errors.push('outcome succeeded exige post_verify.ok (no declarar éxito sin verificación).');
+    } else {
+      errors.push(...validateSucceededPostVerify(post, r.images));
     }
     if (r.verified_manifest == null || typeof r.verified_manifest !== 'object') {
       errors.push('outcome succeeded exige verified_manifest capturado en el apply (no un JSON posterior).');
@@ -106,6 +122,35 @@ export function validateDeploymentRecord(record, options = {}) {
     return { ok: false, errors };
   }
   return { ok: true, record: r };
+}
+
+/**
+ * Un despliegue `succeeded` tiene que haber comprobado servicios Y jobs, y lo comprobado
+ * tiene que ser exactamente lo registrado. Un jobs-only (servicios sin tocar) o un informe
+ * de otra imagen no pueden figurar como éxito.
+ *
+ * @param {Record<string, any>} post
+ * @param {unknown} images
+ */
+export function validateSucceededPostVerify(post, images) {
+  const errors = [];
+  const cloudRun = post.cloud_run;
+  if (!cloudRun || cloudRun.verified !== true) {
+    errors.push('outcome succeeded exige post_verify.cloud_run.verified=true.');
+    return errors;
+  }
+  const components = Array.isArray(cloudRun.components) ? cloudRun.components : [];
+  for (const needed of ['services', 'jobs']) {
+    if (!components.includes(needed)) {
+      errors.push(`outcome succeeded exige haber verificado ${needed} en Cloud Run.`);
+    }
+  }
+  for (const key of ['frontend_image', 'backend_image', 'jobs_image']) {
+    if (cloudRun.expected?.[key] !== /** @type {Record<string, unknown>} */ (images ?? {})[key]) {
+      errors.push(`post_verify verificó otra ${key} que la registrada.`);
+    }
+  }
+  return errors;
 }
 
 /**

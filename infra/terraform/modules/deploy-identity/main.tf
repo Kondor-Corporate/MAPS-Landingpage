@@ -106,27 +106,136 @@ resource "google_service_account_iam_member" "deploy_workload_identity_user" {
   }
 }
 
-# State access: list + read + write objects for plan/apply. Prefix enforcement is
-# by bucket policy and workflow, not IAM condition here (needs C3 plan review).
+# Bucket access of the deploy account. Four bindings on the state bucket replace the former
+# single unconditional grant. Design and rehearsal checklist: docs/GCP_PRODUCTION_RUNBOOK.md,
+# "Protección del registro de despliegues en GCS".
+#
+# Why four: IAM cannot scope storage.objects.list to a prefix (list is evaluated on the bucket, so a
+# resource.name condition is false for it; the objectListPrefix attribute is only supported in
+# Credential Access Boundaries). Listing is therefore granted unconditionally (names and metadata
+# only), and everything that reads or writes content is limited by object-name prefix.
+#
+# Overwriting an object needs storage.objects.create AND storage.objects.delete. The promotion
+# prefixes get create only, so history can be added but not rewritten or removed by this account.
+# promotion/plans/ is intentionally read-only here: the authorized operator uploads plans.
+#
+# Conditions on bucket IAM need Uniform Bucket-Level Access; the data source below makes the plan
+# fail before any change if the bucket does not have it.
+data "google_storage_bucket" "state" {
+  name = var.terraform_state_bucket_name
+}
+
+locals {
+  # Object resource names look like projects/_/buckets/BUCKET/objects/OBJECT_NAME.
+  state_bucket_objects = "projects/_/buckets/${var.terraform_state_bucket_name}/objects/"
+
+  # Must match the prefix in environments/production/backend.tf (state and .tflock objects).
+  terraform_state_object_prefix = "terraform/production/"
+  promotion_object_prefix       = "promotion/"
+  promotion_create_prefixes = [
+    "promotion/deployments/",
+    "promotion/migrate-done/",
+  ]
+
+  state_condition_expression = "resource.name.startsWith(\"${local.state_bucket_objects}${local.terraform_state_object_prefix}\")"
+  promotion_read_expression  = "resource.name.startsWith(\"${local.state_bucket_objects}${local.promotion_object_prefix}\")"
+  promotion_create_expression = join(" || ", [
+    for prefix in local.promotion_create_prefixes :
+    "resource.name.startsWith(\"${local.state_bucket_objects}${prefix}\")"
+  ])
+}
+
+# State and locks: object permissions only, no list (list comes from legacyBucketReader below).
 resource "google_project_iam_custom_role" "terraform_state" {
   project     = var.project_id
   role_id     = "mapsTerraformStateRW"
   title       = "MAPS Terraform state read/write"
-  description = "Read and write state objects in the configured bucket. Does not grant project-wide storage admin."
+  description = "Create, read, update and delete state and lock objects. No listing; limit with an object-name condition. Does not grant project-wide storage admin."
   permissions = [
     "storage.objects.create",
     "storage.objects.delete",
     "storage.objects.get",
-    "storage.objects.list",
     "storage.objects.update",
   ]
   stage = "GA"
 }
 
+# 1. Listing and bucket metadata, no object content. Not limited by prefix (not possible).
+resource "google_storage_bucket_iam_member" "deploy_bucket_list" {
+  bucket = var.terraform_state_bucket_name
+  role   = "roles/storage.legacyBucketReader"
+  member = "serviceAccount:${google_service_account.deploy.email}"
+
+  lifecycle {
+    precondition {
+      condition     = data.google_storage_bucket.state.uniform_bucket_level_access
+      error_message = "The state bucket must have Uniform Bucket-Level Access enabled for the deploy IAM Conditions."
+    }
+  }
+}
+
+# 2. Read plans, bindings, migrate evidence and deployment records.
+resource "google_storage_bucket_iam_member" "deploy_promotion_read" {
+  bucket = var.terraform_state_bucket_name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.deploy.email}"
+
+  condition {
+    title       = "promotion-read"
+    description = "Read objects under promotion/ only."
+    expression  = local.promotion_read_expression
+  }
+
+  lifecycle {
+    precondition {
+      condition     = data.google_storage_bucket.state.uniform_bucket_level_access
+      error_message = "The state bucket must have Uniform Bucket-Level Access enabled for the deploy IAM Conditions."
+    }
+  }
+}
+
+# 3. Create deployment records and migrate evidence. No delete or update: cannot overwrite or remove.
+resource "google_storage_bucket_iam_member" "deploy_promotion_create" {
+  bucket = var.terraform_state_bucket_name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.deploy.email}"
+
+  condition {
+    title       = "promotion-create-only"
+    description = "Create objects under promotion/deployments/ and promotion/migrate-done/ only."
+    expression  = local.promotion_create_expression
+  }
+
+  lifecycle {
+    precondition {
+      condition     = data.google_storage_bucket.state.uniform_bucket_level_access
+      error_message = "The state bucket must have Uniform Bucket-Level Access enabled for the deploy IAM Conditions."
+    }
+  }
+}
+
+# 4. Terraform state and lock objects under the backend prefix. Replaces the former unconditional
+#    grant on the whole bucket; created before the old one is destroyed so the account never loses
+#    access to the state during the change.
 resource "google_storage_bucket_iam_member" "deploy_state" {
   bucket = var.terraform_state_bucket_name
   role   = google_project_iam_custom_role.terraform_state.id
   member = "serviceAccount:${google_service_account.deploy.email}"
+
+  condition {
+    title       = "terraform-state-objects"
+    description = "State and lock objects under terraform/production/ only."
+    expression  = local.state_condition_expression
+  }
+
+  lifecycle {
+    create_before_destroy = true
+
+    precondition {
+      condition     = data.google_storage_bucket.state.uniform_bucket_level_access
+      error_message = "The state bucket must have Uniform Bucket-Level Access enabled for the deploy IAM Conditions."
+    }
+  }
 }
 
 # Same digest metadata reads as the build submitter (no blob download).

@@ -40,6 +40,11 @@ export function validateRollbackTargetSelection(input) {
   if (target.outcome !== 'succeeded') {
     errors.push('Solo se puede rollback a un despliegue con outcome succeeded.');
   }
+  if (target.restored_baseline === true) {
+    errors.push(
+      'Este registro es un rollback al baseline R5, no una versión con manifiesto propio. Usar como target el registro baseline (r5-baseline).',
+    );
+  }
   if (target.operation === 'baseline' && !target.cloud_run_digest_evidence) {
     errors.push(
       'Baseline R5: exige cloud_run_digest_evidence verificada antes de usarse como target.',

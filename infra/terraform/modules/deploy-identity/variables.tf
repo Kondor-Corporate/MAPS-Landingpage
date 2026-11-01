@@ -33,8 +33,9 @@ variable "terraform_state_bucket_name" {
   type        = string
 
   validation {
-    condition     = length(trimspace(var.terraform_state_bucket_name)) >= 3 && length(var.terraform_state_bucket_name) <= 63
-    error_message = "terraform_state_bucket_name must be 3 to 63 characters and must not be blank."
+    # The name is interpolated into IAM Condition expressions, so only valid bucket-name characters pass.
+    condition     = can(regex("^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$", var.terraform_state_bucket_name))
+    error_message = "terraform_state_bucket_name must be a valid GCS bucket name (3 to 63 characters: lowercase letters, digits, dot, underscore, hyphen)."
   }
 }
 

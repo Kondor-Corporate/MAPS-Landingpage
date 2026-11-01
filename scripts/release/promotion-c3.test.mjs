@@ -184,11 +184,13 @@ test('validateMigrateEvidence y validatePlanBinding enlazan release y plan', () 
     releaseBuildRunId: '40992146277',
     planMode: 'full',
     planSha256: 'd'.repeat(64),
+    automationSha: 'e'.repeat(40),
   };
   assert.deepEqual(validateMigrateEvidence({
     schema_version: 1,
     verify_run_id: '99',
     git_sha: expected.gitSha,
+    automation_sha: expected.automationSha,
     release_build_run_id: expected.releaseBuildRunId,
     job_name: 'maps-prod-migrate',
     succeeded: true,
@@ -198,6 +200,7 @@ test('validateMigrateEvidence y validatePlanBinding enlazan release y plan', () 
     schema_version: 1,
     verify_run_id: '99',
     git_sha: expected.gitSha,
+    automation_sha: expected.automationSha,
     release_build_run_id: expected.releaseBuildRunId,
     plan_mode: 'full',
     plan_sha256: expected.planSha256,
@@ -235,7 +238,9 @@ test('workflow promote usa rutas GCS por fase y generation-match al subir', () =
   );
   assert.match(wf, /promotion\/plans\/\$\{VERIFY_RUN_ID\}\/\$\{PLAN_MODE\}\.tfplan/);
   assert.match(wf, /validate-promotion-apply-gate\.mjs/);
-  assert.match(wf, /x-goog-if-generation-match:0/);
+  // La subida la hace el operador; el helper imprime los comandos create-only.
+  const helper = readFileSync(join(__dirname, 'prepare-promotion-plan.mjs'), 'utf8');
+  assert.match(helper, /x-goog-if-generation-match:0/);
   assert.doesNotMatch(wf, /promotion\/plans\/\$\{VERIFY_RUN_ID\}\.tfplan/);
 });
 

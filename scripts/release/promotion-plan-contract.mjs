@@ -32,6 +32,43 @@ export const ALLOWED_CHANGES_BY_MODE = {
   ],
 };
 
+/** Imagen de producción (variable tfvars) que debe tener cada recurso Cloud Run. */
+export const IMAGE_KEY_BY_ADDRESS = {
+  'module.runtime_services.google_cloud_run_v2_service.frontend': 'frontend_image',
+  'module.runtime_services.google_cloud_run_v2_service.backend': 'backend_image',
+  'module.runtime_jobs.google_cloud_run_v2_job.migrate': 'jobs_image',
+  'module.runtime_jobs.google_cloud_run_v2_job.bootstrap': 'jobs_image',
+};
+
+export const PLAN_MODES = ['full', 'jobs-only', 'services-only'];
+
+/** Operación del input del workflow -> nombre usado en promotion-report.json. */
+export const REPORT_OPERATION_BY_INPUT = { promote: 'forward', rollback: 'rollback' };
+
+/** Recursos de Cloud Run verificados tras el apply, por componente. */
+export const CLOUD_RUN_SERVICES = ['maps-prod-frontend', 'maps-prod-backend'];
+export const CLOUD_RUN_JOBS = [MIGRATE_JOB_NAME, BOOTSTRAP_JOB_NAME];
+
+/**
+ * Componentes que la verificación posterior debe comprobar según el modo de plan.
+ * services-only también comprueba los jobs: la fase jobs-only previa ya los dejó
+ * con la imagen nueva y el registro final declara las tres.
+ */
+export const VERIFY_COMPONENTS_BY_MODE = {
+  full: ['services', 'jobs'],
+  'services-only': ['services', 'jobs'],
+  'jobs-only': ['jobs'],
+};
+
+/** @param {unknown} value */
+export function normalizeRunId(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  const text = String(value).trim();
+  return text === 'null' ? '' : text;
+}
+
 export const FORBIDDEN_PLAN_ACTIONS = ['delete', 'create', 'replace'];
 
 export const GCS_PLAN_OBJECT_PREFIX = 'promotion/plans';
