@@ -351,20 +351,553 @@ mes de métricas. El detalle numérico está en el README de producción.
 Un release normal no recrea el proyecto, no vuelve a crear usuarios SQL y no
 vuelve a correr el bootstrap.
 
+**Estado de R6-C (promoción y rollback automatizados):** implementado en el
+repositorio y probado solo con tests locales y simulaciones. **No se ha
+ejecutado contra GCP.** Hasta completar el checklist de activación de
+[`R6_RELEASE_OPERATIONS_PLAN.md`](./R6_RELEASE_OPERATIONS_PLAN.md) y el primer
+ensayo real, el camino válido es el manual de abajo. El workflow solo puede
+dispararse desde `main`; cómo llegar ahí está en
+[`R6_MAIN_ACTIVATION.md`](./R6_MAIN_ACTIVATION.md).
+
+### Camino manual (vigente hasta activar R6-C)
+
 1. Construir frontend, backend y, si cambió el job, la imagen `jobs`.
 2. Subirlas a Artifact Registry.
 3. Tomar los digests `@sha256`.
 4. Actualizar `frontend_image`, `backend_image` y, si aplica, `jobs_image`.
 5. `terraform plan` en el directorio de producción.
 6. Revisar el plan. Tiene que limitarse a las revisiones esperadas.
-7. `terraform apply` después de esa revisión. No hay apply automático.
+7. `terraform apply` después de esa revisión.
 8. Si el release trae migraciones, ejecutar `maps-prod-migrate` una vez, con
    la imagen de jobs ya aplicada.
 9. Smoke tests de la fase 6 que toque el cambio.
 
-La promoción inmutable, la limpieza de Artifact Registry y las release
-operations las cierra R6. Esos mecanismos no están implementados. No se
-adelantan aquí.
+### Promoción automatizada (R6-C3)
+
+Flujo en dos fases con una revisión humana del plan en el medio. El plan se
+genera **fuera** del workflow porque GitHub aprueba el job de apply antes de
+que corra, y la aprobación tiene que ser sobre un plan que alguien leyó.
+
+Todo comando de esta sección que dice «local» lo corre el operador con sus
+propias credenciales; el workflow nunca genera el plan.
+
+1. **Release build** (R6-B) deja el manifiesto. Anotar su `run id`.
+2. **Fase verify:** disparar `release-promote` en `main` con `phase=verify`,
+   `operation=promote`, `git_sha` y `release_build_run_id`. Publica el artifact
+   `promotion-bundle` (`promotion-report.json`, `promotion.auto.tfvars`,
+   `release-manifest.json`) y su `run id` es el `VERIFY_RUN_ID`. El informe dice
+   si hay migraciones nuevas (`migration.requires_jobs_first_apply`) y qué modos
+   de plan corresponden.
+3. **Plan local**, desde **el mismo commit de `main`** que ejecutó el verify (su `automation_sha`
+   está en `promotion-report.json`; `bind` lo exige y también que no haya cambios locales en
+   `infra/terraform`, `scripts/release` y `config/release`) y con la versión de Terraform de
+   `infra/terraform/environments/production/.terraform-version`:
+
+   Bash:
+
+   ```bash
+   cd infra/terraform/environments/production
+   terraform version                                   # debe coincidir con .terraform-version
+   terraform init -backend-config="bucket=$TF_STATE_BUCKET"
+   terraform plan -out=plan.tfplan \
+     -var-file=<tus tfvars no versionados> \
+     -var-file=<bundle>/promotion.auto.tfvars \
+     $(node ../../../../scripts/release/prepare-promotion-plan.mjs targets --mode=full)
+   terraform show -json plan.tfplan > plan.json
+   terraform show plan.tfplan                          # leerlo: es la revisión humana
+   ```
+
+   PowerShell (Windows):
+
+   ```powershell
+   Set-Location infra/terraform/environments/production
+   terraform version                                   # debe coincidir con .terraform-version
+   terraform init "-backend-config=bucket=$env:TF_STATE_BUCKET"
+   # Los -target quedan en un arreglo (uno por elemento) y se pasan con @targets:
+   $targets = (node ../../../../scripts/release/prepare-promotion-plan.mjs targets --mode=full --shell=bash) -split " "
+   terraform plan -out=plan.tfplan "-var-file=<tus tfvars no versionados>" "-var-file=<bundle>/promotion.auto.tfvars" @targets
+   terraform show -json plan.tfplan | Out-File -Encoding utf8 plan.json
+   terraform show plan.tfplan                          # leerlo: es la revisión humana
+   ```
+
+   Windows PowerShell 5.1 escribe `>` en UTF-16 y `Out-File -Encoding utf8` con BOM. Los
+   scripts del operador (`prepare-promotion-plan`, `build-baseline-record`, `retention-report`)
+   leen ambos; el workflow de Linux no se ve afectado. Sin `--shell`, los scripts imprimen
+   PowerShell en Windows y Bash en el resto.
+
+   Los `-target` acotan el plan a los recursos Cloud Run del modo. Sin ellos el
+   plan incluye los cambios pendientes ajenos a R6 (los dos uptime checks y sus
+   alertas, que esperan al DNS) y el validador lo rechaza por contener `create`.
+   **`-target` es una solución acotada de R6, no un diseño final:** deja fuera del plan
+   aprobado cualquier cambio pendiente o deriva del resto del state. Por eso hace falta la
+   comprobación independiente de «Deriva fuera del release» (más abajo). Dividir el state en
+   varios queda fuera de R6.
+
+4. **Binding y hash** (valida `plan.json`, no sube nada):
+
+   Bash:
+
+   ```bash
+   node ../../../../scripts/release/prepare-promotion-plan.mjs bind \
+     --plan=plan.tfplan --plan-json=plan.json \
+     --report=<bundle>/promotion-report.json \
+     --mode=full --verify-run-id=<VERIFY_RUN_ID>
+   ```
+
+   PowerShell:
+
+   ```powershell
+   node ../../../../scripts/release/prepare-promotion-plan.mjs bind `
+     --plan=plan.tfplan --plan-json=plan.json `
+     --report=<bundle>/promotion-report.json `
+     --mode=full --verify-run-id=<VERIFY_RUN_ID>
+   ```
+
+   Sin `--expect-terraform-version` toma `.terraform-version` del repositorio. Falla si el
+   checkout no es el commit de `main` del verify o tiene cambios locales, si el plan toca algo
+   fuera de Cloud Run, si no es solo `update`, si cambia algo que no sea la imagen, o si las
+   imágenes del plan no son las del manifiesto aprobado. Escribe el binding con el
+   `automation_sha`, imprime `plan_sha256` y los dos `gsutil cp` create-only en la sintaxis de
+   tu shell.
+
+5. **Subir** el plan y el binding con esos comandos
+   (`x-goog-if-generation-match:0`: no se pisa un plan ya subido). El bucket de
+   state tiene acceso restringido; los planes no van a artifacts ni a logs. En PowerShell el
+   bucket va en `$env:TF_STATE_BUCKET` (`$env:TF_STATE_BUCKET = "<bucket>"`).
+6. **Fase apply:** `phase=apply`, `verify_run_id`, `plan_sha256`, `plan_mode`,
+   mismos `git_sha`/`release_build_run_id`. El job pide aprobación del environment
+   `production`. Antes de `terraform apply` revalida, solo con lecturas: que `verify_run_id`
+   sea una corrida terminada en success de `release-promote.yml` en `main` **cuyo `head_sha`
+   sea el commit de `main` que ejecuta este apply** (si `main` avanzó desde el verify se
+   rechaza: repetir verify, plan y binding); la autenticidad del manifiesto; que los digests
+   existan; que los inputs describan el mismo bundle; **el punto de partida** (ver «Punto de
+   partida del apply»); el binding, con su `automation_sha`; el SHA-256 del plan y el contenido
+   del plan. Aplica **ese** plan, con `terraform init -backend-config="bucket=…"` explícito.
+7. **Con migraciones nuevas** (`requires_jobs_first_apply`): `plan_mode=full` está
+   prohibido. Se hace `jobs-only` (el workflow ejecuta `maps-prod-migrate` y escribe
+   `promotion/migrate-done/<verify_run_id>.json`), después se genera un **plan nuevo**
+   `services-only` —el estado cambió— y se repite 3 a 6 con ese modo. `maps-prod-bootstrap`
+   nunca se ejecuta.
+8. **Resultado:** `promotion/deployments/<apply_run_id>.json`. Es `succeeded` solo si
+   la verificación posterior comprobó servicios **y** jobs contra Cloud Run con los
+   digests aprobados; si no, es `partial` y el run falla. `jobs-only` no registra un
+   despliegue (los servicios siguen con la imagen anterior).
+
+**Plan obsoleto o apply fallido.** Si Terraform rechaza el plan por estado cambiado,
+no se reintenta: se repite la fase verify, el plan y el binding. Un apply que falla
+deja un registro `failed` (no es objetivo de rollback) y hay que revisar Cloud Run
+antes de actuar: un apply parcial puede haber cambiado un recurso y otro no. Si
+`jobs-only` se aplicó pero `maps-prod-migrate` falló, el workflow no puede repetirlo
+(el plan ya está aplicado y el punto de partida lo rechaza): ejecutar la migración a
+mano con autorización y revisar antes de seguir.
+
+### Punto de partida del apply
+
+El preflight calcula las migraciones pendientes contra `MAPS_PRODUCTION_BASELINE_JSON`,
+una variable que mantiene una persona. Si estuviera adelantada respecto de lo realmente
+desplegado, el diff omitiría migraciones y los servicios nuevos arrancarían sobre un
+esquema viejo. Por eso, **antes de cualquier cambio** (antes de `terraform apply` y de
+`maps-prod-migrate`) el apply ejecuta `scripts/release/verify-starting-point.mjs`, que no
+confía en esa variable y la contrasta con dos fuentes que ya puede leer con la identidad de
+deploy (sin permisos nuevos ni escrituras):
+
+| Comprobación | Fuente | Bloquea cuando |
+|--------------|--------|----------------|
+| Despliegue actual | `promotion/deployments/*.json` | no hay ningún `succeeded` (falta `r5-baseline`) o el registro está corrupto |
+| Estado productivo | `gcloud run services/jobs describe` (frontend, backend, migrate, bootstrap) | alguno no se puede leer, o sirve una imagen distinta de la del registro |
+| Baseline de migraciones | `baseline_git_sha` del informe vs. `git_sha` del despliegue actual | el baseline no es el despliegue actual ni un antecesor suyo (adelantado o ajeno), o git no puede ordenarlos |
+| Rollback | `migration.current_git_sha` del informe | no es el despliegue actual del registro (el estado cambió desde el verify) |
+
+Un baseline **atrasado** respecto del despliegue actual pasa con aviso: el diff incluye
+migraciones de más, nunca de menos. En la promoción en dos fases el estado intermedio es
+exacto: `jobs-only` parte de todo en la versión registrada; `services-only` exige los **dos**
+jobs en la imagen nueva (lo que dejó el `jobs-only`, con su evidencia de migrate) y los
+servicios todavía en la registrada. Jobs divididos, en una tercera versión, servicios ya
+movidos o un cambio manual bloquean. Sin migraciones no existe estado intermedio: los jobs
+deben seguir en la registrada y `services-only` se rechaza si dejaría los jobs atrás (usar
+`full`). Cubierto por `r6-two-phase.test.mjs`.
+
+Qué hacer cuando bloquea:
+
+- *Sin `r5-baseline`:* registrarlo (sección siguiente) antes de la primera promoción.
+- *Baseline adelantado:* corregir la variable de repositorio al `git_sha` y las imágenes
+  del despliegue actual y repetir verify.
+- *Cloud Run distinto del registro:* producción no está donde el registro la da. No se
+  promueve sobre un estado desconocido: reconciliar con autorización (volver Cloud Run a lo
+  registrado, o registrar con evidencia lo que realmente corre) y repetir verify.
+
+Límite conocido: tras un apply `partial` o `failed` el registro no refleja producción, así
+que este control —y con él el rollback— se bloquea hasta reconciliar a mano. Es la
+dirección segura, pero el procedimiento exacto de reconciliación se define y ensaya en
+el ensayo de activación; no hay camino automático.
+
+### Deriva fuera del release (comprobación propuesta, solo lectura)
+
+El plan aprobado de una promoción usa `-target` y solo ve los recursos Cloud Run del modo:
+un cambio pendiente o una deriva en el resto del state (IAM, base, red, observabilidad…) no
+aparece ahí. Para detectarlo sin mezclarlo con el plan de imágenes, un operador corre, con
+sus credenciales y de forma periódica y antes de cada promoción, un plan **sin `-target`,
+sin `-out` y sin lock**, con las imágenes que hoy sirve producción (las del último despliegue
+`succeeded` del registro), de modo que Cloud Run no muestre cambios. Nunca se aplica.
+
+Bash:
+
+```bash
+cd infra/terraform/environments/production
+terraform init -backend-config="bucket=$TF_STATE_BUCKET"
+gsutil cat gs://$TF_STATE_BUCKET/promotion/deployments/<ID_ULTIMO_SUCCEEDED>.json > current.json
+FE="$(node -pe 'require("./current.json").images.frontend_image')"
+BE="$(node -pe 'require("./current.json").images.backend_image')"
+JOBS="$(node -pe 'require("./current.json").images.jobs_image')"
+terraform plan -lock=false -input=false -detailed-exitcode \
+  -var-file=<tus tfvars no versionados> \
+  -var "frontend_image=$FE" -var "backend_image=$BE" -var "jobs_image=$JOBS"
+echo "exit=$?"   # 0 sin cambios; 2 hay cambios o deriva; 1 error
+rm current.json
+```
+
+PowerShell:
+
+```powershell
+Set-Location infra/terraform/environments/production
+terraform init "-backend-config=bucket=$env:TF_STATE_BUCKET"
+$rec = (gsutil cat "gs://$env:TF_STATE_BUCKET/promotion/deployments/<ID_ULTIMO_SUCCEEDED>.json") -join "`n" | ConvertFrom-Json
+terraform plan -lock=false -input=false -detailed-exitcode "-var-file=<tus tfvars no versionados>" `
+  "-var=frontend_image=$($rec.images.frontend_image)" `
+  "-var=backend_image=$($rec.images.backend_image)" `
+  "-var=jobs_image=$($rec.images.jobs_image)"
+"exit=$LASTEXITCODE"   # 0 sin cambios; 2 hay cambios o deriva; 1 error
+```
+
+Mientras el DNS no esté listo, el único cambio esperado son los dos uptime checks y sus
+alertas (`create`). Cualquier otro cambio hay que explicarlo antes de promover. No se
+incorpora al workflow ni al validador del plan: es una revisión humana separada, y cuando se
+automatice debería correr con una identidad de solo lectura distinta de la de deploy.
+
+**Límites conocidos de R6-C (no resueltos, documentados):**
+
+- *Baseline de migraciones.* El preflight compara el SHA a promover con
+  `MAPS_PRODUCTION_BASELINE_JSON`, no con lo desplegado. El apply ya no confía en esa
+  variable (ver «Punto de partida del apply»): un baseline adelantado o ajeno se bloquea y
+  uno atrasado solo agrega pasos (`jobs-only` + `services-only` sin migraciones nuevas).
+  Tras cada promoción con migraciones exitosa, actualizar la variable con el `git_sha` y las
+  imágenes del despliegue actual para evitar pasos de más.
+- *Validador de plan probado con fixtures.* La lista de atributos de solo salida de
+  Cloud Run se armó sin un plan real de actualización. El primer plan real puede
+  mostrar un atributo observado que falta: revisarlo y recién entonces agregarlo a
+  `scripts/release/terraform-plan-diff.mjs`; no relajar la regla por reflejo.
+- *`-target`.* Acotado a Cloud Run por diseño en R6; ver la comprobación de deriva de arriba.
+- *Permisos de la cuenta de deploy.* `deploy_identity` crea la cuenta con un rol
+  borrador (`run.services.get`, `run.jobs.get`). No alcanza para actualizar servicios
+  ni ejecutar jobs. Se completa con los 403 del primer plan/apply real, sin roles
+  amplios (ver el plan de operaciones).
+- *Evidencia en GCS.* Ver «Protección del registro de despliegues en GCS».
+- *Smoke público.* Sigue pendiente del DNS y del certificado.
+- *Concurrencia.* El grupo `maps-prod-release` serializa verify, apply y rollback, pero
+  GitHub conserva una sola ejecución en cola por grupo: una tercera cancela a la
+  pendiente. Lanzar una operación a la vez.
+- *Main que avanza.* Cualquier merge a `main` entre verify y apply invalida el verify
+  (el apply exige el mismo commit). En una ventana de promoción, no mergear a `main`.
+
+### Protección del registro de despliegues en GCS
+
+El registro (`promotion/deployments/`), la evidencia de migrate (`promotion/migrate-done/`) y
+los planes (`promotion/plans/`) viven en el bucket de state. Se escriben con
+`x-goog-if-generation-match:0` (create-only), pero eso es una cabecera del cliente: protege
+contra un error, no contra una cuenta con permiso de borrar o reescribir.
+
+**Riesgo del diseño anterior (el módulo `deploy-identity` todavía no se aplicó según el
+checklist; si ya se hubiera aplicado, este cambio reemplaza el binding):** la cuenta
+de deploy recibía el rol personalizado `mapsTerraformStateRW` sobre **todo el bucket**, con
+`storage.objects.create`, `get`, `list`, **`update` y `delete`**. El propio módulo lo
+admite: la restricción por prefijo queda «por política del bucket y del workflow», y esa
+política no está definida. Quien ejecute el job de apply (o un commit malicioso en `main`
+aprobado por error) puede borrar o reescribir registros de despliegue, evidencias de
+migrate y planes, y con ello alterar qué se considera «despliegue actual» o destino de
+rollback.
+
+**Qué permite y qué no permite IAM en Cloud Storage (documentación de Google):**
+
+- *Listar se evalúa sobre el bucket, no sobre un objeto.* Una condición sobre `resource.name`
+  con prefijo de objeto es falsa para `storage.objects.list`: `resource.name` es
+  `projects/_/buckets/<bucket>`. El atributo `storage.googleapis.com/objectListPrefix` que
+  resolvería eso **solo se admite en Credential Access Boundaries**; usarlo en un binding
+  condicional hace que los métodos de Cloud Storage funcionen mal
+  ([fuente](https://docs.cloud.google.com/iam/docs/downscoping-short-lived-credentials)).
+  **Conclusión: el listado no se puede limitar a un prefijo con IAM Conditions.** La
+  propuesta anterior de este runbook (condición de prefijo sobre `list`) no es aplicable y
+  se descartó.
+- *Sobrescribir un objeto exige `storage.objects.create` **y** `storage.objects.delete`*
+  ([fuente](https://docs.cloud.google.com/storage/docs/access-control/iam-permissions)). Una
+  cuenta con `create` pero sin `delete` ni `update` solo puede crear objetos nuevos: no puede
+  reescribir ni borrar. Esa es la propiedad que se busca para el historial.
+
+**Política IAM — implementada en `infra/terraform/modules/deploy-identity/main.tf`, no aplicada;
+sin bucket ni rol personalizado nuevo.** Cuatro bindings sobre el mismo bucket sustituyen al
+binding único anterior (`deploy_state`); un test (`deploy-identity-iam.test.mjs`) exige que este
+cuadro y el Terraform coincidan:
+
+| # | Necesidad | Rol | Condición | Efecto |
+|---|-----------|-----|-----------|--------|
+| 1 | **Listar** (`terraform init`, `gsutil ls` del registro) | `roles/storage.legacyBucketReader` (predefinido: `storage.objects.list` y `storage.buckets.get`, sin leer contenido) | ninguna | Lista nombres y metadatos de **todo** el bucket. Es la limitación aceptada: IAM no permite acotar el listado a un prefijo. |
+| 2 | **Leer** registros, evidencias y planes | `roles/storage.objectViewer` | `resource.name.startsWith("projects/_/buckets/<bucket>/objects/promotion/")` | Lee contenido solo bajo `promotion/`. Su permiso de listado queda sin efecto bajo condición; el listado lo da la fila 1. |
+| 3 | **Crear** registros y evidencia de migrate | `roles/storage.objectCreator` | `resource.name.startsWith(".../objects/promotion/deployments/") \|\| resource.name.startsWith(".../objects/promotion/migrate-done/")` | Crea objetos nuevos en esos dos prefijos. Sin `delete` ni `update`: no puede sobrescribir ni borrar. No escribe en `promotion/plans/` (los sube el operador). |
+| 4 | **State y locks de Terraform** | el rol personalizado `mapsTerraformStateRW` ya existente, **sin** `storage.objects.list` | `resource.name.startsWith(".../objects/terraform/production/")` | `create`, `get`, `update`, `delete` solo bajo el prefijo del state (el state se reescribe y el lock se crea y se borra en cada operación). |
+
+Requisitos: las IAM Conditions en buckets piden acceso uniforme a nivel de bucket (UBLA). El
+módulo lo comprueba con un `data "google_storage_bucket"` y una precondición en cada binding:
+sin UBLA el plan falla **antes** de cambiar nada. La política versión 3 la maneja el provider. El
+nombre del bucket se interpola en las expresiones CEL, así que la variable solo admite
+caracteres válidos de bucket. Si el módulo estuviera ya aplicado con el binding anterior,
+`deploy_state` se crea con `create_before_destroy` para que la cuenta no pierda acceso al state
+durante el cambio; aun así, aplicar fuera de una promoción en curso. Las expresiones resueltas
+son `resource.name.startsWith("projects/_/buckets/<bucket>/objects/<prefijo>")`, el formato de
+nombre de recurso de objeto de Cloud Storage.
+
+**Limitaciones que esta política no resuelve:**
+
+- *El state sigue siendo reescribible por la cuenta de deploy:* `terraform apply` lo necesita.
+  Solo se protege el historial de promoción, no el state.
+- *Crear sigue permitido:* IAM no impide que la identidad de deploy cree un registro o una
+  evidencia **nuevos** con contenido falso. Eso lo frenan que el token solo se emita para el
+  workflow de `main` aprobado (condición del provider), los validadores del registro y el
+  contraste con Cloud Run del punto de partida; no es un control de acceso.
+- *Roles heredados:* cualquier rol de almacenamiento concedido a la cuenta (o a un grupo que la
+  contenga) en el proyecto, la carpeta o la organización —`storage.admin`, `editor`,
+  `owner`— anula todo lo anterior. La cuenta tampoco debe tener `setIamPolicy` sobre el
+  bucket ni poder suplantar a otra cuenta con más permisos.
+- *Humanos:* los operadores que suben planes con sus credenciales pueden hacer lo que su rol
+  permita; revisar quién tiene `objectAdmin` en el bucket.
+- *Listado del bucket completo:* la cuenta ve los nombres de todos los objetos del bucket,
+  no su contenido.
+- *Versionado y borrado temporal:* activar el versionado deja recuperables las versiones
+  sobrescritas o borradas por quien sí tiene `delete` (humanos y state). Comprobar también la
+  configuración de soft delete. No usar retention policy en este bucket: bloquearía el borrado
+  de los archivos de lock de Terraform.
+- *Si el listado global o las condiciones resultaran inaceptables o inviables en el ensayo,*
+  la alternativa que sí permite acotar todo es un **bucket aparte** para `promotion/` (listado
+  por bucket y, si se quiere, retention policy bloqueada). Agrega un recurso, costo mínimo y
+  una identidad más que configurar: solo se justifica si el ensayo de abajo falla o el modelo
+  de amenazas exige evidencia inmutable frente a un administrador comprometido.
+
+**Auditoría de lo anterior (dos configuraciones de logs distintas, no intercambiables):**
+
+| Para qué | Servicio | Tipo de log | Dónde se habilita |
+|----------|----------|-------------|-------------------|
+| Detectar que alguien creó, sobrescribió o borró objetos del bucket de state | `storage.googleapis.com` (Cloud Storage) | Data Access `DATA_WRITE` (lecturas: `DATA_READ`, opcional) | Auditoría del proyecto. Es por servicio, no por bucket: también registra los demás buckets del proyecto; revisar volumen y, si hace falta, un filtro de exclusión. |
+| Leer el resultado del dry-run de la política de limpieza de imágenes | `artifactregistry.googleapis.com` (Artifact Registry) | Data Access `DATA_WRITE` | Auditoría del proyecto. Ver «Retención de imágenes (R6-D)». |
+
+Los cambios de IAM y de configuración del bucket salen en los logs de Admin Activity, que
+están siempre activos; los de objetos no.
+
+**Qué comprobar en el plan de activación (antes del primer apply real) y ensayos negativos.**
+Primero la configuración, con credenciales de administrador:
+
+- `gcloud storage buckets describe gs://<bucket> --format="yaml(versioning,uniform_bucket_level_access,soft_delete_policy)"`
+- `gcloud storage buckets get-iam-policy gs://<bucket>`: solo los cuatro bindings de arriba para la
+  cuenta de deploy, con sus condiciones.
+- `gcloud projects get-iam-policy maps-prod-landing-page`: ningún rol de almacenamiento amplio ni
+  `setIamPolicy` para la cuenta de deploy ni para grupos que la contengan.
+
+Después, con la identidad de deploy (suplantada por un administrador con
+`roles/iam.serviceAccountTokenCreator` sobre ella; `gsutil -i`), **antes de cualquier
+promoción real**. Los objetos de prueba van en `promotion/migrate-done/ensayo-*.json`: ese
+prefijo nunca se lista como registro. **No** crear objetos de prueba en
+`promotion/deployments/`: `fetch-deployment-registry` parsea todo lo que hay ahí y un archivo
+ajeno corrompería el registro.
+
+Bash:
+
+```bash
+SA=maps-prod-deploy@maps-prod-landing-page.iam.gserviceaccount.com
+B=gs://$TF_STATE_BUCKET
+echo '{}' > ensayo.json
+gsutil -i $SA ls "$B/promotion/deployments/*.json"                   # OK
+gsutil -i $SA cat "$B/promotion/deployments/r5-baseline.json"        # OK
+gsutil -i $SA -h "x-goog-if-generation-match:0" cp ensayo.json "$B/promotion/migrate-done/ensayo-1.json"   # OK (crea)
+gsutil -i $SA cp ensayo.json "$B/promotion/migrate-done/ensayo-1.json"                                     # debe fallar (sobrescribir)
+gsutil -i $SA cp ensayo.json "$B/promotion/deployments/r5-baseline.json"                                   # debe fallar (sobrescribir un registro real)
+gsutil -i $SA rm "$B/promotion/migrate-done/ensayo-1.json"           # debe fallar (borrar)
+gsutil -i $SA cp ensayo.json "$B/promotion/plans/ensayo.json"        # debe fallar (plans los sube el operador)
+gsutil -i $SA cp ensayo.json "$B/ensayo-raiz.json"                   # debe fallar (fuera de los prefijos)
+gcloud storage buckets add-iam-policy-binding $B --member=serviceAccount:$SA --role=roles/storage.objectAdmin --impersonate-service-account=$SA   # debe fallar (no puede cambiar IAM)
+```
+
+PowerShell:
+
+```powershell
+$SA = "maps-prod-deploy@maps-prod-landing-page.iam.gserviceaccount.com"
+$B = "gs://$env:TF_STATE_BUCKET"
+"{}" | Out-File -Encoding ascii ensayo.json
+gsutil -i $SA ls "$B/promotion/deployments/*.json"                   # OK
+gsutil -i $SA cat "$B/promotion/deployments/r5-baseline.json"        # OK
+gsutil -i $SA -h "x-goog-if-generation-match:0" cp ensayo.json "$B/promotion/migrate-done/ensayo-1.json"  # OK (crea)
+gsutil -i $SA cp ensayo.json "$B/promotion/migrate-done/ensayo-1.json"                                    # debe fallar (sobrescribir)
+gsutil -i $SA cp ensayo.json "$B/promotion/deployments/r5-baseline.json"                                  # debe fallar (sobrescribir un registro real)
+gsutil -i $SA rm "$B/promotion/migrate-done/ensayo-1.json"           # debe fallar (borrar)
+gsutil -i $SA cp ensayo.json "$B/promotion/plans/ensayo.json"        # debe fallar (plans los sube el operador)
+gsutil -i $SA cp ensayo.json "$B/ensayo-raiz.json"                   # debe fallar (fuera de los prefijos)
+gcloud storage buckets add-iam-policy-binding $B --member="serviceAccount:$SA" --role=roles/storage.objectAdmin --impersonate-service-account=$SA   # debe fallar (no puede cambiar IAM)
+```
+
+Cada línea marcada «debe fallar» tiene que terminar en 403 (o 412 si la precondición se evalúa
+antes); si alguna **funciona**, la política no está bien y no se sigue. El objeto de prueba
+`ensayo-1.json` lo borra después un administrador. Además:
+
+- el registro se lista y se lee con la sintaxis de `fetch-deployment-registry` (`gsutil ls` con
+  comodín y `gsutil cat`): si el listado pide `storage.buckets.get` u otro permiso, el 403 lo
+  dirá y se agrega solo ese;
+- `terraform init` y un `plan` contra el state con la cuenta de deploy funcionan, y un apply del
+  ensayo reescribe el state y crea y borra el lock (fila 4);
+- el primer `release-promote` completo de ensayo crea su registro y su evidencia con esta política
+  (fila 3) y deja su rastro en los logs de Cloud Storage.
+
+Los permisos exactos de los roles predefinidos se confirman con
+`gcloud iam roles describe roles/storage.legacyBucketReader` (y los demás) antes de aplicar.
+Los permisos de Cloud Run de la cuenta de deploy no cambian con esto y siguen pendientes del
+ensayo real.
+
+### Registro baseline R5 (una vez, antes del primer rollback y de la primera promoción)
+
+El rollback al estado previo a R6 y el punto de partida del apply necesitan el registro
+`r5-baseline` con evidencia real de Cloud Run. Con `config/release/production-baseline.json`
+completo (ver `config/release/README.md`) y credenciales de solo lectura:
+
+Bash:
+
+```bash
+mkdir evidence
+for svc in frontend backend; do
+  gcloud run services describe maps-prod-$svc --project=maps-prod-landing-page \
+    --region=southamerica-east1 --format=json > evidence/$svc.json
+done
+for job in migrate bootstrap; do
+  gcloud run jobs describe maps-prod-$job --project=maps-prod-landing-page \
+    --region=southamerica-east1 --format=json > evidence/$job-job.json
+done
+node scripts/release/build-baseline-record.mjs \
+  --baseline=config/release/production-baseline.json \
+  --frontend=evidence/frontend.json --backend=evidence/backend.json \
+  --migrate-job=evidence/migrate-job.json --bootstrap-job=evidence/bootstrap-job.json
+```
+
+PowerShell:
+
+```powershell
+New-Item -ItemType Directory -Force evidence | Out-Null
+foreach ($svc in "frontend", "backend") {
+  gcloud run services describe "maps-prod-$svc" --project=maps-prod-landing-page `
+    --region=southamerica-east1 --format=json | Out-File -Encoding utf8 "evidence/$svc.json"
+}
+foreach ($job in "migrate", "bootstrap") {
+  gcloud run jobs describe "maps-prod-$job" --project=maps-prod-landing-page `
+    --region=southamerica-east1 --format=json | Out-File -Encoding utf8 "evidence/$job-job.json"
+}
+node scripts/release/build-baseline-record.mjs `
+  --baseline=config/release/production-baseline.json `
+  --frontend=evidence/frontend.json --backend=evidence/backend.json `
+  --migrate-job=evidence/migrate-job.json --bootstrap-job=evidence/bootstrap-job.json
+```
+
+Falla si Cloud Run sirve una imagen distinta de la del baseline. Si pasa, escribe
+`r5-baseline.json` e imprime el `gsutil cp` create-only en la sintaxis de tu shell. Los
+describe incluyen configuración de los servicios: borrar `evidence/` al terminar y no
+versionarlo.
+
+### Rollback de aplicación (R6-C4)
+
+No es restauración de base de datos. Si el esquema avanzó con migraciones que el
+código anterior no tolera, detener el rollback de imágenes y seguir **Backups y
+recuperación** (instancia nueva + validación + Secret Manager).
+
+1. Listar despliegues: `node scripts/release/fetch-deployment-registry.mjs --bucket=<TF_STATE_BUCKET>`.
+2. Elegir `deployment_id` con `outcome: succeeded` (incluye `r5-baseline`). Un registro
+   de rollback previo (`restored_baseline`) no sirve como destino: elegir `r5-baseline`.
+3. Disparar `release-promote` con `operation=rollback`, `phase=verify`, `target_deployment_id=<id>` y el `git_sha` del registro. `release_build_run_id` solo si el registro lo tiene; el baseline R5 no tiene corrida release-build ni artifact.
+4. Si hay migraciones Prisma entre esa versión y la actual, el preflight **bloquea** el rollback de imágenes. No hay aprobación automática. Seguir **Backups y recuperación**.
+5. Plan Terraform **`plan_mode=full`** con los mismos pasos 3 a 5 de la promoción.
+6. Fase **apply** con `operation=rollback`, `plan_mode=full`, `target_deployment_id` y environment `production`; no se ejecuta `maps-prod-migrate` ni bootstrap.
+7. Post-verify: servicios y jobs con el digest esperado y la revisión lista con todo el tráfico; si falla, estado **parcial** — no declarar éxito.
+8. El apply registra el rollback en `promotion/deployments/<apply_run_id>.json`.
+
+Concurrencia: `maps-prod-release` (compartida con promociones).
+
+### Retención de imágenes (R6-D)
+
+**Estado: simulación.** El módulo `artifact-registry` declara una política de limpieza con
+`cleanup_policy_dry_run = true`, y el módulo rechaza `false` (variable validada). Con
+simulación activa Artifact Registry **no borra nada**. Salir de la simulación es un cambio
+posterior a R6, con el informe de simulación revisado, y no forma parte de cerrarlo.
+
+Política (la misma en `infra/terraform/modules/artifact-registry/main.tf` y en
+`config/release/retention-policy.json`; un test exige que coincidan):
+
+| Regla | Efecto |
+|-------|--------|
+| `keep-prod-tags` | Conserva todo tag que empiece con `prod-` (`prod-current`, `prod-previous`, `prod-baseline-r5`). |
+| `keep-recent-versions` | Conserva las 5 versiones más recientes de cada imagen. |
+| `delete-old-untagged` | Candidatas a borrado: versiones **sin tag** y de más de 30 días. |
+
+Una regla de conservación gana siempre sobre la de borrado. Los builds de release publican
+con tag de SHA completo y la verificación `--gcp` del apply y del rollback exige ese tag:
+una imagen con tag de SHA nunca es candidata. (El diseño original hablaba de tags
+`release-<sha>`; el pipeline real usa el SHA solo.)
+
+**Informe de protección** (solo lectura; no etiqueta ni borra). Bash y PowerShell usan el
+mismo comando (las continuaciones de línea son `\` en Bash y `` ` `` en PowerShell):
+
+```bash
+node scripts/release/retention-report.mjs --bucket=<TF_STATE_BUCKET> \
+  --live-images --live-running --print-tag-commands
+```
+
+Identifica los digests desplegados (`current`), la versión anterior válida para rollback
+(`previous`, con el mismo criterio del workflow de rollback), el baseline R5 y la ventana
+de las últimas 5 promociones. Entrega **dos resultados separados**:
+
+- *Simulación local* (`simulation_ok`): falla si algún protegido no existe en Artifact
+  Registry, sería candidato a borrado con la política, o si Cloud Run sirve algo distinto de lo
+  registrado. Es una aproximación del criterio, **no** el resultado real de Artifact Registry.
+- *Protecciones obligatorias* (`protection_ready`): exige que los digests de `current`,
+  `previous` y `baseline` (cuando existen en el registro) tengan en sus tres imágenes la
+  etiqueta `prod-current`, `prod-previous` y `prod-baseline-r5`. Sin ellas un digest
+  desplegado solo lo cubre la regla de «últimas 5», que deja de hacerlo tras 5 builds más.
+  Las etiquetas que faltan salen en `protection_gaps` y como comandos impresos, nunca
+  ejecutados.
+
+El código de salida es 0 solo si **ambos** están en verde; `--simulation-only` evalúa
+únicamente la simulación (útil antes de etiquetar) pero sigue avisando que la protección no
+está lista. Hasta que `protection_ready` sea verdadero no se da por revisado el dry-run ni
+se plantea salir de la simulación. Con `--registry=`, `--images=` y `--running=` corre sobre
+archivos, sin credenciales; con `--bucket`, `--live-images` y `--live-running` consulta GCP
+en solo lectura y es la única forma de saber si un digest histórico sigue existiendo.
+
+**Pasos para llegar a un informe revisable (cada uno con autorización del operador):**
+
+1. Etiquetar los digests protegidos con los `gcloud artifacts docker tags add` que
+   imprime el informe. Sin esas etiquetas un digest desplegado solo está protegido por la
+   regla de «últimas 5», que deja de cubrirlo tras 5 builds más.
+2. Aplicar la política: `terraform plan`/`apply` de `module.artifact_registry` por el
+   camino de infraestructura normal (no por `release-promote`, que solo admite Cloud Run).
+3. Habilitar los logs de auditoría **Data Access (DATA_WRITE)** de Artifact Registry en el
+   proyecto (servicio `artifactregistry.googleapis.com`): los resultados del dry-run salen ahí y
+   esa configuración **no** está en Terraform. Es independiente de los Data Access de Cloud
+   Storage (`storage.googleapis.com`), que sirven para auditar el bucket de state; habilitar uno
+   no activa el otro (ver «Protección del registro de despliegues en GCS»).
+4. Esperar al menos un día (la limpieza corre en segundo plano) y leer el resultado:
+
+   ```bash
+   gcloud logging read \
+     'protoPayload.serviceName="artifactregistry.googleapis.com" AND protoPayload.request.parent="projects/maps-prod-landing-page/locations/southamerica-east1/repositories/maps-prod/packages/-" AND protoPayload.request.validateOnly=true' \
+     --resource-names="projects/maps-prod-landing-page" --project=maps-prod-landing-page --limit=100 --format=json
+   ```
+
+5. Buscar en esa salida los digests de `current`, `previous` y `r5-baseline` (los lista
+   el informe). **Ninguno** puede aparecer como candidato. Si aparece, no seguir: corregir
+   etiquetas o política.
+
+El cruce del paso 5 es manual a propósito: el formato exacto de estas entradas de log no
+se verificó en este repositorio y no se automatiza una lectura que podría fallar en silencio.
 
 ## Secretos y rotación
 
@@ -461,10 +994,9 @@ El sitio todavía no se ha publicado mediante el dominio oficial.
 
 ### R6
 
-R6 define, y todavía no implementa:
-
-- promoción inmutable de imágenes;
-- limpieza de Artifact Registry;
-- release operations.
-
-Hasta entonces el deploy es el de la sección anterior: digest, plan, revisión, apply.
+R6-A a R6-D están implementados en el repositorio, sin ejecutar contra GCP. Lo que falta para
+darlos por operativos está en el checklist de activación de
+[`R6_RELEASE_OPERATIONS_PLAN.md`](./R6_RELEASE_OPERATIONS_PLAN.md): permisos reales de la
+cuenta de deploy, environment, baseline R5 con su registro, el primer ensayo de promoción y de
+rollback, y revisar el dry-run de retención. Hasta entonces el deploy sigue siendo el camino
+manual de «Deploys posteriores».

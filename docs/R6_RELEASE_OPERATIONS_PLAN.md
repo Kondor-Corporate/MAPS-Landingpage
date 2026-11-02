@@ -1,6 +1,6 @@
 # R6 — Automatización de releases y operación de producción
 
-Plan de implementación. Este documento no autoriza builds, `terraform apply`, cambios de IAM ni despliegues. El relevamiento del repositorio es del 28/10/2026, sobre `chore/r6-release-operations`. El estado de las ramas, del workflow y de la federación se actualizó el 29/10/2026. R6-B.1 agrega la configuración de construcción y no la ejecuta.
+Plan de implementación. Este documento no autoriza builds, `terraform apply`, cambios de IAM ni despliegues. El relevamiento del repositorio es del 28/10/2026, sobre `chore/r6-release-operations`. R6-B.1 agrega la configuración de construcción y no la ejecuta.
 
 La operación vigente sigue en [`GCP_PRODUCTION_RUNBOOK.md`](./GCP_PRODUCTION_RUNBOOK.md). La topología de staging sigue en [`GCP_STAGING_RUNBOOK.md`](./GCP_STAGING_RUNBOOK.md).
 
@@ -18,7 +18,7 @@ El equipo confirmó este inventario. Este bloque no volvió a consultar GCP ni a
 
 Las revisiones de los dos entornos están Ready. Cada uno usa imágenes de su propio repositorio. Decisión provisional de este bloque: las cuatro variantes de build se publican en `maps-prod`, con los nombres `backend`, `backend-jobs`, `frontend` y `frontend-staging`. La última todavía no existe; el primer build real la crea. No se configuran accesos entre staging y producción. Staging sigue leyendo `maps-staging`.
 
-La rama predeterminada del repositorio es `main`. El PR #76 integró la preparación de R6-B en `development` (`fb20935`). El PR #77 publicó ese mismo contenido en `main` con squash (`a1aad42`). Los dos commits tienen el mismo árbol, pero los historiales siguen divergentes: el squash no deja a `development` como ancestro de `main`. Un PR posterior, integrado con merge commit, reconcilia los dos historiales y conserva el código actual. Hasta que ese PR se integre, la divergencia sigue. No se cambia la rama predeterminada, y `main` no es origen de release: el SHA a construir tiene que estar en `development`.
+La rama predeterminada del repositorio es `main`. Sigue desactualizada: no es ancestro de `development`, tiene 1 commit que `development` no contiene, y `development` va 209 commits adelante. No se cambia la rama predeterminada y no se publica desde `main` sin una decisión previa.
 
 Los dos digests del frontend productivo son la misma imagen. No hay drift demostrado. Terraform y la configuración del servicio referencian el índice OCI `sha256:27af01940675134c5595631a85febe35d88534a0bbe9147037db6139c15d3465`. Ese índice contiene el manifiesto `linux/amd64` `sha256:3792e9cb6dd59eae18980119d823f022e4af84f84389326d0efa0be468d3e721`. Cloud Run ejecuta ese manifiesto, y la revisión `maps-prod-frontend-00002-zf8` recibe el 100 % del tráfico. El pipeline guarda `image_summary.digest`: en una imagen con índice, ese valor es el índice, la misma clase de referencia que Terraform ya usa.
 
@@ -94,7 +94,7 @@ El runbook de staging todavía dice que CI no ejecuta los tests de frontend. `.g
    | Triggers de Cloud Build conectados al repo | Otra integración, y la aprobación queda peor resuelta que un environment de GitHub. |
    | Cloud Deploy | Servicio nuevo para un caso que Terraform y los digests ya cubren. El frontend no se promociona como una sola imagen. |
 
-2. **El commit que se puede construir tiene que estar en `development` y tener el CI en verde.** La rama predeterminada sigue siendo `main`. El workflow no la cambia y no la usa como origen del código. GitHub solo ofrece `workflow_dispatch` cuando el archivo del workflow está en la rama predeterminada. Desde el PR #77, `release-build.yml` está en `main` y el disparo manual está disponible. La rama elegida al disparar carga el workflow y tiene que ser `main` o `development`, las dos que acepta Workload Identity Federation. El código que se construye es el `git_sha` del input, validado contra `development`. No hay trigger de `push`.
+2. **El commit que se puede construir tiene que estar en `development` y tener el CI en verde.** La rama predeterminada sigue siendo `main`. El workflow no la cambia y no la usa como origen del código. GitHub solo ofrece `workflow_dispatch` cuando el archivo del workflow está en la rama predeterminada, así que desde `chore/r6-release-operations` o desde `development` ese disparo no está disponible. No se agrega un `push` para saltarse esa limitación.
 
 3. **Backend y `backend-jobs` se pueden construir una vez por SHA.** La configuración de runtime la pone Cloud Run, no la imagen. Reutilizar el mismo digest en staging y producción es posible, pero hoy cada proyecto tiene su registry y sus revisiones Ready apuntan al suyo. Cómo compartir el artefacto —copia por digest o lectura entre proyectos— queda pendiente. No se asume que el service agent de staging pueda leer `maps-prod`.
 
@@ -210,7 +210,7 @@ Siguen sin existir `release-promote.yml` y `release-rollback.yml`.
 
 `.dockerignore` viaja en el fuente. Si `.gcloudignore` lo excluye, Docker no lo ve y el marcador `.maps-existing-digest` entra al contexto. El bucket sigue sin recibir `.env`, claves ni `node_modules`, porque eso lo excluye `.gcloudignore`.
 
-`workflow_dispatch` ya está disponible. GitHub solo dispara ese evento si el archivo está en la rama predeterminada, que es `main`, y el PR #77 lo dejó ahí. No hay otro trigger. Mergear el archivo, sea a `development` o a `main`, no lo ejecuta. Las variables `GCP_WORKLOAD_IDENTITY_PROVIDER` y `GCP_BUILD_SERVICE_ACCOUNT` ya están en GitHub y no en el repositorio. El workflow igual se detiene si alguien las borra.
+`workflow_dispatch` no está disponible desde la rama actual. GitHub solo dispara ese evento si el archivo está en la rama predeterminada, que es `main`. No hay otro trigger. Mergear este archivo a `development` no lo ejecuta. Las variables `GCP_WORKLOAD_IDENTITY_PROVIDER` y `GCP_BUILD_SERVICE_ACCOUNT` ya están en GitHub y no en el repositorio. El workflow igual se detiene si alguien las borra.
 
 El digest no sale del tag. El step `digest`, en la imagen `gcr.io/cloud-builders/gcloud`, lee `image_summary.digest`. El workflow lo vuelve a leer con el mismo campo y el manifiesto guarda `imagen@sha256:…`. La etiqueta OCI `org.opencontainers.image.revision` se agrega con `docker build --label`, sin tocar los Dockerfiles. Un build repetido del mismo SHA reutiliza el tag si esa etiqueta coincide, y falla si el tag apunta a otra revisión.
 
@@ -258,8 +258,7 @@ Permisos de `maps-prod-build-submit`, todos acotados al recurso:
 |---------|-------|----------|
 | `cloudbuild.builds.create`, `cloudbuild.builds.get` y `serviceusage.services.use` | proyecto, rol custom `mapsCloudBuildSubmitter` | Presentar el build, leer su estado y llamar APIs ya habilitadas. `builds.create` también permite crear un trigger; no hay un permiso más chico. El trigger igual solo puede actuar como `maps-prod-build`. |
 | `roles/iam.serviceAccountUser` | solo `maps-prod-build` | `iam.serviceAccounts.actAs` para que el build corra como esa cuenta. |
-| `roles/storage.objectCreator` y `roles/storage.objectViewer` | solo `maps-prod-landing-page-build-source` | Subir y releer el contexto. No hace falta borrar objetos: el nombre de cada subida es único y el bucket ya los borra a los 7 días. Ninguno de los dos roles incluye `storage.buckets.get`. |
-| `storage.buckets.get`, rol custom `mapsBuildSourceBucketGetter` | solo `maps-prod-landing-page-build-source` | `gcloud builds submit` lee la metadata del bucket antes de subir el archivo. El rol no está en el proyecto, así que no cubre el bucket de assets ni el de state. Pendiente de apply. |
+| `roles/storage.objectCreator` y `roles/storage.objectViewer` | solo `maps-prod-landing-page-build-source` | Subir y releer el contexto. No hace falta borrar objetos: el nombre de cada subida es único y el bucket ya los borra a los 7 días. |
 | `artifactregistry.dockerimages.get`, `repositories.get`, `tags.get` y `versions.get` | solo el repositorio `maps-prod`, rol custom `mapsArtifactDigestReader` | Resolver `image_summary.digest`. No incluye descarga de blobs ni escritura. La escritura sigue en `maps-prod-build`. |
 
 No recibe `roles/owner`, `roles/editor`, `roles/cloudbuild.builds.editor`, escritura en Artifact Registry, Secret Manager, Cloud Run, Cloud SQL ni `serviceAccountUser` sobre la cuenta default de Cloud Build, `maps-prod-frontend`, `maps-prod-backend`, `maps-prod-migrate` o `maps-prod-bootstrap`. Un `cloudbuild.yaml` que borre `serviceAccount` no debe poder correr con la cuenta default: el workflow rechaza un archivo que no fije `maps-prod-build`, y el alta no le da `actAs` sobre ninguna otra.
@@ -321,16 +320,16 @@ Cloud Run conserva revisiones anteriores. El procedimiento de R6 igual pasa por 
 
 ## Limpieza de imágenes
 
-Hoy el módulo `artifact-registry` no define cleanup. El bucket de fuentes sí borra a los 7 días; eso no toca imágenes.
+El módulo `artifact-registry` declara ahora la política de R6-D en simulación (en el repositorio; no aplicada en GCP). El bucket de fuentes sí borra a los 7 días; eso no toca imágenes.
 
 Política a introducir en R6-D, con simulación activada:
 
-- conservar cualquier digest etiquetado `prod-current` o `prod-previous`;
-- conservar las etiquetas `release-<sha>` de las versiones que sigan dentro de la ventana de rollback (propuesta: las últimas cinco promociones exitosas de cada imagen);
+- conservar cualquier digest etiquetado `prod-*` (`prod-current`, `prod-previous`, `prod-baseline-r5`);
+- conservar las últimas cinco versiones de cada imagen (la ventana de rollback; las imágenes se etiquetan con el SHA completo, no con `release-<sha>`);
 - marcar como candidatas a borrar las imágenes sin etiqueta y más viejas de 30 días;
 - `cleanup_policy_dry_run = true`.
 
-Antes de salir de la simulación hay que etiquetar los digests que producción usa hoy. El pasaje a borrado real es un cambio posterior, con el informe de simulación ya revisado, y no forma parte de cerrar R6.
+Implementación y límites: ver «R6-D» más abajo. Antes de salir de la simulación hay que etiquetar los digests que producción usa hoy. El pasaje a borrado real es un cambio posterior, con el informe de simulación ya revisado, y no forma parte de cerrar R6.
 
 No se eliminan imágenes en ninguno de estos bloques.
 
@@ -344,19 +343,18 @@ Hecho cuando el equipo confirma o corrige las decisiones abiertas de la sección
 
 ### R6-B — Construcción y manifiesto
 
+**Estado (30/10/2026):** R6-B cerrado en operación. El Release build #6 (`40992146277`) terminó en success para el SHA `274a938e483e0474ab5d4bf8f344a8387690c6d0`, publicó cuatro imágenes en `maps-prod` y dejó el artifact `release-manifest-<sha>`.
+
 R6-B.1, en el repositorio y sin ejecutar:
 
 - `backend/cloudbuild.yaml` y `frontend/cloudbuild.yaml`, con `CLOUD_LOGGING_ONLY` y `maps-prod-build`;
 - `.github/workflows/release-build.yml`, que verifica el SHA, exige CI verde y corta en `wif-guard` si no hay Workload Identity Federation.
 
-Estado al 29/10/2026:
+Sigue afuera de este bloque:
 
-- el pool, el provider y la cuenta que hace el submit están aplicados en GCP desde el 28/10/2026 (R6-B.2). `GCP_WORKLOAD_IDENTITY_PROVIDER` y `GCP_BUILD_SERVICE_ACCOUNT` están configuradas en GitHub;
-- el PR #76 integró R6-B en `development`, y el PR #77 publicó el mismo contenido en `main` con squash. `release-build.yml` ya está en la rama predeterminada y `workflow_dispatch` está disponible;
-- un PR posterior, con merge commit, reconcilia los historiales de `main` y `development` y conserva el código actual. Hasta que se integre, los historiales siguen divergentes;
-- el 29/10/2026 `Release build` #2, sobre `fb20935`, verificó el SHA, el CI y Workload Identity, y falló en `gcloud builds submit` en las cuatro variantes. El mensaje fue `The user is forbidden from accessing the bucket [maps-prod-landing-page-build-source]`. Ningún build llegó a crearse. La llamada que devuelve 403 es `storage.buckets.get`. `serviceusage.services.use` ya estaba concedido. La auditoría del 29/10/2026 no encontró otro permiso ausente en la cuenta que presenta builds ni en `maps-prod-build`. El service agent de Cloud Build ya tiene `roles/cloudbuild.serviceAgent` en el proyecto, que incluye `iam.serviceAccounts.getAccessToken`; el Token Creator aparte solo está documentado para una cuenta de otro proyecto. Antes de las cuatro variantes, el workflow comprueba el bucket y el registry. Esa comprobación no sube archivos ni crea builds.
-
-Próximo paso operativo, después de aplicar el rol `mapsBuildSourceBucketGetter`: volver a disparar `release-build.yml` a mano con un SHA de `development` que tenga el CI en verde. Ese build publica las cuatro imágenes en `maps-prod` y deja el manifiesto como artifact. No despliega Cloud Run, no ejecuta jobs y no aplica Terraform.
+- crear el pool, el provider y la cuenta que hace el submit;
+- poner el workflow en `main` para que GitHub permita `workflow_dispatch`;
+- el primer `gcloud builds submit`.
 
 Criterios para dar por cerrado R6-B, cuando eso se active:
 
@@ -366,43 +364,152 @@ Criterios para dar por cerrado R6-B, cuando eso se active:
 - Cloud Run, los jobs y el state no cambian;
 - los logs no muestran payloads de secretos.
 
-### R6-C — Staging, producción, migrate y rollback
+### R6-C — Promoción, identidad y rollback
 
-Entregables:
+R6-C se divide en sub-bloques. Staging deja de ser un requisito obligatorio del camino de promoción: no tiene que permanecer operativo para promover a producción. Apagar o reducir staging es una tarea aparte de control de costos, no parte de R6-C1.
 
-- workflow de promoción;
-- environment `production` con revisores;
-- grupos de concurrencia;
-- cuenta de deploy con el permiso mínimo que el plan haya justificado;
-- lectura de `maps-staging` o el mecanismo de compartición que se haya elegido;
-- workflow de rollback por un manifiesto anterior;
-- actualización breve del runbook de producción para que «Deploys posteriores» apunte a este flujo.
+| Sub-bloque | Contenido |
+|------------|-----------|
+| **R6-C1** | Validación reutilizable del manifiesto (`scripts/release/validate-manifest.mjs`). Primera barrera estructural; **no** autoriza despliegue ni demuestra por sí sola que el artifact vino de un Release build exitoso ni que los digests existen en Artifact Registry. |
+| **R6-C2** | Identidad de deploy, environment `production`, aprobación humana y comprobaciones de autenticidad del manifiesto (procedencia del artifact, coherencia con la corrida de release). |
+| **R6-C3** | Workflow de promoción: `release-promote.yml`, plan revisado localmente, apply del plan en GCS, migrate si corresponde. |
+| **R6-C4** | Workflow de rollback por manifiesto anterior y nota breve en el runbook de producción. |
 
-Criterios:
+Validación local del manifiesto (Windows PowerShell, desde la raíz del repositorio):
 
-- dos promociones disparadas juntas no se aplican en paralelo;
-- el apply sin aprobación no corre;
-- un plan que toque Cloud SQL, IAM, el balanceador o secretos falla solo;
-- con migraciones nuevas, migrate termina bien antes de cambiar frontend y backend;
-- `maps-prod-bootstrap` no se ejecuta;
-- el rollback de prueba vuelve a los digests anteriores y deja el state igual que las revisiones;
-- el resultado queda en el deployment de GitHub.
+```powershell
+node scripts/release/validate-manifest.mjs .\ruta\release-manifest.json 274a938e483e0474ab5d4bf8f344a8387690c6d0
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+```
 
-El ensayo de staging espera la decisión de cómo compartir artefactos. Los nombres de servicio ya están confirmados. El primer apply de producción puede ensayarse antes del DNS; el smoke del dominio, no.
+Los tests del validador corren en CI en el job `Release manifest validator`, sin credenciales de GCP.
 
-### R6-D — Retención en simulación y cierre operativo
+### R6-C2 — Autenticidad, identidad de deploy y environment
 
-Entregables:
+Entregables en repositorio (sin apply ni workflow de promoción):
 
-- etiquetas `prod-current`, `prod-previous` y `release-<sha>` sobre los digests que hay que conservar;
-- cleanup de Artifact Registry en `cleanup_policy_dry_run = true`;
-- nota en el README de producción y en el runbook.
+- `scripts/release/verify-release-authenticity.mjs` y módulos `github-release-api`, `gcp-artifact-verify`, `git-development-verify`;
+- tests en `verify-release-authenticity.test.mjs`;
+- módulo Terraform `infra/terraform/modules/deploy-identity` (cuenta `maps-prod-deploy`, pool WIF **`maps-github-deploy`** independiente de `maps-github`);
+- instrucciones del environment GitHub: [`R6_GITHUB_PRODUCTION_ENVIRONMENT.md`](./R6_GITHUB_PRODUCTION_ENVIRONMENT.md).
 
-Criterios:
+Capas de verificación:
 
-- el informe de simulación lista candidatas y muestra que los digests de la revisión actual y de la anterior no son candidatas;
-- no se borra ninguna imagen;
-- un release siguiente sigue pudiendo desplegar por digest.
+| Capa | Requiere | Qué demuestra |
+|------|---------|----------------|
+| Local | nada | Contrato C1 + coherencia de `build_run_url` |
+| GitHub API | `GH_TOKEN` | Run de `release-build.yml` exitoso, artifact `release-manifest-<sha>` en esa run, CI verde, SHA en `development` |
+| git | remoto `origin` | Ancestro en `origin/development` |
+| GCP | `gcloud` autenticado | Digest y etiqueta OCI `org.opencontainers.image.revision` en Artifact Registry |
+
+El manifiesto descargado en promoción debe obtenerse del artifact de la run citada en `build_run_url`, no confiar en un JSON subido a mano.
+
+Identidades: el provider de builds **no** se amplía. Deploy usa el pool **`maps-github-deploy`** (distinto de `maps-github`) con provider OIDC que exige `release-promote.yml` en `main`, IDs numéricos de org/repo, `workflow_dispatch` y claim **`environment=production`**. El `workloadIdentityUser` de deploy apunta solo a principals de ese pool. Ver README del módulo `deploy-identity`.
+
+El módulo `deploy_identity` en producción **no usa `count`**: `terraform_state_bucket_name` es obligatoria en cada plan/apply (tfvars gitignored o `-var`). Omitirla debe fallar el plan, no destruir recursos en silencio.
+
+Entregables pendientes de R6-C (conjunto):
+
+- environment `production` con revisores (R6-C2);
+- apply de `deploy_identity` en GCP y variables `GCP_DEPLOY_*` / `TF_STATE_BUCKET`;
+- completar `config/release/production-baseline.json` antes de la primera promoción automática;
+- workflow de rollback por manifiesto anterior (R6-C4);
+- actualización breve del runbook de producción para que «Deploys posteriores» apunte a este flujo (R6-C4, parcialmente hecho en R6-C3).
+
+### R6-C3 — Promoción controlada (implementado en repo, no ejecutado)
+
+Archivos principales:
+
+- `.github/workflows/release-promote.yml` — fases `verify` (promoción sin environment; rollback con environment porque lee GCS) y `apply` (environment `production`, identidad deploy);
+- `scripts/release/run-promotion-preflight.mjs` — descarga manifiesto desde artifact GitHub;
+- `scripts/release/validate-terraform-plan.mjs` — alcance del plan, imágenes aprobadas y versión de Terraform;
+- `scripts/release/prepare-promotion-plan.mjs` — ayuda local del operador (targets del plan, binding, comandos de subida);
+- `config/release/production-baseline.json` — punto de recuperación R5 (completar manualmente).
+
+**Revisión del plan (no simulada):** GitHub aprueba el job `apply` **antes** de que corra; por eso el `terraform plan` ocurre **fuera** del job protegido. El operador valida `plan.json`, sube `plan.tfplan` a GCS y dispara apply con `verify_run_id` + `plan_sha256`. El job apply vuelve a validar manifiesto, digests GCP, hash del plan y JSON del plan antes de `terraform apply plan.tfplan`. Procedimiento paso a paso: [runbook de producción](./GCP_PRODUCTION_RUNBOOK.md#deploys-posteriores).
+
+Concurrencia: `maps-prod-release`. Prohibido `maps-prod-bootstrap`. Smoke público: pendiente DNS.
+
+**Endurecimiento de cierre de R6 (sobre lo implementado en C3/C4):**
+
+| Control | Qué corrige |
+|---------|-------------|
+| Inputs solo por entorno, validados por `validate-workflow-inputs.mjs` | Ningún `${{ inputs.* }}` dentro de `run:` (había 35 interpolaciones; ahora 8 en `env:` y 1 en `with:` ya validada). |
+| Permisos por job | `id-token: write` solo en los dos jobs con environment `production`; checkouts sin credenciales persistidas. |
+| Terraform fijado por `.terraform-version` | El workflow pedía 1.9.8 y `versions.tf` exige `~> 1.16.0`: el `init` fallaba. Un plan guardado exige la misma versión que lo aplica. |
+| `init` con `-backend-config="bucket=…"` y `-lockfile=readonly`; `show -json` y `apply` con `-chdir` | `backend.tf` solo declara el prefijo; antes el `init` no tenía bucket y `show` corría fuera del directorio y antes del `init`. |
+| El plan debe contener las imágenes del manifiesto aprobado | Antes cualquier digest pasaba el filtro porque cambiar la imagen siempre estaba permitido. |
+| `verify_run_id` debe ser una corrida success de `release-promote.yml` en `main` con el artifact vigente | Antes se descargaba el bundle de cualquier run. |
+| Los inputs del apply deben coincidir con el bundle (operación, `git_sha`, run id, `target_deployment_id`, imágenes del informe vs manifiesto) | Antes solo se contrastaba el binding con los inputs. |
+| Verificación posterior por modo de plan, con jobs y estado de la revisión | `jobs-only` terminaba `partial` y registraba un despliegue falso; los jobs no se verificaban; `--offline` daba `ok`. |
+| Un `succeeded` exige servicios y jobs verificados contra las imágenes registradas | Un registro de éxito ya no puede nacer de una verificación parcial. |
+| Rollback al baseline R5 registrable (`restored_baseline`) | `operation=rollback` con `release_build_run_id` nulo se rechazaba: ese rollback nunca podía registrarse. |
+| Bootstrap: la guarda corre antes de ejecutar `maps-prod-migrate` | Antes se comprobaba después de ejecutar. |
+| Registro de `failed` si falla el apply | Un apply parcial queda a la vista del registro (nunca como destino de rollback). |
+| El apply solo acepta el mismo commit de `main` que ejecutó el verify (`automation_sha`) | Antes `verify_run_id` se validaba sin su `head_sha`: si `main` cambiaba entre verify y apply, un plan aprobado se aplicaba con otros scripts u otro Terraform. Ahora el `head_sha` de la corrida, el informe del bundle, el binding del plan y la evidencia de migrate deben coincidir con `GITHUB_SHA` del apply; `bind` exige que el checkout local sea ese commit y esté limpio. |
+| Punto de partida verificado antes de cualquier cambio (`verify-starting-point.mjs`) | La detección de migraciones dependía de `MAPS_PRODUCTION_BASELINE_JSON`, una variable manual. Ahora el apply contrasta el registro de despliegues y `gcloud run describe`, y bloquea baseline adelantado o ajeno, registro ausente o Cloud Run distinto de lo registrado. Solo lecturas con la identidad de deploy. |
+| Informe de retención con dos resultados: simulación y protecciones obligatorias | Una etiqueta `prod-*` faltante era un aviso y el informe seguía en `ok`. Ahora `ok` exige las tres etiquetas en `current`, `previous` y `baseline` (cuando existen). |
+| Instrucciones y salida de los scripts en PowerShell y Bash; lectores de JSON tolerantes a UTF-16/BOM | Los comandos impresos usaban `$TF_STATE_BUCKET` (Bash); el operador usa Windows PowerShell 5.1, que redirige a UTF-16. El workflow de Linux no cambia. |
+
+### R6-C4 — Rollback seguro (implementado en repo, no ejecutado)
+
+Mismo workflow **`release-promote.yml`**, input `operation=rollback`:
+
+- Registro persistente en GCS `promotion/deployments/*.json`, con `verified_manifest` del apply (el rollback no depende del artifact de 30 días).
+- Baseline R5: sin `release_build_run_id`. Rollback con migraciones intermedias: **bloqueado** (sin auto-aprobación). Apply usa checkout `github.sha` (main), no el SHA de la app.
+- Verify rollback (environment `production`): lee registro, valida target, manifiesto ligado al `release_build_run_id` del registro, compatibilidad Prisma (`rollback-schema-guard.mjs`).
+- Apply: mismos plan/binding/SHA-256/C3; **sin migrate**; post-verify + nuevo registro.
+- Concurrencia compartida `maps-prod-release`.
+
+Scripts: `run-rollback-preflight.mjs`, `fetch-deployment-registry.mjs`, `record-deployment-outcome.mjs`, `post-deployment-verify.mjs`, tests `promotion-c4.test.mjs`.
+
+Criterios de aceptación (ensayo en GCP pendiente):
+
+- dos operaciones no corren en paralelo;
+- rollback rechaza target no registrado, mismos digests que producción, o incompatibilidad de esquema sin aprobación;
+- plan fuera de alcance (SQL, IAM, etc.) falla;
+- bootstrap prohibido;
+- smoke del dominio oficial sigue pendiente DNS.
+
+### Checklist activación R6-C en GCP (Git ≠ producción lista)
+
+Ninguno de estos ítems se puede cerrar desde el repositorio. R6-C **no** está operativo hasta
+probarlo contra GCP.
+
+| Ítem | Estado |
+|------|--------|
+| Automatización llevada a `main` ([`R6_MAIN_ACTIVATION.md`](./R6_MAIN_ACTIVATION.md)) | Pendiente: tras mergear el PR de R6 en `development` |
+| `deploy_identity` aplicado (apply dirigido, 13 recursos y la lectura del bucket) | Pendiente operador |
+| **Permisos de `maps-prod-deploy` completados con los 403 de un plan real** | Pendiente. Hoy solo tiene `run.services.get`, `run.jobs.get`, lectura de digests y lectura/escritura del bucket de state: no puede actualizar servicios ni ejecutar `maps-prod-migrate`. Se agrega lo que pida el primer plan/apply, sin `owner`/`editor`/roles amplios, y sin acceso a secretos ni a `maps-prod-bootstrap`. |
+| Environment `production` + revisores + rama `main` ([guía](./R6_GITHUB_PRODUCTION_ENVIRONMENT.md)) | Pendiente |
+| `GCP_DEPLOY_*`, `TF_STATE_BUCKET` en el environment | Pendiente |
+| `MAPS_PRODUCTION_BASELINE_JSON` (variable de repositorio) | Pendiente |
+| Registro `r5-baseline` en GCS con evidencia Cloud Run (`build-baseline-record.mjs`) | Pendiente |
+| Bucket de state: acceso uniforme a nivel de bucket y versionado activos; sin roles amplios heredados para la cuenta de deploy | Verificar en GCP. El módulo `deploy-identity` lo comprueba solo en parte (UBLA, en el plan). |
+| Política IAM del bucket en `deploy-identity` (4 bindings: listado sin condición; lectura de `promotion/`; creación sin `delete`/`update` en `promotion/deployments/` y `promotion/migrate-done/`; state y locks bajo `terraform/production/`) | Implementada en Terraform, **no aplicada ni ensayada**. Ensayos negativos en el runbook, «Protección del registro de despliegues en GCS». |
+| Comprobación de deriva fuera del release (plan sin `-target`, solo lectura) corrida sin cambios inesperados | Pendiente (runbook, «Deriva fuera del release») |
+| Validador de plan contra un **plan real de actualización** de Cloud Run | Pendiente: hoy solo se probó con fixtures sintéticos |
+| Primer `release-promote` verify + plan + apply (sin smoke de DNS) | Pendiente ensayo |
+| Rollback de prueba contra el registro real | Pendiente ensayo |
+| Retención: `retention-report.mjs` con `protection_ready` verdadero (las tres etiquetas `prod-*` en current, previous y baseline); etiquetar `prod-current`/`prod-previous`/`prod-baseline-r5`, aplicar la política en simulación, habilitar logs Data Access de Artifact Registry y revisar el dry-run | Pendiente (ver R6-D) |
+
+### R6-D — Retención en simulación y cierre operativo (implementado en repo, no activo)
+
+Entregables en el repositorio:
+
+- política de limpieza en `infra/terraform/modules/artifact-registry` con `cleanup_policy_dry_run = true`, que el módulo no deja cambiar (variable validada). **No aplicada en GCP.**
+- `config/release/retention-policy.json`: espejo de la política; un test exige que coincida con el Terraform.
+- `scripts/release/retention-report.mjs`: informe de solo lectura que reutiliza el registro de despliegues y el criterio de selección del rollback de R6-C4. No existe un segundo sistema de releases.
+- procedimiento en el [runbook](./GCP_PRODUCTION_RUNBOOK.md#retención-de-imágenes-r6-d).
+
+Corrección respecto del diseño inicial: el pipeline publica las imágenes con tag de **SHA completo**, no `release-<sha>`, y la verificación `--gcp` del apply y del rollback exige ese tag. La política no necesita un prefijo para conservarlas: la única regla de borrado alcanza solo versiones **sin tag** y de más de 30 días, así que una imagen con tag de SHA nunca es candidata. Los tags `prod-*` protegen los digests desplegados que no tengan otro tag; los digests que son hijos de un manifiesto padre no se borran mientras exista el padre (documentación de Google).
+
+Criterios (verificables localmente salvo donde se indica):
+
+- el informe lista candidatas y falla si un digest de `current`, `previous` o `r5-baseline` lo es, si falta en Artifact Registry o si Cloud Run sirve otra cosa que el registro. **Requiere GCP** para que «el digest sigue existiendo» sea un hecho y no un supuesto;
+- no se borra ninguna imagen, no se cambia ningún tag y no se habilita limpieza real; el informe solo imprime los comandos de etiquetado;
+- un release siguiente sigue pudiendo desplegar por digest;
+- **no se declara R6-D activo** hasta aplicar la política, etiquetar, habilitar los logs Data Access **de Artifact Registry** (no los de Cloud Storage, que sirven para auditar el bucket de state) y revisar un dry-run real (pasos 1 a 5 del runbook).
 
 ## Riesgos, dependencias y confirmaciones
 
@@ -423,14 +530,14 @@ Sigue abierto:
 6. Nombre del bucket de state, como variable del environment, sin entrar al repo.
 7. Aceptar el contrato de migraciones compatibles con la revisión anterior. Si una migración no lo cumple, se marca como ruptura y el rollback de aplicación no se ofrece.
 8. La restricción de `maps-app` sobre `_prisma_migrations` sigue sin verificar en el runbook. Migrate ya usa `maps-migrate`.
-9. El primer build automático. `Release build` #2 falló antes de crear el build porque falta `storage.buckets.get`. Después del apply dirigido hay que repetir el disparo. Un apply completo seguiría creando los dos uptime checks públicos y sus dos alertas.
+9. El primer build automático. Las variables de GitHub ya están cargadas, pero `workflow_dispatch` no existe hasta que el archivo esté en `main`. Un apply completo seguiría creando los dos uptime checks públicos y sus dos alertas.
 
 Riesgos:
 
 - Automatizar `terraform apply` con una cuenta amplia podría cambiar más que las imágenes. El filtro del plan y el environment son el control; hay que probarlo con un plan real en R6-C.
 - El state y el archivo de plan son sensibles. No van a Git ni a los logs.
 - Sin acceso entre proyectos, un digest publicado en `maps-prod` no arranca en staging. Las revisiones Ready de staging siguen en `maps-staging`.
-- Tener `release-build.yml` en `main` habilita el disparo manual, pero `main` no es origen de release: el SHA a construir tiene que estar en `development`. El squash del PR #77 dejó en `main` un commit que `development` no contiene, y el workflow rechaza ese SHA como cualquier otro commit exclusivo de `main`. El token OIDC de esa corrida lleva `ref` de la rama elegida en la UI, no el SHA del input.
+- `workflow_dispatch` no corre desde esta rama. Copiar solo el archivo a `main` habilita el botón, y el SHA a construir igual tiene que estar en `development`. No es una autorización para publicar el árbol de `main`. El token OIDC de esa corrida lleva `ref` de la rama elegida en la UI, no el SHA del input.
 - Si una de las cuatro variantes falla, las que ya hicieron push dejan un tag de SHA en el registry. Sin manifiesto completo no son un release, y Cloud Run no se entera porque nadie aplica Terraform. `fail-fast` no cancela un Cloud Build que ya empezó.
 - Repetir el mismo SHA no pisa el tag si la etiqueta OCI coincide. Si el tag existe con otra revisión, el build falla. Tags inmutables del registry, si estuvieran activos, también rechazarían un push distinto.
 - El primer submit real escribe el contexto en `maps-prod-landing-page-build-source`. Eso no actualiza Cloud Run.

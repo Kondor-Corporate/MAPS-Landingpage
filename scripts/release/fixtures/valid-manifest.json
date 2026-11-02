@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "git_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "source_branch_required": "development",
+  "default_branch": "main",
+  "default_branch_is_release_source": false,
+  "ci_workflow": ".github/workflows/ci.yml",
+  "ci_run_url": "https://github.com/Kondor-Corporate/MAPS-Landingpage/actions/runs/10000000001",
+  "build_run_url": "https://github.com/Kondor-Corporate/MAPS-Landingpage/actions/runs/40992146277",
+  "registry": {
+    "project": "maps-prod-landing-page",
+    "location": "southamerica-east1",
+    "repository": "maps-prod"
+  },
+  "publish_to": "maps-prod",
+  "sharing_between_projects": "not_configured",
+  "staging_reads_production_registry": false,
+  "deploys": false,
+  "images": [
+    {
+      "id": "backend",
+      "git_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "repository": "maps-prod",
+      "project": "maps-prod-landing-page",
+      "image": "southamerica-east1-docker.pkg.dev/maps-prod-landing-page/maps-prod/backend",
+      "tag": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+      "immutable_ref": "southamerica-east1-docker.pkg.dev/maps-prod-landing-page/maps-prod/backend@sha256:0000000000000000000000000000000000000000000000000000000000000001",
+      "cloud_build_id": "11111111-1111-1111-1111-111111111111",
+      "docker_target": "runner",
+      "variant": "runner",
+      "oci_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "deploy_identifier": "digest",
+      "vite": null
+    },
+    {
+      "id": "backend-jobs",
+      "git_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "repository": "maps-prod",
+      "project": "maps-prod-landing-page",
+      "image": "southamerica-east1-docker.pkg.dev/maps-prod-landing-page/maps-prod/backend-jobs",
+      "tag": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+      "immutable_ref": "southamerica-east1-docker.pkg.dev/maps-prod-landing-page/maps-prod/backend-jobs@sha256:0000000000000000000000000000000000000000000000000000000000000002",
+      "cloud_build_id": "22222222-2222-2222-2222-222222222222",
+      "docker_target": "jobs",
+      "variant": "jobs",
+      "oci_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "deploy_identifier": "digest",
+      "vite": null
+    },
+    {
+      "id": "frontend",
+      "git_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "repository": "maps-prod",
+      "project": "maps-prod-landing-page",
+      "image": "southamerica-east1-docker.pkg.dev/maps-prod-landing-page/maps-prod/frontend",
+      "tag": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+      "immutable_ref": "southamerica-east1-docker.pkg.dev/maps-prod-landing-page/maps-prod/frontend@sha256:0000000000000000000000000000000000000000000000000000000000000003",
+      "cloud_build_id": "33333333-3333-3333-3333-333333333333",
+      "docker_target": "runner",
+      "variant": "production",
+      "oci_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "deploy_identifier": "digest",
+      "vite": {
+        "VITE_API_BASE_URL": "/api/v1",
+        "VITE_PUBLIC_INDEXING": "true",
+        "VITE_PUBLIC_SITE_URL": "https://mapsasesores.com.ar",
+        "VITE_MAPS_WHATSAPP_NUMBER": null
+      }
+    },
+    {
+      "id": "frontend-staging",
+      "git_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "repository": "maps-prod",
+      "project": "maps-prod-landing-page",
+      "image": "southamerica-east1-docker.pkg.dev/maps-prod-landing-page/maps-prod/frontend-staging",
+      "tag": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000004",
+      "immutable_ref": "southamerica-east1-docker.pkg.dev/maps-prod-landing-page/maps-prod/frontend-staging@sha256:0000000000000000000000000000000000000000000000000000000000000004",
+      "cloud_build_id": "44444444-4444-4444-4444-444444444444",
+      "docker_target": "runner",
+      "variant": "staging",
+      "oci_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "deploy_identifier": "digest",
+      "vite": {
+        "VITE_API_BASE_URL": "/api/v1",
+        "VITE_PUBLIC_INDEXING": "false",
+        "VITE_PUBLIC_SITE_URL": null,
+        "VITE_MAPS_WHATSAPP_NUMBER": null
+      }
+    }
+  ]
+}

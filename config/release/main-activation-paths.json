@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "purpose": "Rutas que llevan la automatización de release (R6) a main copiando contenido desde development, sin fusionar historiales. Las verifica scripts/release/check-main-activation.mjs.",
+  "paths": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/release-build.yml",
+    ".github/workflows/release-promote.yml",
+    ".gitignore",
+    "config/release",
+    "docs/GCP_PRODUCTION_RUNBOOK.md",
+    "docs/R6_GITHUB_PRODUCTION_ENVIRONMENT.md",
+    "docs/R6_MAIN_ACTIVATION.md",
+    "docs/R6_RELEASE_OPERATIONS_PLAN.md",
+    "frontend/Dockerfile",
+    "infra/terraform",
+    "scripts/release"
+  ],
+  "excluded_on_purpose": {
+
+    "docs/*": "El resto de la documentación sigue la sincronización normal development → main."
+  }
+}
