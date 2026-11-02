@@ -26,10 +26,11 @@ y la verifica `scripts/release/check-main-activation.mjs` (también corre en CI)
 | `config/release/` | Ejemplos de baseline, política de retención y esta lista. |
 | `infra/terraform/` | Módulo `deploy-identity`, política de retención, `.terraform-version`. El apply usa el Terraform de `main`. |
 | `.gitignore` | Evita versionar `production-baseline.json`, planes y snapshots del registro. |
+| `frontend/Dockerfile` | Compatibilidad del build sin BuildKit exigida por CI y Cloud Build. |
 | `docs/GCP_PRODUCTION_RUNBOOK.md`, `docs/R6_*.md` | Procedimiento operativo junto al código que describe. |
 
-No viaja `frontend/Dockerfile` (cambio de la aplicación; los builds salen del SHA de
-`development`) ni el resto de `docs/`: siguen la sincronización normal.
+Se incluye `frontend/Dockerfile` para conservar la compatibilidad con el builder clásico
+sin BuildKit. El resto de `frontend/` y `docs/` sigue la sincronización normal.
 
 Dependencias que ya están en `main`: `backend/prisma/migrations` (el preflight compara
 migraciones con `git diff`; con `fetch-depth: 0` el checkout trae también `development`).
@@ -50,7 +51,7 @@ git checkout origin/development -- \
   .gitignore config/release \
   docs/GCP_PRODUCTION_RUNBOOK.md docs/R6_GITHUB_PRODUCTION_ENVIRONMENT.md \
   docs/R6_MAIN_ACTIVATION.md docs/R6_RELEASE_OPERATIONS_PLAN.md \
-  infra/terraform scripts/release
+  frontend/Dockerfile infra/terraform scripts/release
 
 # 3. Comprobar. Falla si falta una ruta, si un workflow cita un archivo sin cubrir, o si
 #    main tiene archivos bajo esas rutas que development no tiene (no se borrarían solos).
