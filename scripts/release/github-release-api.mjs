@@ -130,11 +130,7 @@ export function createGithubReleaseClient(options = {}) {
         throw new Error(assertErrors.join(' '));
       }
       const expectedName = releaseManifestArtifactName(gitSha);
-      const artifact = artifacts.find(
-        (a) =>
-          a.name === expectedName
-          && String(a.workflow_run_id ?? '') === String(runId),
-      );
+      const artifact = findArtifactForRun(artifacts, expectedName, runId);
       const artifactId = artifact?.id;
       if (artifactId === undefined || artifactId === null) {
         throw new Error('Artifact de manifiesto no encontrado tras validación.');
@@ -181,6 +177,39 @@ export function assertReleaseBuildRun(run, gitSha) {
 }
 
 /**
+ * ID de la corrida dueña del artifact.
+ * La API REST lo entrega en workflow_run.id. Un campo plano workflow_run_id no se acepta.
+ * @param {Record<string, unknown> | null | undefined} artifact
+ * @returns {string}
+ */
+export function artifactWorkflowRunId(artifact) {
+  const run = artifact?.workflow_run;
+  if (run === null || typeof run !== 'object' || Array.isArray(run)) {
+    return '';
+  }
+  const id = /** @type {Record<string, unknown>} */ (run).id;
+  if (typeof id === 'number' && Number.isFinite(id)) {
+    return String(id);
+  }
+  if (typeof id === 'string' && /^[0-9]+$/.test(id)) {
+    return id;
+  }
+  return '';
+}
+
+/**
+ * @param {Array<Record<string, unknown>>} artifacts
+ * @param {string} name
+ * @param {string | number} runId
+ */
+function findArtifactForRun(artifacts, name, runId) {
+  const expected = String(runId);
+  return artifacts.find(
+    (artifact) => artifact.name === name && artifactWorkflowRunId(artifact) === expected,
+  );
+}
+
+/**
  * @param {Array<Record<string, unknown>>} artifacts
  * @param {string} gitSha
  * @param {string} runId
@@ -188,11 +217,7 @@ export function assertReleaseBuildRun(run, gitSha) {
 export function assertReleaseManifestArtifact(artifacts, gitSha, runId) {
   const errors = [];
   const expectedName = releaseManifestArtifactName(gitSha);
-  const match = artifacts.find(
-    (a) =>
-      a.name === expectedName
-      && String(a.workflow_run_id ?? '') === String(runId),
-  );
+  const match = findArtifactForRun(artifacts, expectedName, runId);
   if (!match) {
     const onRun = artifacts.filter((a) => a.name === expectedName);
     if (onRun.length === 0) {
