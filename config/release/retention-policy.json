@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "purpose": "Espejo de la política de infra/terraform/modules/artifact-registry (R6-D). Un test exige que ambos coincidan. Lo usa scripts/release/retention-report.mjs para simular localmente qué sería candidato.",
+  "protected_tag_prefixes": ["prod-"],
+  "required_tags": {
+    "current": "prod-current",
+    "previous": "prod-previous",
+    "baseline": "prod-baseline-r5"
+  },
+  "keep_recent_versions": 5,
+  "untagged_delete_after_days": 30,
+  "rollback_window_deployments": 5
+}

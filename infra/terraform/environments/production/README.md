@@ -179,7 +179,7 @@ bucket de assets ni el bucket de state de Terraform.
 | Ciclo de vida | Borra objetos a los 7 días. |
 | `force_destroy` | `false` |
 | Lectura | `maps-prod-build` tiene `roles/storage.objectViewer` solo en este bucket. |
-| Submit | `maps-prod-build-submit` tiene `roles/storage.objectCreator` y `roles/storage.objectViewer` solo en este bucket, aplicados el 28/10/2026. Esos roles no incluyen `storage.buckets.get`. El rol custom `mapsBuildSourceBucketGetter` agrega solo ese permiso, también solo en este bucket, y queda pendiente de apply. |
+| Submit | `maps-prod-build-submit` tiene `roles/storage.objectCreator` y `roles/storage.objectViewer` solo en este bucket. Aplicado el 28/10/2026. |
 
 `maps-prod-build` no puede escribir objetos ahí. La cuenta que presenta el
 build sube el archivo. No recibe permiso sobre el bucket de assets.
@@ -212,7 +212,7 @@ No hay un rol de Secret Manager a nivel proyecto.
 | `maps-prod-migrate` | Job migrate. Solo la URL de migrate. |
 | `maps-prod-bootstrap` | Job bootstrap. URL de la app y secretos de bootstrap. |
 | `maps-prod-build` | Ejecuta Cloud Build. `roles/artifactregistry.writer` en `maps-prod`. `roles/logging.logWriter` en el proyecto. `roles/storage.objectViewer` solo en el bucket de fuentes. No recibe Workload Identity. |
-| `maps-prod-build-submit` | Presenta el build desde GitHub. Rol custom de Cloud Build, `roles/iam.serviceAccountUser` solo sobre `maps-prod-build`, objetos del bucket de fuentes, metadata de ese mismo bucket (`storage.buckets.get`) y lectura de digests en `maps-prod`. La metadata queda pendiente de apply. El resto se aplicó el 28/10/2026. |
+| `maps-prod-build-submit` | Presenta el build desde GitHub. Rol custom de Cloud Build, `roles/iam.serviceAccountUser` solo sobre `maps-prod-build`, objetos del bucket de fuentes y lectura de digests en `maps-prod`. Aplicada el 28/10/2026. |
 
 No hay `roles/cloudsql.client`. La conexión es IP privada más la URL en
 Secret Manager, no Cloud SQL Auth Proxy ni un usuario IAM de base.
@@ -263,9 +263,19 @@ contexto.
 ## Artifact Registry
 
 Repositorio Docker `maps-prod` en `southamerica-east1`. Terraform no sube
-imágenes ni define una política de limpieza. La referencia que acepta el
+imágenes. La referencia que acepta el
 root termina en `@sha256:` y 64 hexadecimales. Un tag solo no pasa la
 validación.
+
+El módulo declara además la política de limpieza de R6-D, **siempre en
+simulación** (`cleanup_policy_dry_run = true`; el módulo rechaza `false`).
+Conserva todo tag `prod-*` y las últimas 5 versiones de cada imagen, y solo
+marca como candidatas las versiones sin tag de más de 30 días. Con la
+simulación activa no se borra nada. Mientras no se aplique, el repositorio
+sigue sin política. Cómo etiquetar, aplicarla y revisar el resultado está en
+el [runbook](../../../../docs/GCP_PRODUCTION_RUNBOOK.md#retención-de-imágenes-r6-d).
+Esta política es infraestructura: se aplica por el camino normal de plan y
+apply humanos, no por `release-promote`, que solo admite cambios de Cloud Run.
 
 Forma esperada:
 
@@ -385,6 +395,7 @@ que existir antes del primer plan. Los payloads no van en `terraform.tfvars`.
 | `refresh_secret_version` | Igual, secreto de refresh. | Después de cargar esa versión. |
 | `bootstrap_admin_email_secret_version` | Igual, email del primer superadmin. | Antes del job de bootstrap. |
 | `bootstrap_admin_password_secret_version` | Igual, contraseña inicial. | Antes del job de bootstrap. Puede deshabilitarse después. |
+| `terraform_state_bucket_name` | Bucket GCS del backend (mismo nombre que en `terraform init -backend-config`). **No commitear.** Obligatorio en todo `plan`/`apply` para componer `deploy_identity` sin `count`. | Archivo tfvars gitignored o `-var` en cada operación. Omitirla debe fallar el plan, no eliminar el módulo en silencio. |
 
 Si el primer plan ocurre antes de tener imágenes y versiones reales, los
 valores tienen que pasar igual la validación, y el apply de esa corrida no
@@ -407,6 +418,12 @@ terraform init -backend-config="bucket=BUCKET_DE_STATE"
 ```
 
 `BUCKET_DE_STATE` se elige en el bootstrap. No está en el repositorio.
+`release-promote.yml` hace el mismo `init` con `-backend-config="bucket=…"`
+(variable `TF_STATE_BUCKET`) y con la versión de Terraform de
+`.terraform-version` (hoy `1.16.7`): un plan guardado solo se aplica con la
+misma versión que lo generó.
+Pásalo también como `-var="terraform_state_bucket_name=BUCKET_DE_STATE"` (o en un tfvars gitignored) en cada `plan`/`apply` del root.
+
 Un `terraform init -backend=false` no lee ese state y no sirve para el plan.
 
 ## Workload Identity Federation
@@ -420,14 +437,8 @@ Quedaron habilitadas `iamcredentials.googleapis.com` y
 `sts.googleapis.com`. La cuenta nueva es `maps-prod-build-submit`. El pool
 es `maps-github` y el provider es `github`. Las variables
 `GCP_WORKLOAD_IDENTITY_PROVIDER` y `GCP_BUILD_SERVICE_ACCOUNT` están en
-GitHub y no en el repositorio. El 29/10/2026 `Release build` #2 autenticó
-y falló en `gcloud builds submit` antes de crear el build: la cuenta no
-tiene `storage.buckets.get` sobre el bucket de fuentes. El apply de esta
-corrección es dirigido a
-`module.build_identity.google_project_iam_custom_role.build_source_bucket_getter`
-y
-`module.build_identity.google_storage_bucket_iam_member.submit_source_bucket_getter`.
-No incluye un apply completo.
+GitHub y no en el repositorio. Todavía no se ejecutó un Cloud Build
+automático.
 
 Un `terraform apply` completo seguiría creando estos cuatro recursos de R5.
 Ese apply no forma parte de R6-B.

@@ -1,0 +1,16 @@
+{
+  "resource_changes": [
+    {
+      "address": "module.runtime_services.google_cloud_run_v2_service.frontend",
+      "change": {
+        "actions": ["replace"],
+        "before": {
+          "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/frontend@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }] }]
+        },
+        "after": {
+          "template": [{ "containers": [{ "image": "us-docker.pkg.dev/p/frontend@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }] }]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "resource_changes": [
+    {
+      "address": "module.database.google_sql_database_instance.main",
+      "change": { "actions": ["update"] }
+    }
+  ]
+}
