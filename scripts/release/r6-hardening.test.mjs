@@ -42,7 +42,7 @@ const RUN = {
   path: '.github/workflows/release-promote.yml@refs/heads/main', head_branch: 'main', head_sha: MAIN_AT_VERIFY,
   repository: { full_name: 'Kondor-Corporate/MAPS-Landingpage' },
 };
-const ARTIFACTS = [{ name: 'promotion-bundle', workflow_run_id: 456, expired: false }];
+const ARTIFACTS = [{ name: 'promotion-bundle', workflow_run: { id: 456 }, expired: false }];
 const REPORT = {
   operation: 'forward', automation_sha: MAIN_AT_VERIFY, git_sha: APP_SHA, release_build_run_id: '123', images: IMAGES,
 };
