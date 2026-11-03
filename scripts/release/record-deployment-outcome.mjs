@@ -4,7 +4,7 @@
  */
 
 import { writeFileSync, readFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { gcloudStorageCreateOnlyCopy } from './gcloud-storage.mjs';
 import { pathToFileURL } from 'node:url';
 
 import { PLAN_MODES } from './promotion-plan-contract.mjs';
@@ -60,16 +60,9 @@ export function uploadDeploymentRecord(input, bucket) {
   writeFileSync(localPath, JSON.stringify(built.record, null, 2));
   const objectPath = gcsDeploymentRecordPath(input.deploymentId);
   const dest = `gs://${bucket}/${objectPath}`;
-  const result = spawnSync(
-    'gsutil',
-    ['-h', 'x-goog-if-generation-match:0', 'cp', localPath, dest],
-    { encoding: 'utf8', shell: process.platform === 'win32' },
-  );
-  if (result.status !== 0) {
-    return {
-      ok: false,
-      errors: [(result.stderr || result.stdout || 'gsutil cp falló').trim()],
-    };
+  const result = gcloudStorageCreateOnlyCopy(localPath, dest);
+  if (!result.ok) {
+    return result;
   }
   return { ok: true, record: built.record, gcsPath: dest };
 }

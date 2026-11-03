@@ -87,6 +87,44 @@ test('inputs: cualquier carga de shell es rechazada en cada campo', () => {
   }
 });
 
+test('wif-read lee el release y el binding, y rechaza un apply', () => {
+  const smoke = { ...GOOD_APPLY, PHASE: 'wif-read', PLAN_SHA256: '', TARGET_DEPLOYMENT_ID: '' };
+  assert.equal(validateWorkflowInputs(smoke).ok, true);
+  assert.equal(validateWorkflowInputs({ ...smoke, PLAN_SHA256: 'b'.repeat(64) }).ok, false);
+  assert.equal(validateWorkflowInputs({ ...smoke, TARGET_DEPLOYMENT_ID: 'r5-baseline' }).ok, false);
+  assert.equal(validateWorkflowInputs({ ...smoke, RELEASE_BUILD_RUN_ID: '' }).ok, false);
+  assert.equal(validateWorkflowInputs({ ...smoke, VERIFY_RUN_ID: '' }).ok, false);
+  assert.equal(validateWorkflowInputs({ ...smoke, STATE_BUCKET: '' }).ok, false);
+  assert.equal(validateWorkflowInputs({ ...smoke, GIT_SHA: 'A'.repeat(40) }).ok, false);
+});
+
+test('wif-read no aplica, no ejecuta jobs y no escribe en GCS', () => {
+  const yml = readFileSync(new URL('../../.github/workflows/release-promote.yml', import.meta.url), 'utf8');
+  const job = yml.slice(yml.indexOf('\n  wif-read:'));
+  assert.match(job, /environment:\s*production/);
+  assert.match(job, /actions: read/);
+  assert.match(job, /download-release-manifest\.mjs/);
+  assert.match(job, /verify-release-authenticity\.mjs/);
+  assert.match(job, /--gcp/);
+  assert.match(job, /fetch-deployment-registry\.mjs/);
+  assert.match(job, /verify-starting-point\.mjs --live-only/);
+  assert.match(job, /gcloud storage cat/);
+  assert.match(job, /terraform -chdir="\$TF_DIR" init -input=false -lockfile=readonly/);
+  assert.match(job, /terraform -chdir="\$TF_DIR" state list -lock=false/);
+  assert.doesNotMatch(job, /terraform apply|jobs execute|gcloud storage cp|\bgsutil\b/);
+});
+
+test('los jobs autenticados con WIF no ejecutan gsutil', () => {
+  const yaml = readText('.github/workflows/release-promote.yml');
+  const jobs = yaml.split(/^  (?=verify-promote:|verify-rollback:|apply-approved-plan:|wif-read:)/m).slice(1);
+  for (const job of jobs) {
+    if (!job.includes('google-github-actions/auth@v2')) continue;
+    for (const block of runBlocks(job)) {
+      assert.doesNotMatch(block.text, /\bgsutil\b/, 'un paso con la identidad de deploy ejecuta gsutil');
+    }
+  }
+});
+
 test('inputs: reglas por operación y fase', () => {
   const verifyPromote = { ...GOOD_APPLY, PHASE: 'verify', VERIFY_RUN_ID: '', PLAN_SHA256: '' };
   assert.equal(validateWorkflowInputs(verifyPromote).ok, true);
@@ -146,7 +184,7 @@ test('workflows: ningún run interpola inputs ni datos controlados por el usuari
 
 test('release-promote: inputs solo por entorno y validados en cada job', () => {
   const yaml = readText('.github/workflows/release-promote.yml');
-  assert.equal((yaml.match(/run: node scripts\/release\/validate-workflow-inputs\.mjs/g) ?? []).length, 3, 'un validador por job');
+  assert.equal((yaml.match(/run: node scripts\/release\/validate-workflow-inputs\.mjs/g) ?? []).length, 4, 'un validador por job');
   for (const name of ['GIT_SHA', 'RELEASE_BUILD_RUN_ID', 'PHASE', 'OPERATION', 'PLAN_MODE', 'VERIFY_RUN_ID', 'PLAN_SHA256', 'TARGET_DEPLOYMENT_ID']) {
     assert.match(yaml, new RegExp(`^  ${name}: \\$\\{\\{ inputs\\.`, 'm'), `${name} falta en el env del workflow`);
   }
@@ -156,8 +194,8 @@ test('release-promote: permisos mínimos por job; OIDC solo donde hay environmen
   const yaml = readText('.github/workflows/release-promote.yml');
   const topPermissions = yaml.match(/^permissions:\n((?:  .+\n)+)/m)[1];
   assert.doesNotMatch(topPermissions, /id-token/);
-  const jobs = yaml.split(/^  (?=verify-promote:|verify-rollback:|apply-approved-plan:)/m).slice(1);
-  assert.equal(jobs.length, 3);
+  const jobs = yaml.split(/^  (?=verify-promote:|verify-rollback:|apply-approved-plan:|wif-read:)/m).slice(1);
+  assert.equal(jobs.length, 4);
   for (const job of jobs) {
     const hasOidc = /id-token:\s*write/.test(job);
     const hasEnv = /environment:\s*production/.test(job);
