@@ -11,7 +11,7 @@
 import { pathToFileURL } from 'node:url';
 
 import { GITHUB_REPOSITORY } from './manifest-contract.mjs';
-import { createGithubReleaseClient } from './github-release-api.mjs';
+import { artifactWorkflowRunId, createGithubReleaseClient } from './github-release-api.mjs';
 import { PROMOTE_WORKFLOW_PATH } from './promotion-plan-contract.mjs';
 
 export const PROMOTION_BUNDLE_ARTIFACT = 'promotion-bundle';
@@ -57,7 +57,7 @@ export function assertPromotionVerifyRun(run, artifacts, verifyRunId, options = 
   }
 
   const bundle = artifacts.find(
-    (a) => a.name === PROMOTION_BUNDLE_ARTIFACT && String(a.workflow_run_id ?? '') === String(verifyRunId),
+    (a) => a.name === PROMOTION_BUNDLE_ARTIFACT && artifactWorkflowRunId(a) === String(verifyRunId),
   );
   if (!bundle) {
     errors.push(`La corrida ${verifyRunId} no tiene el artifact ${PROMOTION_BUNDLE_ARTIFACT}.`);
