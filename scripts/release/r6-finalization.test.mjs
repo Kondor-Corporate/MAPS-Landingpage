@@ -332,7 +332,7 @@ const GOOD_RUN = {
   head_sha: AUTOMATION_SHA,
 };
 const AUTO = { automationSha: AUTOMATION_SHA };
-const GOOD_ARTIFACTS = [{ name: 'promotion-bundle', workflow_run_id: 456, expired: false }];
+const GOOD_ARTIFACTS = [{ name: 'promotion-bundle', workflow_run: { id: 456 }, expired: false }];
 
 test('verify run: acepta corrida válida (con o sin sufijo @ref en path)', () => {
   assert.deepEqual(assertPromotionVerifyRun(GOOD_RUN, GOOD_ARTIFACTS, '456', AUTO), []);
@@ -356,7 +356,8 @@ test('verify run: rechaza otro workflow, otra rama, fallo, artifact ajeno o venc
     assert.ok(assertPromotionVerifyRun(run, GOOD_ARTIFACTS, '456', AUTO).length > 0, JSON.stringify(run));
   }
   assert.ok(assertPromotionVerifyRun(GOOD_RUN, [], '456', AUTO).length > 0, 'sin artifact');
-  assert.ok(assertPromotionVerifyRun(GOOD_RUN, [{ ...GOOD_ARTIFACTS[0], workflow_run_id: 1 }], '456', AUTO).length > 0, 'artifact de otra corrida');
+  assert.ok(assertPromotionVerifyRun(GOOD_RUN, [{ ...GOOD_ARTIFACTS[0], workflow_run: { id: 1 } }], '456', AUTO).length > 0, 'artifact de otra corrida');
+  assert.ok(assertPromotionVerifyRun(GOOD_RUN, [{ name: 'promotion-bundle', expired: false }], '456', AUTO).length > 0, 'artifact sin workflow_run');
   assert.ok(assertPromotionVerifyRun(GOOD_RUN, [{ ...GOOD_ARTIFACTS[0], expired: true }], '456', AUTO).length > 0, 'artifact expirado');
 });
 

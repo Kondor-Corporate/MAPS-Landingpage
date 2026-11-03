@@ -9,6 +9,7 @@ import {
   assertCiRunForSha,
   assertReleaseBuildRun,
   assertReleaseManifestArtifact,
+  createGithubReleaseClient,
 } from './github-release-api.mjs';
 import { RELEASE_BUILD_WORKFLOW_PATH } from './release-workflow-contract.mjs';
 import {
@@ -42,7 +43,8 @@ function mockGithubClient(overrides = {}) {
     listRunArtifacts: async () => overrides.artifacts ?? [
       {
         name: `release-manifest-${VALID_SHA}`,
-        workflow_run_id: 40992146277,
+        id: 77,
+        workflow_run: { id: 40992146277, head_sha: VALID_SHA },
         expired: false,
       },
     ],
@@ -99,13 +101,115 @@ test('github: rechaza artifact ausente en la ejecución', async () => {
   assert.ok(errors.some((e) => e.includes('No existe el artifact')));
 });
 
-test('github: rechaza artifact ligado a otra ejecución', async () => {
+test('github: acepta artifact con workflow_run.id de la misma ejecución', () => {
   const errors = assertReleaseManifestArtifact(
-    [{ name: `release-manifest-${VALID_SHA}`, workflow_run_id: 1, expired: false }],
+    [{
+      name: `release-manifest-${VALID_SHA}`,
+      id: 77,
+      workflow_run: { id: 40992146277, head_sha: VALID_SHA },
+      expired: false,
+    }],
+    VALID_SHA,
+    '40992146277',
+  );
+  assert.deepEqual(errors, []);
+});
+
+test('github: rechaza artifact con workflow_run.id de otra ejecución', () => {
+  const errors = assertReleaseManifestArtifact(
+    [{
+      name: `release-manifest-${VALID_SHA}`,
+      workflow_run: { id: 1 },
+      expired: false,
+    }],
     VALID_SHA,
     '40992146277',
   );
   assert.ok(errors.some((e) => e.includes('no está ligado')));
+});
+
+test('github: rechaza artifact sin workflow_run aunque traiga workflow_run_id plano', () => {
+  const errors = assertReleaseManifestArtifact(
+    [{
+      name: `release-manifest-${VALID_SHA}`,
+      workflow_run_id: 40992146277,
+      expired: false,
+    }],
+    VALID_SHA,
+    '40992146277',
+  );
+  assert.ok(errors.some((e) => e.includes('no está ligado')));
+});
+
+test('github: rechaza artifact vencido de la ejecución correcta', () => {
+  const errors = assertReleaseManifestArtifact(
+    [{
+      name: `release-manifest-${VALID_SHA}`,
+      workflow_run: { id: 40992146277 },
+      expired: true,
+    }],
+    VALID_SHA,
+    '40992146277',
+  );
+  assert.ok(errors.some((e) => e.includes('expiró')));
+});
+
+test('github: rechaza artifact con otro nombre', () => {
+  const errors = assertReleaseManifestArtifact(
+    [{
+      name: 'release-manifest-otro',
+      workflow_run: { id: 40992146277 },
+      expired: false,
+    }],
+    VALID_SHA,
+    '40992146277',
+  );
+  assert.ok(errors.some((e) => e.includes('No existe el artifact')));
+});
+
+test('descarga el zip del artifact asociado por workflow_run.id', async () => {
+  /** @type {string[]} */
+  const urls = [];
+  const fetchFn = async (url) => {
+    urls.push(String(url));
+    if (String(url).includes('/artifacts?')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          total_count: 1,
+          artifacts: [{
+            id: 77,
+            name: `release-manifest-${VALID_SHA}`,
+            expired: false,
+            workflow_run: { id: 40992146277, head_sha: VALID_SHA },
+          }],
+        }),
+        text: async () => '',
+        arrayBuffer: async () => new ArrayBuffer(0),
+      };
+    }
+    if (String(url).includes('/artifacts/77/zip')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+        text: async () => '',
+        arrayBuffer: async () => Uint8Array.from([0x50, 0x4b]).buffer,
+      };
+    }
+    return { ok: false, status: 404, text: async () => 'no', json: async () => ({}), arrayBuffer: async () => new ArrayBuffer(0) };
+  };
+  const client = createGithubReleaseClient({
+    fetchFn,
+    token: 'test-token',
+    owner: 'Kondor-Corporate',
+    repo: 'MAPS-Landingpage',
+  });
+  const zip = await client.downloadReleaseManifestZip('40992146277', VALID_SHA);
+  assert.ok(Buffer.isBuffer(zip));
+  assert.equal(zip[0], 0x50);
+  assert.ok(urls.some((url) => url.includes('/artifacts/77/zip')));
 });
 
 test('github: rechaza CI ausente para el SHA', () => {
