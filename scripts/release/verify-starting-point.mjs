@@ -195,6 +195,23 @@ function runCli(argv) {
       args[idx === -1 ? a.slice(2) : a.slice(2, idx)] = idx === -1 ? 'true' : a.slice(idx + 1);
     }
   }
+  if (args['live-only'] === 'true') {
+    const live = readLiveImages((kind, name) => describeWithGcloud(kind, name));
+    if (!live.ok) {
+      for (const e of live.errors) process.stderr.write(`error: ${e}\n`);
+      process.exit(1);
+    }
+    const names = [...CLOUD_RUN_SERVICES, ...CLOUD_RUN_JOBS];
+    for (const name of names) {
+      const image = live.live[name];
+      if (typeof image !== 'string' || !/@sha256:[0-9a-f]{64}$/i.test(image)) {
+        process.stderr.write(`error: ${name}: imagen ausente o sin digest.\n`);
+        process.exit(1);
+      }
+      process.stdout.write(`${name} ${image}\n`);
+    }
+    process.exit(0);
+  }
   if (!args.report || !args.bucket || !args['plan-mode']) {
     process.stderr.write(
       'Uso: node scripts/release/verify-starting-point.mjs --report=promotion-report.json --plan-mode=<modo> --bucket=BUCKET\n',

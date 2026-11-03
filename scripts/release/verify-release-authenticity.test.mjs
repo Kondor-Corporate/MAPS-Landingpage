@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-import { verifyManifestImagesInRegistry } from './gcp-artifact-verify.mjs';
+import { verifyManifestImagesInRegistry, verifyImageInArtifactRegistry } from './gcp-artifact-verify.mjs';
 import {
   assertCiRunForSha,
   assertReleaseBuildRun,
@@ -262,11 +262,27 @@ test('integración: capa GitHub con cliente simulado', async () => {
   }
 });
 
+function dockerOk(revision = VALID_SHA) {
+  return (command, args) => {
+    if (command === 'docker' && args[0] === 'image') {
+      return {
+        status: 0,
+        stdout: JSON.stringify([{ Config: { Labels: { 'org.opencontainers.image.revision': revision } } }]),
+        stderr: '',
+      };
+    }
+    if (command === 'docker' && args[0] === 'pull' && revision === '') {
+      return { status: 0, stdout: '', stderr: '' };
+    }
+    return { status: 0, stdout: '', stderr: '' };
+  };
+}
+
 test('gcp: digest y etiqueta OCI coherentes (simulado)', () => {
   const manifest = loadValid();
   const runGcloudFn = (cmd, args) => {
-    if (cmd !== 'artifacts') {
-      return { status: 1, stdout: '', stderr: 'unexpected' };
+    if (cmd !== 'artifacts' || !args.includes('images') || !args.includes('describe')) {
+      return { status: 1, stdout: '', stderr: "Invalid choice: 'tags'." };
     }
     const target = args.find((a) => a.includes('docker.pkg.dev'));
     const fromManifest = manifest.images.find(
@@ -274,13 +290,11 @@ test('gcp: digest y etiqueta OCI coherentes (simulado)', () => {
         target === `${img.image}:${img.tag}`
         || target === `${img.image}@${img.digest}`,
     );
-    if (args.includes('tags') && args.includes('describe')) {
-      return { status: 0, stdout: JSON.stringify({ version: fromManifest?.digest }), stderr: '' };
-    }
-    if (args.includes('images') && args.includes('describe')) {
+    if (typeof target === 'string' && target.includes('@')) {
       return {
         status: 0,
         stdout: JSON.stringify({
+          image_summary: { digest: fromManifest?.digest },
           docker_version: {
             metadata: {
               labels: { 'org.opencontainers.image.revision': VALID_SHA },
@@ -290,21 +304,122 @@ test('gcp: digest y etiqueta OCI coherentes (simulado)', () => {
         stderr: '',
       };
     }
-    return { status: 1, stdout: '', stderr: 'unexpected' };
+    return {
+      status: 0,
+      stdout: JSON.stringify({
+        image_summary: { digest: fromManifest?.digest },
+      }),
+      stderr: '',
+    };
   };
-  const result = verifyManifestImagesInRegistry(manifest, { runGcloudFn });
+  const result = verifyManifestImagesInRegistry(manifest, { runGcloudFn, runCommandFn: dockerOk() });
   assert.equal(result.ok, true);
 });
 
 test('gcp: rechaza digest distinto al registry', () => {
   const manifest = loadValid();
-  const runGcloudFn = () => ({
-    status: 0,
-    stdout: JSON.stringify({ version: 'sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' }),
-    stderr: '',
-  });
-  const result = verifyManifestImagesInRegistry(manifest, { runGcloudFn });
+  const image = manifest.images[0];
+  const runGcloudFn = (cmd, args) => {
+    const target = args.find((a) => String(a).includes('docker.pkg.dev')) ?? '';
+    if (String(target).includes('@')) {
+      return {
+        status: 0,
+        stdout: JSON.stringify({
+          image_summary: { digest: image.digest },
+          image_summary_labels_unused: true,
+          docker_version: { metadata: { labels: { 'org.opencontainers.image.revision': VALID_SHA } } },
+        }),
+        stderr: '',
+      };
+    }
+    return {
+      status: 0,
+      stdout: JSON.stringify({
+        image_summary: { digest: 'sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' },
+      }),
+      stderr: '',
+    };
+  };
+  const result = verifyImageInArtifactRegistry(image, { runGcloudFn });
   assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('no coincide')));
+});
+
+test('gcp: rechaza tag inexistente', () => {
+  const manifest = loadValid();
+  const result = verifyImageInArtifactRegistry(manifest.images[0], {
+    runGcloudFn: () => ({ status: 1, stdout: '', stderr: 'NOT_FOUND: image tag was not found' }),
+  });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('no se pudo describir')));
+});
+
+test('gcp: rechaza metadatos OCI ausentes', () => {
+  const manifest = loadValid();
+  const image = manifest.images[0];
+  const result = verifyImageInArtifactRegistry(image, {
+    runGcloudFn: () => ({
+      status: 0,
+      stdout: JSON.stringify({ image_summary: { digest: image.digest } }),
+      stderr: '',
+    }),
+    runCommandFn: (command, args) => {
+      if (command === 'docker' && args[0] === 'image') {
+        return { status: 0, stdout: JSON.stringify([{ Config: { Labels: {} } }]), stderr: '' };
+      }
+      return { status: 0, stdout: '', stderr: '' };
+    },
+  });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('falta etiqueta')));
+});
+
+test('gcp: rechaza etiqueta OCI incorrecta', () => {
+  const manifest = loadValid();
+  const image = manifest.images[0];
+  const result = verifyImageInArtifactRegistry(image, {
+    runGcloudFn: () => ({
+      status: 0,
+      stdout: JSON.stringify({ image_summary: { digest: image.digest } }),
+      stderr: '',
+    }),
+    runCommandFn: dockerOk('b'.repeat(40)),
+  });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('no coincide con el SHA')));
+});
+
+test('gcp: rechaza fallo de autenticación docker', () => {
+  const manifest = loadValid();
+  const image = manifest.images[0];
+  const result = verifyImageInArtifactRegistry(image, {
+    runGcloudFn: () => ({
+      status: 0,
+      stdout: JSON.stringify({ image_summary: { digest: image.digest } }),
+      stderr: '',
+    }),
+    runCommandFn: () => ({ status: 1, stdout: '', stderr: 'ERROR: (gcloud.auth.configure-docker) PERMISSION_DENIED' }),
+  });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('autenticación de Docker')));
+});
+
+test('gcp: rechaza fallo de permisos', () => {
+  const manifest = loadValid();
+  const result = verifyImageInArtifactRegistry(manifest.images[0], {
+    runGcloudFn: () => ({ status: 1, stdout: '', stderr: 'PERMISSION_DENIED: caller does not have permission' }),
+  });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('PERMISSION_DENIED')));
+});
+
+test('gcp: rechaza comando no soportado', () => {
+  const manifest = loadValid();
+  const result = verifyImageInArtifactRegistry(manifest.images[0], {
+    runGcloudFn: () => ({ status: 2, stdout: '', stderr: "Invalid choice: 'tags'." }),
+  });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes("Invalid choice: 'tags'.")));
 });
 
 test('assertReleaseBuildRun detecta workflow_dispatch falso', () => {

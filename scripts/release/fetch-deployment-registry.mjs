@@ -4,9 +4,9 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
+import { gcloudStorageCat, gcloudStorageLs } from './gcloud-storage.mjs';
 import { GCS_DEPLOYMENT_REGISTRY_PREFIX } from './deployment-registry-contract.mjs';
 import { parseDeploymentRegistry } from './deployment-registry.mjs';
 
@@ -15,22 +15,7 @@ import { parseDeploymentRegistry } from './deployment-registry.mjs';
  */
 export function listDeploymentObjectNames(bucket) {
   const prefix = `gs://${bucket}/${GCS_DEPLOYMENT_REGISTRY_PREFIX}/`;
-  const result = spawnSync(
-    'gsutil',
-    ['ls', `${prefix}*.json`],
-    { encoding: 'utf8', shell: process.platform === 'win32' },
-  );
-  if (result.status !== 0) {
-    return {
-      ok: false,
-      errors: [(result.stderr || result.stdout || 'gsutil ls falló').trim()],
-    };
-  }
-  const names = result.stdout
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.endsWith('.json'));
-  return { ok: true, objectUrls: names };
+  return gcloudStorageLs(`${prefix}*.json`);
 }
 
 /**
@@ -41,11 +26,8 @@ export function downloadDeploymentRecords(objectUrls) {
   /** @type {unknown[]} */
   const records = [];
   for (const url of objectUrls) {
-    const cat = spawnSync('gsutil', ['cat', url], {
-      encoding: 'utf8',
-      shell: process.platform === 'win32',
-    });
-    if (cat.status !== 0) {
+    const cat = gcloudStorageCat(url);
+    if (!cat.ok) {
       errors.push(`No se pudo leer ${url}`);
       continue;
     }
