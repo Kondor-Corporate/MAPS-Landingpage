@@ -587,10 +587,9 @@ automatice debería correr con una identidad de solo lectura distinta de la de d
   mostrar un atributo observado que falta: revisarlo y recién entonces agregarlo a
   `scripts/release/terraform-plan-diff.mjs`; no relajar la regla por reflejo.
 - *`-target`.* Acotado a Cloud Run por diseño en R6; ver la comprobación de deriva de arriba.
-- *Permisos de la cuenta de deploy.* `deploy_identity` crea la cuenta con un rol
-  borrador (`run.services.get`, `run.jobs.get`). No alcanza para actualizar servicios
-  ni ejecutar jobs. Se completa con los 403 del primer plan/apply real, sin roles
-  amplios (ver el plan de operaciones).
+- *Permisos de la cuenta de deploy.* Update y ejecución van en la política del
+  servicio o del job, no en una condición de proyecto. `downloadArtifacts` queda
+  en el repositorio de producción. Está en Terraform y todavía no aplicado.
 - *Evidencia en GCS.* Ver «Protección del registro de despliegues en GCS».
 - *Smoke público.* Sigue pendiente del DNS y del certificado.
 - *Concurrencia.* El grupo `maps-prod-release` serializa verify, apply y rollback, pero
