@@ -480,7 +480,7 @@ probarlo contra GCP.
 |------|--------|
 | Automatización llevada a `main` ([`R6_MAIN_ACTIVATION.md`](./R6_MAIN_ACTIVATION.md)) | Pendiente: tras mergear el PR de R6 en `development` |
 | `deploy_identity` aplicado (apply dirigido, 13 recursos y la lectura del bucket) | Pendiente operador |
-| **Permisos de `maps-prod-deploy` completados con los 403 de un plan real** | Pendiente. Hoy solo tiene `run.services.get`, `run.jobs.get`, lectura de digests y lectura/escritura del bucket de state: no puede actualizar servicios ni ejecutar `maps-prod-migrate`. Se agrega lo que pida el primer plan/apply, sin `owner`/`editor`/roles amplios, y sin acceso a secretos ni a `maps-prod-bootstrap`. |
+| **Permisos de `maps-prod-deploy` para el apply de Cloud Run** | Preparados en `deploy-identity`, **no aplicados**. Sin IAM Conditions sobre Cloud Run. Update en la política de cada servicio y job. Ejecución solo en el job migrate. `downloadArtifacts` solo en el repositorio de producción. `actAs` solo en las cuatro cuentas. `run.operations.get` en el proyecto. |
 | Environment `production` + revisores + rama `main` ([guía](./R6_GITHUB_PRODUCTION_ENVIRONMENT.md)) | Pendiente |
 | `GCP_DEPLOY_*`, `TF_STATE_BUCKET` en el environment | Pendiente |
 | `MAPS_PRODUCTION_BASELINE_JSON` (variable de repositorio) | Pendiente |
