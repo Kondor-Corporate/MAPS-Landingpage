@@ -4,9 +4,9 @@
  */
 
 import { writeFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
+import { gcloudStorageCreateOnlyCopy } from './gcloud-storage.mjs';
 import { gcsMigrateEvidencePath } from './promotion-plan-contract.mjs';
 
 /**
@@ -39,16 +39,9 @@ export function uploadMigrateEvidence(input, bucket) {
   writeFileSync(localPath, JSON.stringify(record, null, 2));
   const objectPath = gcsMigrateEvidencePath(input.verifyRunId);
   const dest = `gs://${bucket}/${objectPath}`;
-  const result = spawnSync(
-    'gsutil',
-    ['-h', 'x-goog-if-generation-match:0', 'cp', localPath, dest],
-    { encoding: 'utf8', shell: process.platform === 'win32' },
-  );
-  if (result.status !== 0) {
-    return {
-      ok: false,
-      errors: [(result.stderr || result.stdout || 'gsutil cp falló').trim()],
-    };
+  const result = gcloudStorageCreateOnlyCopy(localPath, dest);
+  if (!result.ok) {
+    return result;
   }
   return { ok: true, record, gcsPath: dest };
 }

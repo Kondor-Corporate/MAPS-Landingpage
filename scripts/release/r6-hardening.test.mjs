@@ -12,6 +12,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gcloudStorageCreateOnlyCopy } from './gcloud-storage.mjs';
 import test from 'node:test';
 
 import { baselineUploadCommand } from './build-baseline-record.mjs';
@@ -354,7 +355,7 @@ test('punto de partida: el workflow lo ejecuta antes de descargar el plan, de te
     return i;
   };
   const start = idx('verify-starting-point.mjs');
-  assert.ok(start < idx('gsutil cp "gs://${STATE_BUCKET}/promotion/plans/${VERIFY_RUN_ID}/${PLAN_MODE}.tfplan"'));
+  assert.ok(start < idx('gcloud storage cp "gs://${STATE_BUCKET}/promotion/plans/${VERIFY_RUN_ID}/${PLAN_MODE}.tfplan"'));
   assert.ok(start < idx('terraform -chdir="$TF_DIR" init'));
   assert.ok(start < idx('gcloud run jobs execute maps-prod-migrate'));
   assert.ok(start > idx('Autenticar identidad de deploy'), 'necesita la identidad de deploy ya autenticada');
@@ -431,4 +432,18 @@ test('shell: el runbook ofrece PowerShell para cada paso con variables o sustitu
   for (const b of powershell) {
     assert.doesNotMatch(b.body, /\bexport \w+=|\$TF_STATE_BUCKET|\bcat \.terraform-version/, b.body.slice(0, 80));
   }
+});
+
+test('gcloud storage create-only conserva la precondición de generación 0', () => {
+  const calls = [];
+  const result = gcloudStorageCreateOnlyCopy('record.json', 'gs://bucket/promotion/deployments/1.json', {
+    runCommandFn: (command, args) => {
+      calls.push([command, ...args]);
+      return { status: 0, stdout: '', stderr: '' };
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(calls[0], [
+    'gcloud', 'storage', 'cp', '--if-generation-match=0', 'record.json', 'gs://bucket/promotion/deployments/1.json',
+  ]);
 });
