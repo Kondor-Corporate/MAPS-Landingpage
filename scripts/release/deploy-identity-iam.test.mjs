@@ -152,10 +152,45 @@ test('IAM: rol de state sin list, con create/get/update/delete y prefijo igual a
   const backendPrefix = backend.match(/prefix\s*=\s*"([^"]+)"/)[1];
   assert.equal(model.statePrefix, `${backendPrefix}/`);
   // Los permisos de Cloud Run quedan como estaban (dependen del ensayo real).
+  const perms = (body) => [...body.match(/permissions = \[([\s\S]*?)\]/)[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   const draft = blocks('google_project_iam_custom_role').find((b) => b.name === 'cloudrun_promotion_placeholder').body;
-  assert.deepEqual([...draft.match(/permissions = \[([\s\S]*?)\]/)[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]), [
-    'run.services.get', 'run.jobs.get',
-  ]);
+  assert.deepEqual(perms(draft), ['run.services.get', 'run.jobs.get', 'run.operations.get']);
+  const serviceUpdate = blocks('google_project_iam_custom_role').find((b) => b.name === 'service_update').body;
+  assert.deepEqual(perms(serviceUpdate), ['run.services.update']);
+  assert.match(blocks('google_cloud_run_v2_service_iam_member').find((b) => b.name === 'deploy_update_service').body, /for_each = toset\(\["frontend", "backend"\]\)/);
+  const jobUpdate = blocks('google_project_iam_custom_role').find((b) => b.name === 'job_update').body;
+  assert.deepEqual(perms(jobUpdate), ['run.jobs.update']);
+  assert.match(blocks('google_cloud_run_v2_job_iam_member').find((b) => b.name === 'deploy_update_migrate').body, /name\s+= "\$\{var\.prefix\}-migrate"/);
+  const bootstrapUpdate = blocks('google_project_iam_custom_role').find((b) => b.name === 'bootstrap_update').body;
+  assert.deepEqual(perms(bootstrapUpdate), ['run.jobs.update']);
+  const forbidden = ['run.jobs.run', 'run.jobs.runWithOverrides', 'run.jobs.delete', 'run.executions.cancel'];
+  const rolePerms = Object.fromEntries(blocks('google_project_iam_custom_role').map((b) => [b.name, perms(b.body)]));
+  const bootstrapBindings = [
+    ...blocks('google_cloud_run_v2_job_iam_member'),
+    ...blocks('google_cloud_run_v2_service_iam_member'),
+    ...blocks('google_project_iam_member'),
+  ].filter((b) => /name\s+= "\$\{var\.prefix\}-bootstrap"/.test(b.body) || /for_each[^\n]*"bootstrap"/.test(b.body));
+  assert.deepEqual(bootstrapBindings.map((b) => b.name), ['deploy_update_bootstrap']);
+  const bootstrapRole = bootstrapBindings[0].body.match(/google_project_iam_custom_role\.(\w+)\.id/)[1];
+  assert.equal(bootstrapRole, 'bootstrap_update');
+  for (const permission of forbidden) {
+    assert.equal(rolePerms[bootstrapRole].includes(permission), false, permission);
+  }
+  assert.doesNotMatch(MODULE, /role\s+=\s+"roles\/run\.developer"/);
+  const execute = blocks('google_project_iam_custom_role').find((b) => b.name === 'migrate_execute').body;
+  assert.deepEqual(perms(execute), ['run.jobs.run', 'run.executions.get']);
+  const runMigrate = blocks('google_cloud_run_v2_job_iam_member').find((b) => b.name === 'deploy_run_migrate').body;
+  assert.match(runMigrate, /name\s+= "\$\{var\.prefix\}-migrate"/);
+  assert.doesNotMatch(runMigrate, /for_each/);
+  assert.doesNotMatch(runMigrate, /\n\s+condition \{/);
+  const artifact = blocks('google_project_iam_custom_role').find((b) => b.name === 'artifact_digest_reader').body;
+  assert.match(artifact, /artifactregistry\.repositories\.downloadArtifacts/);
+  assert.doesNotMatch(artifact, /uploadArtifacts|deleteArtifacts/);
+  const actAs = blocks('google_project_iam_custom_role').find((b) => b.name === 'runtime_act_as').body;
+  assert.deepEqual(perms(actAs), ['iam.serviceAccounts.actAs']);
+  assert.match(MODULE, /google_service_account_iam_member" "deploy_runtime_act_as"/);
+  assert.doesNotMatch(MODULE, /promotion_update_condition|migrate_execute_condition/);
+  assert.doesNotMatch(MODULE, /role\s+=\s+"roles\/(owner|editor|run\.admin|run\.developer|iam\.serviceAccountTokenCreator|artifactregistry\.reader)"/);
 });
 
 test('IAM: matriz de permisos efectivos de la cuenta de deploy', () => {

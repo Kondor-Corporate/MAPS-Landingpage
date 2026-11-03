@@ -4,7 +4,7 @@
 # Build submitter bindings on maps-prod-build-submit stay in build-identity only.
 # OIDC: release-promote.yml on main + GitHub environment production + numeric repo IDs.
 #
-# C3 still needs a real terraform plan to tighten Cloud Run and job permissions.
+# Cloud Run updates are limited to the four promotion resources. Job execution is only maps-prod-migrate.
 
 locals {
   github_repository_owner    = "Kondor-Corporate"
@@ -28,6 +28,14 @@ locals {
   # Principals are limited to this pool only. Build tokens use pool maps-github and
   # cannot satisfy a principalSet under maps-github-deploy.
   deploy_principal_set = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_deploy.name}/attribute.workflow_ref/${local.promote_workflow_ref}"
+
+  # actAs is evaluated on the service account resource, not on the project.
+  promotion_runtime_accounts = {
+    frontend  = "${var.prefix}-frontend@${var.project_id}.iam.gserviceaccount.com"
+    backend   = "${var.prefix}-backend@${var.project_id}.iam.gserviceaccount.com"
+    migrate   = "${var.prefix}-migrate@${var.project_id}.iam.gserviceaccount.com"
+    bootstrap = "${var.prefix}-bootstrap@${var.project_id}.iam.gserviceaccount.com"
+  }
 }
 
 resource "google_iam_workload_identity_pool" "github_deploy" {
@@ -238,14 +246,16 @@ resource "google_storage_bucket_iam_member" "deploy_state" {
   }
 }
 
-# Same digest metadata reads as the build submitter (no blob download).
+# Metadata reads plus the deployer's downloadArtifacts check. Cloud Run evaluates that
+# permission on the repository. This binding is already limited to the production repository.
 resource "google_project_iam_custom_role" "artifact_digest_reader" {
   project     = var.project_id
   role_id     = "mapsArtifactDigestReaderDeploy"
   title       = "MAPS Artifact Registry digest reader (deploy)"
-  description = "Read image and tag metadata during promotion preflight."
+  description = "Read image metadata and download artifacts from the production repository during promotion. No upload or delete."
   permissions = [
     "artifactregistry.dockerimages.get",
+    "artifactregistry.repositories.downloadArtifacts",
     "artifactregistry.repositories.get",
     "artifactregistry.tags.get",
     "artifactregistry.versions.get",
@@ -268,16 +278,19 @@ resource "google_artifact_registry_repository_iam_member" "deploy_digest_reader"
   }
 }
 
-# Placeholder for C3: Cloud Run service/job updates and maps-prod-migrate execute.
-# Permissions will be refined after the first scoped terraform plan with this SA.
+# services.get and jobs.get stay on this existing project binding: child resources
+# inherit them. operations.get is checked on the operation, which has no allow
+# policy of its own. Cloud Run is not a supported resource.name condition type.
+# role_id stays mapsCloudRunPromotionDraft so the existing role is updated in place.
 resource "google_project_iam_custom_role" "cloudrun_promotion_placeholder" {
   project     = var.project_id
   role_id     = "mapsCloudRunPromotionDraft"
-  title       = "MAPS Cloud Run promotion (draft)"
-  description = "Draft role for R6-C3. Expand only after a real terraform plan lists required permissions."
+  title       = "MAPS Cloud Run promotion reads"
+  description = "Read Cloud Run services and jobs, and poll long-running operations. Does not update or execute them."
   permissions = [
     "run.services.get",
     "run.jobs.get",
+    "run.operations.get",
   ]
   stage = "GA"
 }
@@ -286,4 +299,125 @@ resource "google_project_iam_member" "deploy_cloudrun_draft" {
   project = var.project_id
   role    = google_project_iam_custom_role.cloudrun_promotion_placeholder.id
   member  = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+# run.services.update is evaluated on the service. Non-authoritative, so the
+# existing invoker binding on the same service is left in place.
+resource "google_project_iam_custom_role" "service_update" {
+  project     = var.project_id
+  role_id     = "mapsCloudRunServiceUpdate"
+  title       = "MAPS Cloud Run service update"
+  description = "Update a Cloud Run service. Granted only on the production frontend and backend."
+  permissions = [
+    "run.services.update",
+  ]
+  stage = "GA"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "deploy_update_service" {
+  for_each = toset(["frontend", "backend"])
+
+  project  = var.project_id
+  location = var.region
+  name     = "${var.prefix}-${each.key}"
+  role     = google_project_iam_custom_role.service_update.id
+  member   = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+# run.jobs.update is evaluated on the job. Migrate and bootstrap each get their
+# own role so a permission added to one cannot appear on the other. Neither role
+# contains run.jobs.run, run.jobs.runWithOverrides, run.jobs.delete, or
+# run.executions.cancel. roles/run.developer is not used: it is grantable on a
+# job and includes those permissions.
+resource "google_project_iam_custom_role" "job_update" {
+  project     = var.project_id
+  role_id     = "mapsCloudRunJobUpdate"
+  title       = "MAPS Cloud Run migrate job update"
+  description = "Update only the migrate job. Does not run it."
+  permissions = [
+    "run.jobs.update",
+  ]
+  stage = "GA"
+}
+
+resource "google_cloud_run_v2_job_iam_member" "deploy_update_migrate" {
+  project  = var.project_id
+  location = var.region
+  name     = "${var.prefix}-migrate"
+  role     = google_project_iam_custom_role.job_update.id
+  member   = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+resource "google_project_iam_custom_role" "bootstrap_update" {
+  project     = var.project_id
+  role_id     = "mapsCloudRunBootstrapUpdate"
+  title       = "MAPS Cloud Run bootstrap job update"
+  description = "Update only the bootstrap job template. Does not run, delete, or override it."
+  permissions = [
+    "run.jobs.update",
+  ]
+  stage = "GA"
+}
+
+resource "google_cloud_run_v2_job_iam_member" "deploy_update_bootstrap" {
+  project  = var.project_id
+  location = var.region
+  name     = "${var.prefix}-bootstrap"
+  role     = google_project_iam_custom_role.bootstrap_update.id
+  member   = "serviceAccount:${google_service_account.deploy.email}"
+
+  lifecycle {
+    precondition {
+      condition     = endswith("${var.prefix}-bootstrap", "-bootstrap")
+      error_message = "The bootstrap update binding must target the bootstrap job."
+    }
+  }
+}
+
+resource "google_project_iam_custom_role" "runtime_act_as" {
+  project     = var.project_id
+  role_id     = "mapsDeployRuntimeActAs"
+  title       = "MAPS deploy actAs runtime identities"
+  description = "Deploy revisions that run as one runtime service account. Does not create keys or tokens."
+  permissions = [
+    "iam.serviceAccounts.actAs",
+  ]
+  stage = "GA"
+}
+
+resource "google_service_account_iam_member" "deploy_runtime_act_as" {
+  for_each = local.promotion_runtime_accounts
+
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${each.value}"
+  role               = google_project_iam_custom_role.runtime_act_as.id
+  member             = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+# run.jobs.run and run.executions.get are part of roles that Google allows on a
+# job (invoker, jobsExecutor, viewer). This member is only the migrate job.
+resource "google_project_iam_custom_role" "migrate_execute" {
+  project     = var.project_id
+  role_id     = "mapsCloudRunMigrateExecute"
+  title       = "MAPS execute maps-prod-migrate"
+  description = "Run the migrate job and read its executions. Does not include runWithOverrides or executions.cancel."
+  permissions = [
+    "run.jobs.run",
+    "run.executions.get",
+  ]
+  stage = "GA"
+}
+
+resource "google_cloud_run_v2_job_iam_member" "deploy_run_migrate" {
+  project  = var.project_id
+  location = var.region
+  name     = "${var.prefix}-migrate"
+  role     = google_project_iam_custom_role.migrate_execute.id
+  member   = "serviceAccount:${google_service_account.deploy.email}"
+
+  lifecycle {
+    precondition {
+      condition     = endswith("${var.prefix}-migrate", "-migrate")
+      error_message = "Migrate execution must be bound to the migrate job, not bootstrap."
+    }
+  }
 }
