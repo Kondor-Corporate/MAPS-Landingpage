@@ -527,9 +527,110 @@ Qué hacer cuando bloquea:
   registrado, o registrar con evidencia lo que realmente corre) y repetir verify.
 
 Límite conocido: tras un apply `partial` o `failed` el registro no refleja producción, así
-que este control —y con él el rollback— se bloquea hasta reconciliar a mano. Es la
-dirección segura, pero el procedimiento exacto de reconciliación se define y ensaya en
-el ensayo de activación; no hay camino automático.
+que este control —y con él el rollback por workflow— se bloquea hasta reconciliar a mano.
+El procedimiento está en la sección siguiente. No hay camino automático.
+
+### Reconciliación tras un apply parcial o fallido
+
+Esto lo hace el owner, con su cuenta, fuera del workflow. No se ejecuta `maps-prod-migrate`,
+no se ejecuta `maps-prod-bootstrap` y el `-target` no incluye Cloud SQL. No pisa
+`r5-baseline`. No reintenta el plan que falló.
+
+**Cómo se reconoce.** El job de apply terminó en fallo, o la verificación posterior no
+quedó en `succeeded`. Terraform puede haber cambiado un recurso de Cloud Run y otro no.
+En GCS puede existir `promotion/deployments/<apply_run_id>.json` con `outcome` `partial`
+o `failed`. Si el registro del fallo no llegó a escribirse, el run de GitHub igual falló
+y Cloud Run es la fuente: no dar por hecho que no hubo cambios. Un registro `partial` o
+`failed` no es el despliegue actual. El actual sigue siendo el `succeeded` más reciente
+por `applied_at` (hoy, `r5-baseline`).
+
+**Qué está corriendo.** Describir los cuatro recursos y leer solo imagen, revisión y
+tráfico. No volcar el JSON completo: trae la configuración del servicio.
+
+Bash:
+
+```bash
+gcloud run services describe maps-prod-frontend --project=maps-prod-landing-page \
+  --region=southamerica-east1 \
+  --format='yaml(status.latestReadyRevisionName,status.latestCreatedRevisionName,status.traffic,spec.template.spec.containers[0].image)'
+gcloud run services describe maps-prod-backend --project=maps-prod-landing-page \
+  --region=southamerica-east1 \
+  --format='yaml(status.latestReadyRevisionName,status.latestCreatedRevisionName,status.traffic,spec.template.spec.containers[0].image)'
+gcloud run jobs describe maps-prod-migrate --project=maps-prod-landing-page \
+  --region=southamerica-east1 \
+  --format='yaml(spec.template.spec.containers[0].image)'
+gcloud run jobs describe maps-prod-bootstrap --project=maps-prod-landing-page \
+  --region=southamerica-east1 \
+  --format='yaml(spec.template.spec.containers[0].image)'
+```
+
+Esas imágenes se comparan con `config/release/production-baseline.json` y con
+`promotion/deployments/r5-baseline.json`. El workflow usa la imagen de la plantilla del
+servicio (`spec.template.spec.containers[0].image`), no la que devuelve
+`gcloud run revisions describe`.
+
+**Revisiones R5 que siguen vivas** (lectura del 3 de noviembre de 2026, sin
+modificarlas). Las dos están Ready y reciben el 100 % del tráfico:
+
+| Recurso | Revisión | Imagen de la plantilla, igual al baseline |
+|---------|----------|--------------------------------------------|
+| `maps-prod-frontend` | `maps-prod-frontend-00002-zf8` | `frontend@sha256:27af01940675134c5595631a85febe35d88534a0bbe9147037db6139c15d3465` |
+| `maps-prod-backend` | `maps-prod-backend-00001-6rt` | `backend@sha256:ab3f9099fbeec3637a660b6921b8d4dd31003e15df29ede6897d54870fa91bee` |
+
+Los jobs `maps-prod-migrate` y `maps-prod-bootstrap` sirven
+`backend-jobs@sha256:b7647612ed23f18ee676a84abfa3ffccbcb401c38fca1fa04f6a55364cfdf202`,
+el mismo digest del baseline. El objeto de la revisión de frontend informa otro digest
+(`sha256:3792e9cb…`). No copiar ese valor a Terraform ni al registro: la plantilla del
+servicio y el baseline coinciden en `sha256:27af0194…`.
+
+**Volver el tráfico sin tocar Cloud SQL.** Si el apply creó una revisión nueva y la
+anterior sigue Ready, se puede devolver el 100 % del tráfico a la revisión de la tabla.
+Eso no cambia la base, no ejecuta jobs y no alinea el state: la plantilla puede seguir
+apuntando a la imagen nueva. Es un corte de emergencia, no el cierre.
+
+```bash
+gcloud run services update-traffic maps-prod-frontend --project=maps-prod-landing-page \
+  --region=southamerica-east1 --to-revisions=maps-prod-frontend-00002-zf8=100
+gcloud run services update-traffic maps-prod-backend --project=maps-prod-landing-page \
+  --region=southamerica-east1 --to-revisions=maps-prod-backend-00001-6rt=100
+```
+
+**Reconciliar el state.** En un checkout limpio, con las credenciales de owner y las
+imágenes del baseline en las variables que ya usa el plan de producción, generar un plan
+dirigido solo a los cuatro recursos de Cloud Run. Revisarlo. Tiene que mostrar como máximo
+la vuelta de esos cuatro a los digests R5. Si aparece Cloud SQL, IAM, un destroy o
+cualquier otro recurso, no se aplica.
+
+```bash
+cd infra/terraform/environments/production
+terraform init -backend-config="bucket=$TF_STATE_BUCKET"
+terraform plan -lock=false -out=reconcile.tfplan \
+  -target=module.runtime_services.google_cloud_run_v2_service.frontend \
+  -target=module.runtime_services.google_cloud_run_v2_service.backend \
+  -target=module.runtime_jobs.google_cloud_run_v2_job.migrate \
+  -target=module.runtime_jobs.google_cloud_run_v2_job.bootstrap
+```
+
+Solo después de esa lectura se aplica `reconcile.tfplan`. No es el plan de la promoción
+R6 y no se sube a `promotion/plans/`. No usa `-auto-approve` sobre un plan que no se
+revisó. Los jobs cambian de imagen; no se ejecutan.
+
+**Registrar.** Si los cuatro describes vuelven a las imágenes de `r5-baseline`, el
+`succeeded` vigente ya es ese registro: no se crea otro y no se sobrescribe (la subida
+es create-only y ese objeto tiene que seguir existiendo). Un `partial` o `failed` se
+deja como está. No se redacta a mano un `succeeded`: el contrato exige `post_verify.ok`
+y el manifiesto capturado en el apply. Cuando Cloud Run y `r5-baseline` coinciden, el
+punto de partida deja de bloquear.
+
+**Cuándo no usar el rollback del workflow.** No usarlo mientras un describe no coincida
+con el `succeeded` más reciente: `verify-starting-point` lo rechaza a propósito. No
+usarlo para completar un apply a medias ni para reintentar el mismo plan si Terraform
+dijo que el state cambió. No usarlo si en esa promoción llegó a ejecutarse
+`maps-prod-migrate` y el esquema nuevo no tolera el código anterior: ahí el camino es
+**Backups y recuperación**, no un cambio de imagen. Esta promoción no trae migraciones
+nuevas; un fallo de imágenes no justifica tocar Cloud SQL. El rollback automatizado
+hacia `r5-baseline` corresponde cuando ya hay un despliegue `succeeded` posterior y
+producción coincide con ese registro.
 
 ### Deriva fuera del release (comprobación propuesta, solo lectura)
 

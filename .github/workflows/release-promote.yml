@@ -28,14 +28,15 @@ on:
         required: false
         type: string
       phase:
-        description: verify = preflight; apply = ejecutar plan ya revisado
+        description: verify = preflight; apply = ejecutar plan ya revisado; wif-read = lecturas con la identidad de deploy
         required: true
         type: choice
         options:
           - verify
           - apply
+          - wif-read
       verify_run_id:
-        description: 'Fase apply: run id de esta misma workflow en fase verify'
+        description: 'apply: run id del verify. wif-read: run id del binding ya subido. No es un apply.'
         required: false
         type: string
       plan_sha256:
@@ -377,11 +378,11 @@ jobs:
       - name: Descargar binding y evidencia de migrate (GCS)
         run: |
           set -euo pipefail
-          gsutil cp "gs://${STATE_BUCKET}/promotion/plans/${VERIFY_RUN_ID}/${PLAN_MODE}.binding.json" plan.binding.json
+          gcloud storage cp "gs://${STATE_BUCKET}/promotion/plans/${VERIFY_RUN_ID}/${PLAN_MODE}.binding.json" plan.binding.json
           operation="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).operation||'forward'")"
           needs="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).migration?.requires_jobs_first_apply===true")"
           if [ "$operation" != "rollback" ] && [ "$needs" = "true" ] && [ "$PLAN_MODE" = "services-only" ]; then
-            gsutil cp "gs://${STATE_BUCKET}/promotion/migrate-done/${VERIFY_RUN_ID}.json" migrate-evidence.json
+            gcloud storage cp "gs://${STATE_BUCKET}/promotion/migrate-done/${VERIFY_RUN_ID}.json" migrate-evidence.json
           fi
 
       - name: Comprobaciones de fase y binding (apply gate)
@@ -411,7 +412,7 @@ jobs:
       - name: Descargar plan aprobado desde GCS
         run: |
           set -euo pipefail
-          gsutil cp "gs://${STATE_BUCKET}/promotion/plans/${VERIFY_RUN_ID}/${PLAN_MODE}.tfplan" plan.tfplan
+          gcloud storage cp "gs://${STATE_BUCKET}/promotion/plans/${VERIFY_RUN_ID}/${PLAN_MODE}.tfplan" plan.tfplan
           actual="$(sha256sum plan.tfplan | awk '{print $1}')"
           if [ "$actual" != "$PLAN_SHA256" ]; then
             echo "::error::SHA256 del plan no coincide con plan_sha256."
@@ -551,3 +552,139 @@ jobs:
             --promotion-report=promotion-bundle/promotion-report.json \
             --plan-mode="${PLAN_MODE}" \
             --outcome=failed || echo "::warning::No se pudo registrar el apply fallido; documentarlo a mano."
+
+  wif-read:
+    name: Lectura con identidad de deploy
+    if: github.ref == 'refs/heads/main' && inputs.phase == 'wif-read'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    env:
+      STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      DEPLOY_PROVIDER: ${{ vars.GCP_DEPLOY_WORKLOAD_IDENTITY_PROVIDER }}
+      DEPLOY_SA: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validar inputs
+        run: node scripts/release/validate-workflow-inputs.mjs
+
+      - name: Bloquear sin identidad de deploy configurada
+        run: |
+          set -euo pipefail
+          if [ -z "$DEPLOY_PROVIDER" ] || [ -z "$DEPLOY_SA" ] || [ -z "$STATE_BUCKET" ]; then
+            echo "::error::Falta la identidad de deploy o TF_STATE_BUCKET."
+            exit 1
+          fi
+
+      - name: Descargar el manifiesto del release-build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node scripts/release/download-release-manifest.mjs \
+            "$RELEASE_BUILD_RUN_ID" \
+            "$GIT_SHA" \
+            release-manifest.json
+
+      - name: Autenticar identidad de deploy
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_DEPLOY_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Instalar gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Leer versión de Terraform del repositorio
+        id: tfversion
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < "${TF_DIR}/.terraform-version")"
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::${TF_DIR}/.terraform-version debe ser X.Y.Z exacto."
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.tfversion.outputs.version }}
+          terraform_wrapper: false
+
+      - name: Verificar las cuatro imágenes en Artifact Registry
+        run: |
+          set -euo pipefail
+          node scripts/release/verify-release-authenticity.mjs \
+            release-manifest.json \
+            "$GIT_SHA" \
+            --gcp
+
+      - name: Leer el registro de despliegues
+        run: |
+          set -euo pipefail
+          node scripts/release/fetch-deployment-registry.mjs \
+            --bucket="${STATE_BUCKET}" \
+            --out=deployment-registry.snapshot.json
+          node --input-type=module -e "
+            import { readFileSync } from 'node:fs';
+            const rows = JSON.parse(readFileSync('deployment-registry.snapshot.json', 'utf8'));
+            if (!Array.isArray(rows) || rows.length === 0) {
+              console.error('registro vacío o inválido');
+              process.exit(1);
+            }
+            if (!rows.some((row) => row.deployment_id === 'r5-baseline' && row.outcome === 'succeeded')) {
+              console.error('el registro no tiene r5-baseline succeeded');
+              process.exit(1);
+            }
+            console.log('registro leído: ' + rows.length + ' objetos.');
+          "
+
+      - name: Leer los cuatro recursos de Cloud Run
+        run: |
+          set -euo pipefail
+          node scripts/release/verify-starting-point.mjs --live-only
+
+      - name: Leer el binding existente
+        run: |
+          set -euo pipefail
+          gcloud storage cat "gs://${STATE_BUCKET}/promotion/plans/${VERIFY_RUN_ID}/${PLAN_MODE}.binding.json" > plan.binding.json
+          node --input-type=module -e "
+            import { readFileSync } from 'node:fs';
+            const binding = JSON.parse(readFileSync('plan.binding.json', 'utf8'));
+            const fail = (message) => { console.error(message); process.exit(1); };
+            if (String(binding.verify_run_id) !== process.env.VERIFY_RUN_ID) fail('binding: verify_run_id distinto.');
+            if (binding.plan_mode !== process.env.PLAN_MODE) fail('binding: plan_mode distinto.');
+            if (binding.git_sha !== process.env.GIT_SHA) fail('binding: git_sha distinto.');
+            if (!/^[0-9a-f]{64}$/.test(String(binding.plan_sha256 ?? ''))) fail('binding: plan_sha256 inválido.');
+            console.log('binding leído y coherente con los inputs.');
+          "
+
+      - name: Terraform init y listado del state
+        run: |
+          set -euo pipefail
+          terraform -chdir="$TF_DIR" init -input=false -lockfile=readonly \
+            -backend-config="bucket=${STATE_BUCKET}"
+          terraform -chdir="$TF_DIR" state list > "$RUNNER_TEMP/state-addresses.txt"
+          while IFS= read -r addr; do
+            grep -qx "$addr" "$RUNNER_TEMP/state-addresses.txt"
+          done <<'EOF'
+          module.runtime_services.google_cloud_run_v2_service.frontend
+          module.runtime_services.google_cloud_run_v2_service.backend
+          module.runtime_jobs.google_cloud_run_v2_job.migrate
+          module.runtime_jobs.google_cloud_run_v2_job.bootstrap
+          EOF

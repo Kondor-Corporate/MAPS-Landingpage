@@ -29,8 +29,29 @@ export function validateWorkflowInputs(env) {
   const operation = value('OPERATION');
   const planMode = value('PLAN_MODE') || 'full';
 
-  if (phase !== 'verify' && phase !== 'apply') {
-    errors.push('phase debe ser verify o apply.');
+  if (phase !== 'verify' && phase !== 'apply' && phase !== 'wif-read') {
+    errors.push('phase debe ser verify, apply o wif-read.');
+  }
+  if (phase === 'wif-read') {
+    if (!GIT_SHA_RE.test(value('GIT_SHA'))) {
+      errors.push('git_sha debe ser 40 hex en minúscula.');
+    }
+    if (!NUMERIC_ID_RE.test(value('RELEASE_BUILD_RUN_ID'))) {
+      errors.push('wif-read exige release_build_run_id numérico del release-build.');
+    }
+    if (!NUMERIC_ID_RE.test(value('VERIFY_RUN_ID'))) {
+      errors.push('wif-read exige verify_run_id numérico del binding ya subido.');
+    }
+    if (!PLAN_MODES.includes(planMode)) {
+      errors.push(`plan_mode debe ser uno de: ${PLAN_MODES.join(', ')}.`);
+    }
+    if (value('PLAN_SHA256') || value('TARGET_DEPLOYMENT_ID')) {
+      errors.push('wif-read no acepta plan_sha256 ni target_deployment_id.');
+    }
+    if (!BUCKET_RE.test(value('STATE_BUCKET'))) {
+      errors.push('TF_STATE_BUCKET ausente o con formato de bucket inválido.');
+    }
+    return { ok: errors.length === 0, errors };
   }
   if (operation !== 'promote' && operation !== 'rollback') {
     errors.push('operation debe ser promote o rollback.');
