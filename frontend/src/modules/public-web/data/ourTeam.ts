@@ -45,13 +45,6 @@ export const ourTeam: OurTeamMember[] = [
     foto: '/team/Federico.webp',
   },
   {
-    id: '6',
-    nombre: 'Satya',
-    apellido: 'Dibene Marchetti',
-    puesto: 'Gestión Producción y Siniestros',
-    foto: '/team/Satya.webp',
-  },
-  {
     id: '7',
     nombre: 'Julio',
     apellido: 'Pérez',
