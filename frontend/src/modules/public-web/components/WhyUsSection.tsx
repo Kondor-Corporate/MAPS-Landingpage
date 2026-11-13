@@ -76,7 +76,7 @@ const features: Feature[] = [
     icon: <HeadsetIcon />,
     title: 'Atención Personalizada',
     description:
-      'Asesoramiento humano y experto enfocado en tus necesidades reales, con el respaldo de una gran compañía como Federación Patronal.',
+      'Asesoramiento humano y experto enfocado en tus necesidades reales, con el respaldo de compañías aseguradoras.',
   },
 ];
 
