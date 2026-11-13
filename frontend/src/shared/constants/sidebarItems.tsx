@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from 'react';
 import type { Rol } from '@/store/authStore';
-import { NOVEDADES_INTRANET_PATH, SELF_PORTAL_URL } from '@/shared/constants/dashboardLinks';
+import { NOVEDADES_INTRANET_PATH } from '@/shared/constants/dashboardLinks';
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -56,40 +56,6 @@ const LibraryIcon: ComponentType<IconProps> = (props) => (
       stroke="currentColor"
       strokeWidth="1.5"
       strokeLinecap="round"
-    />
-  </svg>
-);
-
-const ExternalIcon: ComponentType<IconProps> = (props) => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 20 20"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden
-    {...props}
-  >
-    <path
-      d="M11.25 3.75h5v5"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M16.25 3.75 9.5 10.5"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M14.5 11.5v3.25a1.75 1.75 0 0 1-1.75 1.75h-7.5a1.75 1.75 0 0 1-1.75-1.75v-7.5A1.75 1.75 0 0 1 5.25 5.5H8.5"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
     />
   </svg>
 );
@@ -229,26 +195,10 @@ export type SidebarItem = {
   disabled?: boolean;
 };
 
-function accesoSelfSidebarItem(): SidebarItem {
-  const url = SELF_PORTAL_URL;
-  if (url) {
-    return { label: 'Acceso SELF', to: url, icon: ExternalIcon, external: true };
-  }
-  return {
-    label: 'Acceso SELF',
-    to: '',
-    icon: ExternalIcon,
-    disabled: true,
-  };
-}
-
-const accesoSelfItem = accesoSelfSidebarItem();
-
 const producerItems: SidebarItem[] = [
   { label: 'Dashboard', to: '/intranet/dashboard', icon: DashboardIcon },
   { label: 'Biblioteca Digital', to: '/intranet/biblioteca', icon: LibraryIcon },
   { label: 'Novedades', to: NOVEDADES_INTRANET_PATH, icon: NewsIcon },
-  accesoSelfItem,
   { label: 'Mi Perfil', to: '/intranet/mi-perfil', icon: ProfileIcon },
 ];
 
@@ -259,7 +209,6 @@ const adminItems: SidebarItem[] = [
   { label: 'Postulaciones', to: '/admin/postulaciones', icon: PostulacionesIcon },
   { label: 'Noticias', to: '/admin/noticias', icon: NewsIcon },
   { label: 'Biblioteca Digital', to: '/admin/biblioteca', icon: LibraryIcon },
-  accesoSelfItem,
   { label: 'Mi Perfil', to: '/admin/mi-perfil', icon: ProfileIcon },
 ];
 
@@ -271,7 +220,6 @@ const superadminItems: SidebarItem[] = [
   { label: 'Administradores', to: '/admin/admins', icon: AdminsIcon },
   { label: 'Noticias', to: '/admin/noticias', icon: NewsIcon },
   { label: 'Biblioteca Digital', to: '/admin/biblioteca', icon: LibraryIcon },
-  accesoSelfItem,
   { label: 'Mi Perfil', to: '/admin/mi-perfil', icon: ProfileIcon },
 ];
 
