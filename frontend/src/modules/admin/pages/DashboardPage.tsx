@@ -1,26 +1,8 @@
 import { AccessCard } from '@/shared/components/AccessCard';
 import { DashboardGreeting } from '@/shared/components/DashboardGreeting';
 import { RecentNewsGrid } from '@/shared/components/RecentNewsGrid';
-import { BIBLIOTECA_ADMIN_PATH, NOVEDADES_ADMIN_PATH, SELF_PORTAL_URL } from '@/shared/constants/dashboardLinks';
+import { BIBLIOTECA_ADMIN_PATH, NOVEDADES_ADMIN_PATH } from '@/shared/constants/dashboardLinks';
 import { useAuthStore } from '@/store/authStore';
-
-const ShieldIcon = () => (
-  <svg
-    width="12"
-    height="12"
-    viewBox="0 0 12 12"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden
-  >
-    <path
-      d="M6 1.5 2 3v2.7c0 2.1 1.4 4 4 4.8 2.6-.8 4-2.7 4-4.8V3l-4-1.5Z"
-      stroke="currentColor"
-      strokeWidth="1.2"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
 
 const BookIcon = () => (
   <svg
@@ -48,16 +30,7 @@ export function DashboardPage() {
     <div className="flex flex-col gap-8 px-8 py-6">
       <DashboardGreeting name={greetingName} />
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <AccessCard
-          variant="self"
-          title="Acceso al Portal SELF"
-          description="Cotizá, emití y gestioná pólizas directamente en el sistema de Federación Patronal."
-          ctaLabel="Ingresar al Portal"
-          href={SELF_PORTAL_URL}
-          badge="Federación Patronal"
-          badgeIcon={<ShieldIcon />}
-        />
+      <div className="grid grid-cols-1 gap-6 md:max-w-md">
         <AccessCard
           variant="library"
           title="Biblioteca Digital"
