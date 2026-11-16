@@ -403,8 +403,8 @@ jobs:
             --automation-sha="${GITHUB_SHA}"
           )
           needs="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).migration?.requires_jobs_first_apply===true")"
-          operation="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).operation||'forward'")"
-          if [ "$needs" = "true" ] && [ "$PLAN_MODE" = "services-only" ] && [ "$operation" != "rollback" ]; then
+          report_operation="$(node -pe "JSON.parse(require('fs').readFileSync('promotion-bundle/promotion-report.json','utf8')).operation||'forward'")"
+          if [ "$needs" = "true" ] && [ "$PLAN_MODE" = "services-only" ] && [ "$report_operation" != "rollback" ]; then
             args+=(--migrate-evidence=migrate-evidence.json)
           fi
           node scripts/release/validate-promotion-apply-gate.mjs "${args[@]}"
