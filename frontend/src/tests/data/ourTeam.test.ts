@@ -3,7 +3,7 @@ import { ourTeam } from '@/modules/public-web/data/ourTeam';
 
 describe('ourTeam', () => {
   it('conserva integrantes, datos y orden sin Satya', () => {
-    expect(ourTeam.map((member) => member.id)).toEqual(['1', '2', '3', '4', '8', '5', '7']);
+    expect(ourTeam.map((member) => member.id)).toEqual(['1', '2', '3', '4', '8', '5', '6', '7']);
     expect(ourTeam).toEqual([
       {
         id: '1',
@@ -48,6 +48,13 @@ describe('ourTeam', () => {
         foto: '/team/Federico.webp',
       },
       {
+        id: '6',
+        nombre: 'Guadalupe',
+        apellido: 'Aramburu',
+        puesto: 'Back Office',
+        foto: '/team/Guadalupe.webp',
+      },
+      {
         id: '7',
         nombre: 'Julio',
         apellido: 'Pérez',
@@ -59,6 +66,5 @@ describe('ourTeam', () => {
       false,
     );
     expect(ourTeam.some((member) => member.foto?.includes('Satya.webp'))).toBe(false);
-    expect(ourTeam.some((member) => /guadalupe/i.test(member.nombre))).toBe(false);
   });
 });
