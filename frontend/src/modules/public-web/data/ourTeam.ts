@@ -45,6 +45,13 @@ export const ourTeam: OurTeamMember[] = [
     foto: '/team/Federico.webp',
   },
   {
+    id: '6',
+    nombre: 'Guadalupe',
+    apellido: 'Aramburu',
+    puesto: 'Back Office',
+    foto: '/team/Guadalupe.webp',
+  },
+  {
     id: '7',
     nombre: 'Julio',
     apellido: 'Pérez',
