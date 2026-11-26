@@ -191,6 +191,106 @@ variable "nominatim_user_agent" {
   }
 }
 
+variable "frontend_cpu" {
+  description = "vCPUs allocated to the frontend Cloud Run container."
+  type        = string
+  default     = "1"
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*$", var.frontend_cpu))
+    error_message = "frontend_cpu must be a whole number of vCPUs, such as 1."
+  }
+}
+
+variable "frontend_memory" {
+  description = "Memory allocated to the frontend Cloud Run container, such as 512Mi or 1Gi."
+  type        = string
+  default     = "512Mi"
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*(Mi|Gi)$", var.frontend_memory))
+    error_message = "frontend_memory must be a Cloud Run memory value such as 512Mi or 1Gi."
+  }
+}
+
+variable "frontend_concurrency" {
+  description = "Maximum concurrent requests per frontend instance."
+  type        = number
+  default     = 80
+
+  validation {
+    condition     = var.frontend_concurrency == floor(var.frontend_concurrency) && var.frontend_concurrency >= 1 && var.frontend_concurrency <= 1000
+    error_message = "frontend_concurrency must be a whole number from 1 to 1000."
+  }
+}
+
+variable "frontend_max_instance_count" {
+  description = "Maximum frontend instance count."
+  type        = number
+  default     = 3
+
+  validation {
+    condition     = var.frontend_max_instance_count == floor(var.frontend_max_instance_count) && var.frontend_max_instance_count >= 1
+    error_message = "frontend_max_instance_count must be a positive whole number."
+  }
+}
+
+variable "frontend_startup_cpu_boost" {
+  description = "Whether the frontend container gets an extra CPU burst during cold start."
+  type        = bool
+  default     = false
+}
+
+variable "backend_cpu" {
+  description = "vCPUs allocated to the backend Cloud Run container."
+  type        = string
+  default     = "1"
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*$", var.backend_cpu))
+    error_message = "backend_cpu must be a whole number of vCPUs, such as 1."
+  }
+}
+
+variable "backend_memory" {
+  description = "Memory allocated to the backend Cloud Run container, such as 512Mi or 1Gi."
+  type        = string
+  default     = "1Gi"
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*(Mi|Gi)$", var.backend_memory))
+    error_message = "backend_memory must be a Cloud Run memory value such as 512Mi or 1Gi."
+  }
+}
+
+variable "backend_concurrency" {
+  description = "Maximum concurrent requests per backend instance."
+  type        = number
+  default     = 40
+
+  validation {
+    condition     = var.backend_concurrency == floor(var.backend_concurrency) && var.backend_concurrency >= 1 && var.backend_concurrency <= 1000
+    error_message = "backend_concurrency must be a whole number from 1 to 1000."
+  }
+}
+
+variable "backend_max_instance_count" {
+  description = "Maximum backend instance count."
+  type        = number
+  default     = 3
+
+  validation {
+    condition     = var.backend_max_instance_count == floor(var.backend_max_instance_count) && var.backend_max_instance_count >= 1
+    error_message = "backend_max_instance_count must be a positive whole number."
+  }
+}
+
+variable "backend_startup_cpu_boost" {
+  description = "Whether the backend container gets an extra CPU burst during cold start. Backend cold starts also open a Direct VPC path and a database connection, so this defaults to true."
+  type        = bool
+  default     = true
+}
+
 variable "trust_proxy" {
   description = "TRUST_PROXY value. The initial production value is \"2\", designed for an External Application Load Balancer in front of Cloud Run. Validate it with real traffic in R5-I because rate limiting depends on req.ip. Do not set \"true\": trusting the entire X-Forwarded-For chain would accept unverified earlier hops."
   type        = string

@@ -24,6 +24,7 @@ module "database" {
   network_id                  = module.network.network_id
   private_services_range_name = module.network.private_services_range_name
   labels                      = local.labels
+  tier                        = var.database_tier
 
   depends_on = [module.network]
 }
@@ -119,6 +120,17 @@ module "runtime_services" {
 
   frontend_image = var.frontend_image
   backend_image  = var.backend_image
+
+  frontend_cpu                = var.frontend_cpu
+  frontend_memory             = var.frontend_memory
+  frontend_concurrency        = var.frontend_concurrency
+  frontend_max_instance_count = var.frontend_max_instance_count
+
+  backend_cpu                = var.backend_cpu
+  backend_memory             = var.backend_memory
+  backend_concurrency        = var.backend_concurrency
+  backend_max_instance_count = var.backend_max_instance_count
+  backend_startup_cpu_boost  = var.backend_startup_cpu_boost
 
   database_url_app_secret_version = var.database_url_app_secret_version
   jwt_secret_version              = var.jwt_secret_version

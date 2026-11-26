@@ -1039,23 +1039,99 @@ La recuperación ya se probó en una instancia independiente. Esa instancia
 temporal se eliminó. El backup manual usado en la prueba es
 `1793126953962`. La prueba no reemplazó la instancia de producción.
 
+### Backup manual obligatorio antes de cambiar el tier (R7)
+
+Cambiar `settings.tier` en `google_sql_database_instance` reinicia la
+instancia: Cloud SQL la detiene, la reconfigura con la nueva clase de
+máquina y la vuelve a levantar. Para una instancia zonal sin réplica, eso es
+una ventana de indisponibilidad del motor de minutos, no nula. Antes de
+aplicar ese cambio:
+
+1. Confirmar que el backup automático más reciente (05:00 UTC) terminó
+   bien: `gcloud sql backups list --instance=maps-prod-db --project=maps-prod-landing-page`.
+2. Tomar además un backup manual justo antes del apply, para no depender
+   solo de la ventana de las 05:00 UTC:
+   `gcloud sql backups create --instance=maps-prod-db --project=maps-prod-landing-page --description="pre-resize-r7-tier-change"`.
+3. Esperar a que ese backup quede en estado `SUCCESSFUL` antes de aplicar.
+4. Avisar a quien pueda estar usando la app en ese momento: tráfico actual
+   es bajo, pero el resize corta conexiones activas.
+
 ## Costos
 
-Estimaciones de arquitectura. No son la factura.
+Estimaciones de arquitectura con precios oficiales de la API de Cloud
+Billing Catalog para `southamerica-east1` (São Paulo), consultados el
+26/11/2026. No son la factura: para eso hace falta la factura del primer mes
+completo con el tier actual.
 
-| Pieza | Orden de magnitud |
-|-------|-------------------|
-| Cloud SQL Enterprise, zonal, `db-custom-1-3840` | unos 65–70 USD por mes |
-| Balanceador global de aplicación | unos 18 USD por mes |
-| Cloud Run | Variable según uso. Mínimo 0 en frontend y backend. |
-| GCS, Artifact Registry, Monitoring, Secret Manager | Chicos al lado de SQL y del balanceador. |
+### Cloud SQL, antes y después de R7
+
+| Partida | SKU / fuente | Precio unitario |
+|---------|--------------|------------------|
+| vCPU, Enterprise, zonal | `PostgreSQL: Zonal - vCPU` | 0,105 USD/vCPU-hora |
+| RAM, Enterprise, zonal | `PostgreSQL: Zonal - RAM` | 0,0105 USD/GiB-hora |
+| `db-f1-micro`, zonal | `PostgreSQL: Zonal - f1-micro` | 0,027 USD/hora (tarifa plana, sin cargo separado de CPU/RAM) |
+| `db-g1-small`, zonal | `PostgreSQL: Zonal - g1-small` | 0,0525 USD/hora (tarifa plana) |
+| Almacenamiento SSD | `PostgreSQL: Standard storage` | 0,51 USD/GiB-mes |
+| Backups | `Cloud SQL: Backups` | 0,12 USD/GiB-mes |
+
+Con 730 horas/mes y 10 GB de disco:
+
+| Configuración | Cómputo/mes | Disco/mes | Total aprox./mes |
+|---------------|-------------|-----------|-------------------|
+| Antes: `db-custom-1-3840` (1 vCPU + 3,75 GB) | 1×0,105×730 + 3,75×0,0105×730 ≈ 76,65 + 28,74 = **105,39 USD** | 10×0,51 ≈ 5,10 USD | **≈ 110 USD** |
+| Después: `db-f1-micro` | 0,027×730 ≈ **19,71 USD** | 5,10 USD | **≈ 25 USD** |
+| Alternativa: `db-g1-small` | 0,0525×730 ≈ **38,33 USD** | 5,10 USD | **≈ 43 USD** |
+
+Backups: con ~243 MB de datos reales, el costo de backups comprimidos es
+menor a 1 USD/mes en cualquiera de las tres opciones; no cambia la
+comparación.
+
+**Ahorro de Cloud SQL con `db-f1-micro`: ≈ 85 USD/mes (≈ 77 %) frente al
+tier anterior.**
+
+### Cloud Run, antes y después de R7
+
+Tier 2 (southamerica-east1), facturación por solicitud (`cpu_idle = true`,
+sin cambios): CPU 0,0000336 USD/vCPU-segundo, memoria 0,0000035
+USD/GiB-segundo (SKUs `Services CPU Tier 2` y `Services Memory Tier 2`).
+Con mínimo de instancias en 0 y el tráfico actual (CPU p99 del backend
+5,5 % de 1 vCPU, picos de instancias activas por debajo de 2), el costo de
+cómputo de Cloud Run hoy es de centavos por mes: el ahorro de bajar la
+memoria del backend de 1 GiB a 512 MiB es real pero, en dólares, hoy es
+marginal frente al ahorro de Cloud SQL. El beneficio principal de ese
+cambio es dejar la proporción costo/memoria correcta para cuando el tráfico
+crezca, sin tener que tocar el módulo.
+
+### Balanceador y el resto
+
+| Pieza | Orden de magnitud | Cambia en R7 |
+|-------|-------------------|--------------|
+| Balanceador global de aplicación | unos 18 USD por mes | No. Fuera de alcance. |
+| GCS, Artifact Registry, Monitoring, Secret Manager | Chicos al lado de SQL y del balanceador | No. |
+
+### Totales
+
+| | Antes de R7 | Después de R7 (con `db-f1-micro`) |
+|--|--------------|-------------------------------------|
+| Cloud SQL | ≈ 110 USD | ≈ 25 USD |
+| Cloud Run | Variable, pequeño con el tráfico actual | Igual de pequeño, con más margen de memoria |
+| Balanceador + resto | ≈ 18 USD + chico | Sin cambios |
+| **Total aproximado** | **≈ 130–135 USD/mes** | **≈ 45–50 USD/mes** |
+
+**Ahorro total estimado: ≈ 85 USD/mes, ≈ 63–65 % sobre el total anterior.**
+Esta estimación de "antes" es más alta que la de 65–70 USD/mes que figuraba
+acá: esa cifra era una aproximación de arquitectura: el precio oficial de
+cómputo zonal Enterprise (vCPU + RAM por separado) para `db-custom-1-3840`
+en São Paulo es de ≈105 USD/mes solo de cómputo, antes de disco.
 
 Presupuesto de alerta: **110 USD por mes, brutos**. `EXCLUDE_ALL_CREDITS`:
 los créditos promocionales no sirven para estimar el costo futuro. El
-presupuesto no apaga nada.
+presupuesto no apaga nada. Con el total posterior a R7 (~45–50 USD/mes), el
+presupuesto de 110 USD queda con más margen; bajarlo es una decisión de
+negocio, no un cambio de Terraform.
 
-La factura real del primer mes es la que recalibra estas cifras. No hay un
-precio final cerrado.
+La factura real del primer mes con `db-f1-micro` es la que recalibra estas
+cifras. No hay un precio final cerrado.
 
 ## Staging después del go-live
 
@@ -1100,3 +1176,148 @@ darlos por operativos está en el checklist de activación de
 cuenta de deploy, environment, baseline R5 con su registro, el primer ensayo de promoción y de
 rollback, y revisar el dry-run de retención. Hasta entonces el deploy sigue siendo el camino
 manual de «Deploys posteriores».
+
+## R7 — Optimización de costos de infraestructura (noviembre 2026)
+
+Rama `infra/cost-optimization`. Objetivo: bajar el costo fijo de Cloud SQL y
+Cloud Run mientras el tráfico es bajo y los créditos promocionales están
+por vencer, sin tocar el balanceador, Cloudflare, DNS, certificados,
+Secret Manager, VPC ni los datos de producción. El detalle de cambios está
+en [`infra/terraform/environments/production/README.md`](../infra/terraform/environments/production/README.md)
+(secciones Cloud Run y Base de datos) y en el resumen de costos más arriba.
+
+### Qué cambia
+
+- `database_tier`: `db-custom-1-3840` → `db-f1-micro`. In-place, sin
+  recrear la instancia ni la base. Riesgos de `db-f1-micro` documentados en
+  el README de producción.
+- `backend_memory`: `1Gi` → `512Mi`. In-place, nueva revisión de Cloud Run.
+- Todo lo demás (CPU de ambos servicios, concurrencia, máximo de
+  instancias, `startup_cpu_boost`, disponibilidad zonal, IP privada,
+  backups, PITR, protecciones contra eliminación) queda igual, ahora
+  expuesto como variable para no tener que tocar los módulos si hace falta
+  volver a escalar.
+
+### Drift detectado, no relacionado con R7 (no corregir en este cambio)
+
+El `terraform plan` de verificación (ver más abajo) muestra, además de los
+dos cambios de arriba, estos dos recursos marcados para destruir **porque
+ya no están en el código del módulo `build-identity`**, no por nada que
+R7 haya tocado:
+
+- `module.build_identity.google_project_iam_custom_role.build_source_bucket_getter`
+- `module.build_identity.google_storage_bucket_iam_member.submit_source_bucket_getter`
+
+Es un rol personalizado (`mapsBuildSourceBucketGetter`, permiso
+`storage.buckets.get`) y su binding sobre
+`maps-prod-landing-page-build-source`, otorgado a
+`maps-prod-build-submit`. El historial de Git de
+`infra/terraform/modules/build-identity/main.tf` no muestra ese recurso en
+ningún commit visible, así que es anterior a este cierre documentado o se
+aplicó por fuera de ese archivo. **No se investigó ni se tocó en R7**: no es
+parte del alcance (Cloud SQL y Cloud Run) y borrar un permiso de IAM sin
+confirmar si `maps-prod-build-submit` todavía lo necesita podría romper el
+submit de Cloud Build. Antes de aplicar el cambio de R7, decidir una de:
+
+1. Aplicar solo los dos recursos de R7 con `-target` (ver más abajo), dejando
+   el drift de IAM para una revisión aparte.
+2. Investigar primero si ese rol y ese binding siguen siendo necesarios y,
+   si no, incluir su baja en un cambio propio, documentado y revisado por
+   separado.
+
+No usar `-target` para esconder un cambio inesperado; esto es lo opuesto:
+el drift ya está señalado arriba, y `-target` acá sirve para no mezclar un
+cambio de IAM no revisado con el resize de base de datos.
+
+### Procedimiento de aplicación segura
+
+1. Confirmar que no hay otra promoción en curso (`release-promote.yml`) ni
+   un apply manual en progreso.
+2. Tomar el backup manual de Cloud SQL (sección «Backup manual obligatorio
+   antes de cambiar el tier» más arriba) y esperar `SUCCESSFUL`.
+3. Desde `infra/terraform/environments/production/`, con la misma versión
+   de Terraform que `.terraform-version` (`1.16.7`):
+   ```bash
+   terraform init -backend-config="bucket=BUCKET_DE_STATE"
+   terraform plan -out=r7.tfplan \
+     -target=module.database.google_sql_database_instance.main \
+     -target=module.runtime_services.google_cloud_run_v2_service.backend
+   ```
+4. Revisar `r7.tfplan` a mano: debe mostrar únicamente
+   `module.database.google_sql_database_instance.main` (`tier`) y
+   `module.runtime_services.google_cloud_run_v2_service.backend`
+   (`resources.limits.memory`) como *updated in-place*. Cualquier
+   `destroy`, `replace` o recurso fuera de esos dos detiene el apply.
+5. `terraform apply r7.tfplan`. El resize de Cloud SQL reinicia el motor:
+   esperar unos minutos de indisponibilidad de la base.
+6. Ejecutar los smoke tests de la fase 6 contra producción.
+7. Revisar Cloud Monitoring (ver métricas más abajo) durante las siguientes
+   24–48 horas antes de considerar el cambio estable.
+8. Recién después de validar, decidir el drift de IAM señalado arriba por
+   separado, y evaluar bajar `monthly_budget_usd` con la factura real.
+
+Un apply del root completo (sin `-target`) también es correcto siempre que,
+al revisar el plan, los únicos cambios *no esperados* sean los 4 recursos
+de observabilidad ya documentados como pendientes de crear (los dos uptime
+checks públicos y sus dos políticas, en «Estado» arriba) y no haya ningún
+`destroy`/`replace` fuera de lo señalado en esta sección.
+
+### Rollback
+
+Ambos cambios son variables; volver atrás es otro plan/apply, no una
+restauración de backup, salvo que el resize de Cloud SQL deje la instancia
+en un estado inesperado.
+
+- **Cloud Run backend:** `backend_memory = "1Gi"` en una nueva corrida de
+  `terraform plan`/`apply`. Sin pérdida de datos; nueva revisión de Cloud
+  Run.
+- **Cloud SQL:** `database_tier = "db-custom-1-3840"` (o `"db-g1-small"`
+  como paso intermedio) y volver a aplicar. In-place, sin tocar backups,
+  PITR ni los datos. Si el resize hacia abajo deja la instancia con errores
+  (por ejemplo, falla de memoria durante el reinicio), subir el tier es la
+  vía de recuperación antes de considerar un restore desde backup.
+- **Restore desde backup:** solo si el resize corrompe la instancia de
+  forma que un cambio de tier no resuelve. Seguir la estrategia de restore
+  de la sección «Backups y recuperación»: instancia nueva, nunca pisar
+  primero la de producción.
+
+### Métricas a vigilar después del cambio
+
+Las alertas de Cloud SQL y Cloud Run ya existen (sección Observabilidad);
+revisarlas con más atención en las primeras 48–72 horas:
+
+- `cloudsql.googleapis.com/database/cpu/utilization`: en `db-f1-micro`,
+  CPU compartida. Un sostenido por encima del umbral de warning (70 %)
+  puede ser contención de otros tenants, no solo carga propia.
+- `cloudsql.googleapis.com/database/memory/utilization`: con 614 MB
+  totales, un acercamiento al 90 % (umbral crítico ya configurado) es más
+  urgente que en la instancia anterior.
+- `cloudsql.googleapis.com/database/postgresql/num_backends`: vigilar
+  contra el nuevo techo real de 25 conexiones (`max_connections` de
+  `db-f1-micro`), no contra los umbrales de 60/80 pensados para el tier
+  anterior (100 conexiones). Recalibrar esos dos umbrales a, por ejemplo,
+  15/20 en `modules/observability/main.tf` antes de confiar en ellos para
+  esta instancia.
+- `cloudsql.googleapis.com/database/up`: confirma que el resize no dejó la
+  instancia caída.
+- `run.googleapis.com/container/memory/utilizations` del backend: confirmar
+  que 512 MiB no genera `OOMKilled` bajo tráfico real (p99 de memoria,
+  filtrado por `service_name=maps-prod-backend`).
+- Latencia y tasa de error del backend (alertas ya creadas): un aumento
+  sostenido tras el cambio de tier señala que `db-f1-micro` no alcanza y
+  conviene subir a `db-g1-small`.
+
+### Validación ejecutada en este cierre
+
+- `terraform fmt -recursive`: sin cambios pendientes de formato.
+- `terraform validate` (Terraform 1.16.7, el fijado por
+  `.terraform-version`): válido.
+- `terraform plan` real contra el state de producción
+  (`maps-prod-landing-page-tfstate-998773244006`), con las variables reales
+  del proyecto leídas de GCP (no inventadas): confirma que
+  `google_sql_database_instance.main` y
+  `google_cloud_run_v2_service.backend` se actualizan *in-place*, sin
+  `destroy` ni `replace`, y que ningún otro recurso de R7 cambia. El plan
+  completo (sin `-target`) también mostró el drift de IAM y los 4 recursos
+  de observabilidad pendientes descritos arriba; ninguno de los dos es
+  nuevo ni lo introdujo R7.

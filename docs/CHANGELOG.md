@@ -45,6 +45,7 @@ Entregas posteriores a la etapa documentada antigua (docs vivos + Docker + auth 
 
 ### Changed
 
+- Optimización de costos de infraestructura (R7, rama `infra/cost-optimization`, noviembre 2026): Cloud SQL baja de `db-custom-1-3840` a `db-f1-micro` (variable `database_tier`, cambio in-place, sin tocar datos, backups ni PITR) y el backend de Cloud Run baja de 1 GiB a 512 MiB de memoria (variable `backend_memory`), tras 14 días de métricas reales que muestran uso muy por debajo de ambos techos. CPU, memoria, concurrencia y máximo de instancias de ambos servicios de Cloud Run quedan parametrizados en el root para escalar sin editar `runtime-services`. No se tocó el balanceador, Cloudflare, DNS, Secret Manager, VPC ni la arquitectura de autenticación. Ver `docs/GCP_PRODUCTION_RUNBOOK.md#r7--optimización-de-costos-de-infraestructura-noviembre-2026`.
 - Web pública: copy y flujo de conversión, footer/SEO básico de landing, sección institucional "Nuestro equipo" con datos estáticos (`OurTeamSection`; no es la red de asesores del mapa).
 - Estabilización QA posterior a noticias/mapa/credenciales: cookies/host canónico local, biblioteca demo y pulido de intranet/admin.
 - El cambio de contraseña propia deja de ser un flujo del dominio Productor: vive en Auth (service, schema, limiter y formulario compartido). Productor, Admin y Superadmin usan el mismo formulario; tras el éxito se limpia el auth store y se vuelve a login, sin `POST /auth/logout` (D1A).
