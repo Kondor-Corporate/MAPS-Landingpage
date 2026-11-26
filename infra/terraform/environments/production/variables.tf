@@ -172,6 +172,71 @@ variable "bootstrap_admin_password_secret_version" {
   }
 }
 
+variable "frontend_cpu" {
+  description = "vCPUs for the frontend Cloud Run container. Exposed here so scaling it later does not require editing the runtime-services module."
+  type        = string
+  default     = "1"
+}
+
+variable "frontend_memory" {
+  description = "Memory for the frontend Cloud Run container."
+  type        = string
+  default     = "512Mi"
+}
+
+variable "frontend_concurrency" {
+  description = "Maximum concurrent requests per frontend instance."
+  type        = number
+  default     = 80
+}
+
+variable "frontend_max_instance_count" {
+  description = "Maximum frontend instance count."
+  type        = number
+  default     = 3
+}
+
+variable "backend_cpu" {
+  description = "vCPUs for the backend Cloud Run container."
+  type        = string
+  default     = "1"
+}
+
+variable "backend_memory" {
+  description = "Memory for the backend Cloud Run container. Lowered from the original 1Gi: 14 days of production metrics show peak container memory utilization at 6.9% of 1Gi (about 70 MB), so 512Mi keeps roughly 7x headroom. Raise it back here if a future workload needs more, without touching the module."
+  type        = string
+  default     = "512Mi"
+}
+
+variable "backend_concurrency" {
+  description = "Maximum concurrent requests per backend instance."
+  type        = number
+  default     = 40
+}
+
+variable "backend_max_instance_count" {
+  description = "Maximum backend instance count."
+  type        = number
+  default     = 3
+}
+
+variable "backend_startup_cpu_boost" {
+  description = "Whether the backend gets an extra CPU burst during cold start. Kept true: with min_instance_count 0, backend cold starts already pay for a Direct VPC attach and a new Cloud SQL connection, and the measured cost delta from the boost is a small fraction of a cent per cold start, not worth the added latency risk."
+  type        = bool
+  default     = true
+}
+
+variable "database_tier" {
+  description = "Cloud SQL machine tier for maps-prod-db. db-f1-micro (shared CPU, 614 MB RAM, max_connections 25) is the lowest-cost option while credits run low and traffic stays light; it has no SLA. db-g1-small (shared CPU, 1.7 GB RAM, max_connections 50) is a safer step down if f1-micro proves insufficient. A db-custom-X-Y value restores a dedicated-CPU tier. Changing this resizes the existing instance in place; it does not replace it."
+  type        = string
+  default     = "db-f1-micro"
+
+  validation {
+    condition     = contains(["db-f1-micro", "db-g1-small"], var.database_tier) || can(regex("^db-custom-[1-9][0-9]*-[1-9][0-9]*$", var.database_tier))
+    error_message = "database_tier must be db-f1-micro, db-g1-small, or a Cloud SQL custom machine type such as db-custom-1-3840."
+  }
+}
+
 variable "terraform_state_bucket_name" {
   description = "GCS bucket for Terraform state (backend GCS). Required on every plan/apply. Pass via gitignored tfvars or -var; never commit the name."
   type        = string

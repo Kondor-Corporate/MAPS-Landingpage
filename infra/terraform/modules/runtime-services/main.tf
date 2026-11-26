@@ -9,11 +9,11 @@ resource "google_cloud_run_v2_service" "frontend" {
   template {
     service_account                  = var.frontend_service_account_email
     timeout                          = "60s"
-    max_instance_request_concurrency = 80
+    max_instance_request_concurrency = var.frontend_concurrency
 
     scaling {
       min_instance_count = 0
-      max_instance_count = 3
+      max_instance_count = var.frontend_max_instance_count
     }
 
     containers {
@@ -25,11 +25,11 @@ resource "google_cloud_run_v2_service" "frontend" {
 
       resources {
         limits = {
-          cpu    = "1"
-          memory = "512Mi"
+          cpu    = var.frontend_cpu
+          memory = var.frontend_memory
         }
         cpu_idle          = true
-        startup_cpu_boost = false
+        startup_cpu_boost = var.frontend_startup_cpu_boost
       }
 
       env {
@@ -51,12 +51,12 @@ resource "google_cloud_run_v2_service" "backend" {
   template {
     service_account                  = var.backend_service_account_email
     timeout                          = "60s"
-    max_instance_request_concurrency = 40
+    max_instance_request_concurrency = var.backend_concurrency
     execution_environment            = "EXECUTION_ENVIRONMENT_GEN2"
 
     scaling {
       min_instance_count = 0
-      max_instance_count = 3
+      max_instance_count = var.backend_max_instance_count
     }
 
     vpc_access {
@@ -77,11 +77,11 @@ resource "google_cloud_run_v2_service" "backend" {
 
       resources {
         limits = {
-          cpu    = "1"
-          memory = "1Gi"
+          cpu    = var.backend_cpu
+          memory = var.backend_memory
         }
         cpu_idle          = true
-        startup_cpu_boost = true
+        startup_cpu_boost = var.backend_startup_cpu_boost
       }
 
       env {

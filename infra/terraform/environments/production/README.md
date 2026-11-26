@@ -79,12 +79,26 @@ protection activada.
 
 | | Frontend `maps-prod-frontend` | Backend `maps-prod-backend` |
 |--|-------------------------------|-----------------------------|
-| CPU / memoria | 1 / 512 MiB | 1 / 1 GiB |
+| CPU / memoria | 1 / 512 MiB | 1 / 512 MiB |
 | Concurrencia | 80 | 40 |
 | Entorno de ejecución | el default del recurso | `GEN2` |
 | Startup CPU boost | no | sí |
 | VPC | no | Direct VPC, `PRIVATE_RANGES_ONLY` |
 | Service account | `maps-prod-frontend` | `maps-prod-backend` |
+
+CPU, memoria, concurrencia, máximo de instancias y `startup_cpu_boost` de
+ambos servicios son variables del root (`frontend_cpu`, `frontend_memory`,
+`frontend_concurrency`, `frontend_max_instance_count`, `backend_cpu`,
+`backend_memory`, `backend_concurrency`, `backend_max_instance_count`,
+`backend_startup_cpu_boost`), con default igual al valor desplegado. Escalar
+hacia arriba o abajo no requiere editar el módulo `runtime-services`.
+
+La memoria del backend bajó de 1 GiB a 512 MiB (R7, noviembre 2026): 14 días
+de métricas de Cloud Monitoring muestran un uso máximo de memoria del 6,9 %
+sobre 1 GiB (~70 MB), así que 512 MiB deja margen de sobra. El `startup_cpu_boost`
+del backend se mantiene en `true`: con mínimo de instancias en `0`, cada cold
+start ya paga el adjunto a Direct VPC y una conexión nueva a Cloud SQL, y el
+costo adicional del boost es una fracción de centavo por cold start.
 
 El frontend solo recibe `BACKEND_ORIGIN` = `public_origin`.
 
@@ -133,7 +147,7 @@ Instancia `maps-prod-db`. Base lógica `maps_asesores_prod`.
 |--------|-------|
 | Motor | PostgreSQL 17 (`POSTGRES_17`) |
 | Edición | Enterprise. No es Enterprise Plus. |
-| Tier | `db-custom-1-3840` (1 vCPU, 3,75 GB) |
+| Tier | `db-f1-micro` (CPU compartida, 614 MB). Variable `database_tier`. |
 | Disponibilidad | `ZONAL`. Sin alta disponibilidad. |
 | Disco | 10 GB `PD_SSD`, autoresize |
 | IP | Solo privada. `ipv4_enabled = false`. |
@@ -147,6 +161,36 @@ Terraform ignora cambios de `disk_size` para no pelear con el autoresize.
 
 No crea usuarios ni contraseñas SQL. La IP privada sale en el output
 `database_private_ip`.
+
+`database_tier` bajó de `db-custom-1-3840` a `db-f1-micro` (R7, noviembre
+2026): 14 días de métricas de Cloud Monitoring muestran CPU máxima de 14,6 %
+sobre 1 vCPU dedicado y como máximo 3 backends PostgreSQL simultáneos. El
+dataset (`~243 MB`) entra entero en los 614 MB de RAM de `db-f1-micro`.
+`db-f1-micro` requiere edición `ENTERPRISE` (no `ENTERPRISE_PLUS`), que ya es
+el default del módulo; es compatible con PostgreSQL 17 y con el cambio
+in-place confirmado por `terraform plan` (sin reemplazo de instancia).
+
+Riesgos de `db-f1-micro` en producción, documentados y aceptados para esta
+etapa de bajo tráfico:
+
+- **Sin SLA.** Google no garantiza disponibilidad para tiers de CPU
+  compartida.
+- **CPU compartida ("burstable").** Bajo contención de otros tenants en el
+  mismo host físico, el rendimiento puede degradarse de forma impredecible.
+  No hay aislamiento de CPU como en `db-custom-*`.
+- **`max_connections` baja a 25** (lo fija Cloud SQL según la memoria de la
+  instancia; no hay flag explícito). Con 3 backends simultáneos observados,
+  hay margen, pero exige fijar `connection_limit` en la URL de Prisma (ver
+  `backend/.env.example`) para no acercarse al tope con varias instancias de
+  Cloud Run activas.
+- **Memoria ajustada.** 614 MB totales, compartidos entre el motor
+  PostgreSQL, caché y el sistema operativo. Un crecimiento de datos o de
+  tráfico más allá de lo observado puede requerir subir a `db-g1-small` (1,7
+  GB, `max_connections` 50) o volver a un `db-custom-*`.
+
+Volver a un tier mayor es un cambio de una sola variable
+(`database_tier = "db-g1-small"` o `"db-custom-1-3840"`), aplicado in-place,
+sin pérdida de datos.
 
 ## Storage
 
@@ -375,6 +419,16 @@ que existir antes del primer plan. Los payloads no van en `terraform.tfvars`.
 |----------|---------|----------------|
 | `region` | `southamerica-east1` | Siempre. La validación rechaza otra región. |
 | `monthly_budget_usd` | `110` | Al aplicar `cost-controls`. Entero positivo, dólares brutos. |
+| `database_tier` | `db-f1-micro` | Al aplicar `database`. También acepta `db-g1-small` o `db-custom-X-Y`. |
+| `frontend_cpu` | `1` | Al aplicar `runtime_services`. |
+| `frontend_memory` | `512Mi` | Al aplicar `runtime_services`. |
+| `frontend_concurrency` | `80` | Al aplicar `runtime_services`. |
+| `frontend_max_instance_count` | `3` | Al aplicar `runtime_services`. |
+| `backend_cpu` | `1` | Al aplicar `runtime_services`. |
+| `backend_memory` | `512Mi` | Al aplicar `runtime_services`. Antes `1Gi`; ver sección Cloud Run. |
+| `backend_concurrency` | `40` | Al aplicar `runtime_services`. |
+| `backend_max_instance_count` | `3` | Al aplicar `runtime_services`. |
+| `backend_startup_cpu_boost` | `true` | Al aplicar `runtime_services`. |
 
 ### Sin default
 

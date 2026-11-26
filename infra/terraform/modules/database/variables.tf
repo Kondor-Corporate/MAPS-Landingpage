@@ -84,13 +84,13 @@ variable "edition" {
 }
 
 variable "tier" {
-  description = "Cloud SQL machine tier. Default is 1 vCPU and 3.75 GB RAM."
+  description = "Cloud SQL machine tier. Default is 1 vCPU and 3.75 GB RAM. Shared-core tiers (db-f1-micro, db-g1-small) are accepted for Enterprise edition, non-HA, low-traffic instances; they have no SLA and share CPU with other tenants."
   type        = string
   default     = "db-custom-1-3840"
 
   validation {
-    condition     = can(regex("^db-custom-[1-9][0-9]*-[1-9][0-9]*$", var.tier))
-    error_message = "tier must be a Cloud SQL custom machine type such as db-custom-1-3840."
+    condition     = contains(["db-f1-micro", "db-g1-small"], var.tier) || can(regex("^db-custom-[1-9][0-9]*-[1-9][0-9]*$", var.tier))
+    error_message = "tier must be db-f1-micro, db-g1-small, or a Cloud SQL custom machine type such as db-custom-1-3840."
   }
 }
 
