@@ -48,10 +48,41 @@ test('deploy-identity: OIDC exige IDs numéricos, workflow promote y environment
   assert.match(tf, /!strcontains\(local\.promote_attribute_condition, "release-build.yml"\)/);
 });
 
+function assertDeployIdentityWithoutCount(main) {
+  // Terraform fmt leaves top-level closing braces at the start of the line.
+  const block = main.match(/^module "deploy_identity"\s*\{([\s\S]*?)^\}/m);
+  assert.ok(block, 'El módulo deploy_identity debe existir');
+  assert.doesNotMatch(block[1], /^\s*count\s*=/m);
+}
+
+test('deploy_identity: el contrato ignora count de otros módulos y detecta count propio', () => {
+  const withoutCount = [
+    'module "deploy_identity" {',
+    '  source = "../../modules/deploy-identity"',
+    '}',
+    'module "runtime_services" {',
+    '  frontend_max_instance_count = 3',
+    '  backend_max_instance_count = 3',
+    '  count = 1',
+    '}',
+  ].join('\n');
+
+  assert.doesNotThrow(() => assertDeployIdentityWithoutCount(withoutCount));
+  assert.throws(() =>
+    assertDeployIdentityWithoutCount(
+      withoutCount.replace(
+        '  source = "../../modules/deploy-identity"',
+        '  count = 1\n  source = "../../modules/deploy-identity"',
+      ),
+    ),
+  );
+  assert.throws(() => assertDeployIdentityWithoutCount('module "runtime_services" {}'));
+});
+
 test('producción: deploy_identity sin count condicional', () => {
   const main = read('infra/terraform/environments/production/main.tf');
   const vars = read('infra/terraform/environments/production/variables.tf');
-  assert.doesNotMatch(main, /module "deploy_identity"[\s\S]*count\s*=/);
+  assertDeployIdentityWithoutCount(main);
   assert.doesNotMatch(vars, /terraform_state_bucket_name[\s\S]*default\s*=\s*""/);
   assert.match(vars, /must not be blank/);
 });
